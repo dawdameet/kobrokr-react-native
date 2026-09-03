@@ -30,10 +30,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Prevent infinite loop
+    // Prevent infinite loop and don't intercept login requests
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login')
     ) {
       originalRequest._retry = true;
 

@@ -82,7 +82,7 @@ export default function TenantDashboard() {
 
         {/* Stat Cards */}
         <View style={styles.statsContainer}>
-          <Pressable style={styles.statCard}>
+          <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
             <Text style={styles.statLabel}>Saved Properties</Text>
             {savedCount === null ? (
               <ActivityIndicator size="small" color="#9333EA" style={{ marginTop: 8 }} />
@@ -94,7 +94,7 @@ export default function TenantDashboard() {
             </View>
           </Pressable>
 
-          <Pressable style={styles.statCard}>
+          <Pressable style={styles.statCard} onPress={() => router.push('/search')}>
             <Text style={styles.statLabel}>Browse Properties</Text>
             <Text style={[styles.statValue, { color: '#2563EB' }]}>Search</Text>
             <View style={[styles.badge, { backgroundColor: '#DBEAFE' }]}>
@@ -161,6 +161,9 @@ export default function TenantDashboard() {
           </View>
         )}
 
+        {/* Spacer to push logout button to the absolute bottom */}
+        <View style={{ flex: 1 }} />
+
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Log out</Text>
         </Pressable>
@@ -177,6 +180,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
+    flexGrow: 1,
   },
   header: {
     marginBottom: 24,

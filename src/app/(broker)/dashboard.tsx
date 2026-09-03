@@ -113,7 +113,7 @@ export default function BrokerDashboard() {
             </View>
           </Pressable>
 
-          <Pressable style={styles.statCard}>
+          <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
             <Text style={styles.statLabel}>Saved Properties</Text>
             {stats.saved === null ? (
               <ActivityIndicator size="small" color="#9333EA" style={{ marginTop: 8 }} />
@@ -144,7 +144,7 @@ export default function BrokerDashboard() {
             <Ionicons name="heart-outline" size={16} color="#374151" />
             <Text style={[styles.actionButtonText, { color: '#374151' }]}>Saved</Text>
           </Pressable>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/profile')}>
+          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6, width: '100%' }]} onPress={() => router.push('/profile')}>
             <Ionicons name="person-outline" size={16} color="#374151" />
             <Text style={[styles.actionButtonText, { color: '#374151' }]}>Profile</Text>
           </Pressable>
@@ -184,6 +184,9 @@ export default function BrokerDashboard() {
           </View>
         )}
 
+        {/* Spacer to push logout button to the absolute bottom */}
+        <View style={{ flex: 1 }} />
+
         <Pressable style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Log out</Text>
         </Pressable>
@@ -200,6 +203,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
+    flexGrow: 1,
   },
   header: {
     marginBottom: 24,
