@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../../lib/storage';
 import { router } from 'expo-router';
 import api from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
+import { clearSession } from '../../lib/auth';
+import { formatPrice } from '../../lib/utils';
 
 export default function BrokerDashboard() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ listings: null as null | number, active: null as null | number, saved: null as null | number });
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [nlQuery, setNlQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -46,23 +49,22 @@ export default function BrokerDashboard() {
     router.push({ pathname: '/search', params: { q: nlQuery.trim() } });
   };
 
-  const formatPrice = (p: number) => {
-    if (!p) return '—';
-    if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
-    if (p >= 100000) return `₹${(p / 100000).toFixed(1)} L`;
-    return `₹${p.toLocaleString()}`;
-  };
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, []);
 
   const handleLogout = async () => {
-    await storage.remove('access_token');
-    await storage.remove('refresh_token');
-    await storage.remove('user');
+    await clearSession();
     router.replace('/login');
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         
         {/* Header */}
         <View style={styles.header}>
@@ -158,9 +160,10 @@ export default function BrokerDashboard() {
               <Text style={styles.recentViewAll}>View all →</Text>
             </View>
             <View style={styles.recentList}>
-              {recentListings.map((p, index) => {
+              {recentListings.map((p) => {
+                const coverImg = p.property_images?.find((img: any) => img.is_cover)?.url || p.property_images?.[0]?.url;
                 return (
-                  <Pressable key={index} style={styles.propertyCard} onPress={() => router.push(`/properties/${p.id}`)}>
+                  <Pressable key={p.id} style={styles.propertyCard} onPress={() => router.push(`/properties/${p.id}`)}>
                     <View style={styles.propertyDetails}>
                       <Text style={styles.propertyTitle} numberOfLines={1}>{p.title}</Text>
                       <Text style={styles.propertyLocality}>{p.locality}, {p.city}</Text>

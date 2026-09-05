@@ -1,14 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { storage } from '../../lib/storage';
+import { clearSession } from '../../lib/auth';
 import { router } from 'expo-router';
 
 export default function OnboardingScreen() {
   const handleLogout = async () => {
-    await storage.remove('access_token');
-    await storage.remove('refresh_token');
-    await storage.remove('user');
+    await clearSession();
     router.replace('/login');
   };
 

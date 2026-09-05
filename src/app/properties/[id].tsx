@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Linking, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
-
-const { width } = Dimensions.get('window');
+import { formatPrice } from '../../lib/utils';
 
 export default function PropertyDetailScreen() {
+  const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams();
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -100,13 +100,6 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  const formatPrice = (p: number) => {
-    if (!p) return '—';
-    if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
-    if (p >= 100000) return `₹${(p / 100000).toFixed(1)} L`;
-    return `₹${p.toLocaleString()}`;
-  };
-
   const handleCall = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
   };
@@ -156,11 +149,11 @@ export default function PropertyDetailScreen() {
           {images.length > 0 ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {images.map((img: any, idx: number) => (
-                <Image key={idx} source={{ uri: img.url }} style={styles.galleryImage} />
+                <Image key={idx} source={{ uri: img.url }} style={[styles.galleryImage, { width, height: width * 0.75 }]} />
               ))}
             </ScrollView>
           ) : (
-            <View style={styles.galleryPlaceholder}>
+            <View style={[styles.galleryPlaceholder, { width, height: width * 0.75 }]}>
               <Ionicons name="image-outline" size={48} color="#D1D5DB" />
               <Text style={styles.galleryPlaceholderText}>No images available</Text>
             </View>
@@ -430,14 +423,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   imageGallery: {
-    width: width,
-    height: width * 0.75,
     backgroundColor: '#F3F4F6',
     position: 'relative',
   },
   galleryImage: {
-    width: width,
-    height: width * 0.75,
     resizeMode: 'cover',
   },
   galleryPlaceholder: {

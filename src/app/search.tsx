@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
+import { clearSession } from '../lib/auth';
+import { formatPrice } from '../lib/utils';
 
 const TYPES = ['apartment', 'house', 'villa', 'plot', 'office', 'shop', 'warehouse', 'other'];
 const LISTING_TYPES = [{ value: '', label: 'Any' }, { value: 'sale', label: 'Buy' }, { value: 'rent', label: 'Rent' }];
@@ -81,13 +83,6 @@ export default function SearchScreen() {
     if (hasMore && !loadingMore && !loading) {
       runSearch(page + 1, true);
     }
-  };
-
-  const formatPrice = (p: number) => {
-    if (!p) return '—';
-    if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
-    if (p >= 100000) return `₹${(p / 100000).toFixed(1)} L`;
-    return `₹${p.toLocaleString()}`;
   };
 
   const renderPropertyCard = ({ item: p }: { item: any }) => {

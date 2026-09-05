@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
+import { clearSession } from '../lib/auth';
+import { formatPrice } from '../lib/utils';
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
@@ -98,13 +100,6 @@ export default function SavedScreen() {
     } catch (e) {
       Alert.alert('Error', 'Failed to remove from collection');
     }
-  };
-
-  const formatPrice = (p: number) => {
-    if (!p) return '—';
-    if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
-    if (p >= 100000) return `₹${(p / 100000).toFixed(1)} L`;
-    return `₹${p.toLocaleString()}`;
   };
 
   // --- Renderers ---

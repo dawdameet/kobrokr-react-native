@@ -19,17 +19,8 @@ export const storage = {
   remove: async (key) => {
     try {
       await AsyncStorage.removeItem(key);
-    } catch {
-      // Ignore
+    } catch (error) {
+      console.error('Error removing data', error);
     }
-  }
-};
-
-export const syncStorage = {
-  // Simple in-memory fallback for synchronous access if absolutely needed before async loads
-  // However, it's recommended to await storage.get()
-  _cache: {},
-  get: (key) => syncStorage._cache[key] || null,
-  set: (key, value) => { syncStorage._cache[key] = value; },
-  remove: (key) => { delete syncStorage._cache[key]; }
+  },
 };
