@@ -27,10 +27,9 @@ export default function ProfileScreen() {
     init();
   }, []);
 
-  const fetchProfile = async (role: string) => {
+  const fetchProfile = async (_role: string) => {
     try {
-      const endpoint = role === 'tenant' ? '/tenant/profile' : '/broker/profile';
-      const { data } = await api.get(endpoint);
+      const { data } = await api.get('/auth/profile');
       setProfile(data);
     } catch (e) {
       setError('Failed to load profile');
@@ -49,7 +48,7 @@ export default function ProfileScreen() {
           await storage.remove('access_token');
           await storage.remove('refresh_token');
           await storage.remove('user');
-          router.replace('/(auth)/login');
+          router.replace('/login');
         }
       }
     ]);
