@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
+import SubscriptionWidget from '../components/SubscriptionWidget';
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
@@ -134,20 +135,14 @@ export default function ProfileScreen() {
 
         {/* Action Section */}
         <View style={styles.card}>
-          <Pressable style={styles.menuItem} onPress={() => Alert.alert('Coming Soon', 'Edit profile will be available in a future update.')}>
+          <Pressable style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => Alert.alert('Coming Soon', 'Edit profile will be available in a future update.')}>
             <Ionicons name="create-outline" size={20} color="#374151" />
             <Text style={styles.menuItemText}>Edit Profile</Text>
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
           </Pressable>
-          
-          {userRole === 'broker' && (
-            <Pressable style={styles.menuItem} onPress={() => router.push('/(broker)/subscription')}>
-              <Ionicons name="star-outline" size={20} color="#374151" />
-              <Text style={styles.menuItemText}>My Subscription</Text>
-              <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-            </Pressable>
-          )}
         </View>
+
+        {userRole === 'broker' && <SubscriptionWidget />}
 
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />

@@ -25,15 +25,12 @@ export default function BottomNav() {
     { to: '/my-listings',    label: 'My Listings',  icon: 'list-outline' as const, activeIcon: 'list' as const },
     { to: '/search',                  label: 'Search',       icon: 'search-outline' as const, activeIcon: 'search' as const },
     { to: '/saved',                   label: 'Saved',        icon: 'heart-outline' as const, activeIcon: 'heart' as const },
-    { to: '/profile',                 label: 'Profile',      icon: 'person-outline' as const, activeIcon: 'person' as const },
-    { to: '/subscription',   label: 'Subscription', icon: 'card-outline' as const, activeIcon: 'card' as const },
   ];
 
   const tenantNavItems = [
     { to: '/dashboard',      label: 'Home',         icon: 'grid-outline' as const, activeIcon: 'grid' as const },
     { to: '/search',                  label: 'Search',       icon: 'search-outline' as const, activeIcon: 'search' as const },
     { to: '/saved',                   label: 'Saved',        icon: 'heart-outline' as const, activeIcon: 'heart' as const },
-    { to: '/profile',                 label: 'Profile',      icon: 'person-outline' as const, activeIcon: 'person' as const },
   ];
 
   const navItems = role === 'broker' ? brokerNavItems : tenantNavItems;
@@ -50,8 +47,6 @@ export default function BottomNav() {
       router.replace(role === 'broker' ? '/(broker)/dashboard' : '/(tenant)/dashboard');
     } else if (to === '/my-listings') {
       router.replace('/(broker)/my-listings');
-    } else if (to === '/subscription') {
-      router.replace('/(broker)/subscription');
     } else {
       router.replace(to as any);
     }

@@ -54,11 +54,6 @@ export default function BrokerDashboard() {
     fetchData().finally(() => setRefreshing(false));
   }, []);
 
-  const handleLogout = async () => {
-    await clearSession();
-    router.replace('/login');
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
@@ -68,7 +63,12 @@ export default function BrokerDashboard() {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logoText}>kobrokr</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={[styles.logoText, { marginBottom: 0 }]}>kobrokr</Text>
+            <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
+              <Ionicons name="person-circle-outline" size={32} color="#111827" />
+            </Pressable>
+          </View>
           <Text style={styles.title}>
             Welcome back{user?.email ? `, ${user.email.split('@')[0]}` : ''} 👋
           </Text>
@@ -90,7 +90,7 @@ export default function BrokerDashboard() {
         </View>
 
         {/* Stat Cards */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScroll} contentContainerStyle={styles.statsContainer}>
+        <View style={styles.statsContainer}>
           <Pressable style={styles.statCard} onPress={() => router.push('/(broker)/my-listings')}>
             <Text style={styles.statLabel}>Total Listings</Text>
             {stats.listings === null ? (
@@ -125,30 +125,6 @@ export default function BrokerDashboard() {
             <View style={[styles.badge, { backgroundColor: '#F3E8FF' }]}>
               <Text style={[styles.badgeText, { color: '#9333EA' }]}>View →</Text>
             </View>
-          </Pressable>
-        </ScrollView>
-
-        {/* Quick Actions */}
-        <View style={styles.actionsGrid}>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#2563EB', flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/(broker)/add-property')}>
-            <Ionicons name="add-outline" size={16} color="#FFFFFF" />
-            <Text style={[styles.actionButtonText, { color: '#FFFFFF' }]}>Add Property</Text>
-          </Pressable>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/(broker)/my-listings')}>
-            <Ionicons name="list-outline" size={16} color="#374151" />
-            <Text style={[styles.actionButtonText, { color: '#374151' }]}>My Listings</Text>
-          </Pressable>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/search')}>
-            <Ionicons name="search-outline" size={16} color="#374151" />
-            <Text style={[styles.actionButtonText, { color: '#374151' }]}>Search</Text>
-          </Pressable>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6 }]} onPress={() => router.push('/saved')}>
-            <Ionicons name="heart-outline" size={16} color="#374151" />
-            <Text style={[styles.actionButtonText, { color: '#374151' }]}>Saved</Text>
-          </Pressable>
-          <Pressable style={[styles.actionButton, { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', flexDirection: 'row', gap: 6, width: '100%' }]} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={16} color="#374151" />
-            <Text style={[styles.actionButtonText, { color: '#374151' }]}>Profile</Text>
           </Pressable>
         </View>
 
@@ -186,13 +162,6 @@ export default function BrokerDashboard() {
             </View>
           </View>
         )}
-
-        {/* Spacer to push logout button to the absolute bottom */}
-        <View style={{ flex: 1 }} />
-
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Log out</Text>
-        </Pressable>
 
       </ScrollView>
     </SafeAreaView>
@@ -255,15 +224,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  statsScroll: {
-    overflow: 'visible',
+  statsContainer: {
+    gap: 16,
     marginBottom: 24,
   },
-  statsContainer: {
-    gap: 12,
-  },
   statCard: {
-    width: 140,
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
@@ -288,23 +254,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '500',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButton: {
-    width: '47%',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionButtonText: {
-    fontSize: 14,
     fontWeight: '500',
   },
   recentContainer: {

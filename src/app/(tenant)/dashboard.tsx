@@ -42,10 +42,10 @@ export default function TenantDashboard() {
     router.push({ pathname: '/search', params: { q: nlQuery.trim() } });
   };
 
-  const handleLogout = async () => {
-    await clearSession();
-    router.replace('/login');
-  };
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -56,7 +56,12 @@ export default function TenantDashboard() {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logoText}>kobrokr</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={[styles.logoText, { marginBottom: 0 }]}>kobrokr</Text>
+            <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
+              <Ionicons name="person-circle-outline" size={32} color="#111827" />
+            </Pressable>
+          </View>
           <Text style={styles.title}>
             Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
           </Text>
@@ -97,22 +102,6 @@ export default function TenantDashboard() {
             <View style={[styles.badge, { backgroundColor: '#DBEAFE' }]}>
               <Text style={[styles.badgeText, { color: '#2563EB' }]}>Start →</Text>
             </View>
-          </Pressable>
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.actionsContainer}>
-          <Pressable style={styles.actionButton} onPress={() => router.push('/search')}>
-            <Ionicons name="search-outline" size={24} color="#2563EB" />
-            <Text style={styles.actionButtonText}>Search</Text>
-          </Pressable>
-          <Pressable style={styles.actionButton} onPress={() => router.push('/saved')}>
-            <Ionicons name="heart-outline" size={24} color="#2563EB" />
-            <Text style={styles.actionButtonText}>Saved</Text>
-          </Pressable>
-          <Pressable style={styles.actionButton} onPress={() => router.push('/profile')}>
-            <Ionicons name="person-outline" size={24} color="#2563EB" />
-            <Text style={styles.actionButtonText}>Profile</Text>
           </Pressable>
         </View>
 
@@ -157,13 +146,6 @@ export default function TenantDashboard() {
             </Pressable>
           </View>
         )}
-
-        {/* Spacer to push logout button to the absolute bottom */}
-        <View style={{ flex: 1 }} />
-
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutButtonText}>Log out</Text>
-        </Pressable>
 
       </ScrollView>
     </SafeAreaView>
@@ -227,12 +209,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statsContainer: {
-    flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     marginBottom: 24,
   },
   statCard: {
-    flex: 1,
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
@@ -257,21 +238,6 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '500',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionButtonText: {
-    fontSize: 14,
     fontWeight: '500',
   },
   recentContainer: {
