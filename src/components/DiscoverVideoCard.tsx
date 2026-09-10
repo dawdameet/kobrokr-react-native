@@ -13,6 +13,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fonts } from '../constants/theme';
 import { formatPrice } from '../lib/utils';
 import api from '../lib/api';
@@ -33,6 +34,7 @@ export default function DiscoverVideoCard({
   onToggleMute,
   height,
 }: DiscoverVideoCardProps) {
+  const insets = useSafeAreaInsets();
   const [isPlaying, setIsPlaying] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
@@ -217,7 +219,7 @@ export default function DiscoverVideoCard({
 
       {/* Top Controls: Sound Mute Toggle */}
       {videoUrl && (
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { top: Math.max(insets.top, 12) + 52 }]}>
           <Pressable style={styles.muteButton} onPress={onToggleMute}>
             <Ionicons
               name={isMuted ? 'volume-mute' : 'volume-high'}
@@ -229,7 +231,7 @@ export default function DiscoverVideoCard({
       )}
 
       {/* Right Sidebar Actions */}
-      <View style={styles.rightRail}>
+      <View style={[styles.rightRail, { bottom: Math.max(insets.bottom, 12) + 78 }]}>
         {/* Like / Save */}
         <Pressable style={styles.actionBtn} onPress={handleToggleSave}>
           <View style={[styles.actionIconCircle, isSaved && styles.actionIconSaved]}>
@@ -272,7 +274,7 @@ export default function DiscoverVideoCard({
       </View>
 
       {/* Bottom Information Layer */}
-      <View style={styles.bottomInfo}>
+      <View style={[styles.bottomInfo, { bottom: Math.max(insets.bottom, 12) + 72 }]}>
         {/* Broker Tag */}
         {broker && (
           <View style={styles.brokerRow}>
