@@ -178,9 +178,6 @@ export default function BrokerDashboard() {
         accessibilityRole="button"
       >
         <Ionicons name="briefcase" size={24} color="#FFFFFF" />
-        <View style={styles.floatingBadge}>
-          <Text style={styles.floatingBadgeText}>PARTNER</Text>
-        </View>
       </Pressable>
     </SafeAreaView>
   );
@@ -213,24 +210,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
     zIndex: 99,
-  },
-  floatingBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -4,
-    backgroundColor: '#1E40AF',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  floatingBadgeText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
   },
   header: {
     marginBottom: 24,

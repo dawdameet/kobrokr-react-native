@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 
 export default function SavedScreen() {
@@ -197,7 +197,7 @@ export default function SavedScreen() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={styles.headerTitle}>Library</Text>

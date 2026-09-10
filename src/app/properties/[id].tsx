@@ -5,7 +5,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
-import { formatPrice } from '../../lib/utils';
+import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
 export default function PropertyDetailScreen() {
@@ -123,7 +123,7 @@ export default function PropertyDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <Text style={styles.errorText}>Property not found</Text>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={() => safeGoBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
       </SafeAreaView>
@@ -138,7 +138,7 @@ export default function PropertyDetailScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.headerBackButton}>
+        <Pressable onPress={() => safeGoBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
       </View>

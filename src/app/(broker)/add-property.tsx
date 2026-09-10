@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../lib/api';
+import { safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
 const PROPERTY_TYPES = ["apartment", "house", "villa", "plot", "office", "shop", "warehouse", "other"];
@@ -119,7 +120,7 @@ export default function AddPropertyScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={styles.headerTitle}>List a Property</Text>

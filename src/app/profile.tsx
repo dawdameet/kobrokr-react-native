@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
+import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 
 export default function ProfileScreen() {
@@ -78,7 +79,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={styles.headerTitle}>My Profile</Text>

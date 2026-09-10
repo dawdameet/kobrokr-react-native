@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 
 const TYPES = ['apartment', 'house', 'villa', 'plot', 'office', 'shop', 'warehouse', 'other'];
@@ -133,7 +133,7 @@ export default function SearchScreen() {
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
         <Text style={styles.headerTitle}>Search Properties</Text>
@@ -230,6 +230,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   headerTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
