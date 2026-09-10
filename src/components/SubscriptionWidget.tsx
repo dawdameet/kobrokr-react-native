@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../lib/api';
+import { Fonts } from '../constants/theme';
 
 export default function SubscriptionWidget() {
   const [limits, setLimits] = useState<any>(null);
@@ -144,6 +145,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    fontFamily: Fonts.sans,
     color: '#EF4444',
     fontSize: 14,
   },
@@ -157,6 +159,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   infoBannerText: {
+    fontFamily: Fonts.sans,
     flex: 1,
     fontSize: 13,
     color: '#1E40AF',
@@ -175,6 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   planLabel: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#9CA3AF',
     textTransform: 'uppercase',
@@ -182,8 +186,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   planName: {
+    fontFamily: Fonts.display,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   planBadge: {
@@ -201,8 +206,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
   },
   badgeText: {
+    fontFamily: Fonts.sansBold,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   badgeTextFree: {
     color: '#15803D',
@@ -221,10 +227,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   usageLabel: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     color: '#D1D5DB',
   },
   usageCount: {
+    fontFamily: Fonts.monoMedium,
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
@@ -240,6 +248,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   limitWarningText: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#FCA5A5',
     marginTop: 8,
@@ -252,8 +261,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   cardTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#111827',
     marginBottom: 16,
   },
@@ -263,6 +273,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   featureText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     color: '#374151',
     marginLeft: 12,
@@ -281,8 +292,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   ctaButtonText: {
+    fontFamily: Fonts.sansBold,
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   }
 });

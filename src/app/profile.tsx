@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
+import { Fonts } from '../constants/theme';
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
@@ -142,6 +143,26 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {/* Become a Partner Section */}
+        <Pressable 
+          style={styles.partnerCard}
+          onPress={() => {}}
+        >
+          <View style={styles.partnerCardIconContainer}>
+            <Ionicons name="briefcase" size={20} color="#2563EB" />
+          </View>
+          <View style={styles.partnerCardTextContainer}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.partnerCardTitle}>BECOME A PARTNER</Text>
+              <View style={styles.partnerBadge}>
+                <Text style={styles.partnerBadgeText}>AFFILIATE</Text>
+              </View>
+            </View>
+            <Text style={styles.partnerCardSubtitle}>Join the kobrokr affiliate network</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </Pressable>
+
         {userRole === 'broker' && <SubscriptionWidget />}
 
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
@@ -177,8 +198,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#111827',
   },
   scrollContent: {
@@ -199,19 +221,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   avatarInitials: {
+    fontFamily: Fonts.display,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#2563EB',
   },
   name: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
   roleBadge: {
+    fontFamily: Fonts.monoMedium,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#FFFFFF',
     backgroundColor: '#374151',
     paddingHorizontal: 8,
@@ -228,7 +253,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
     textTransform: 'uppercase',
@@ -246,11 +272,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   infoLabel: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 2,
   },
   infoValue: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 15,
     fontWeight: '500',
     color: '#111827',
@@ -263,11 +291,62 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   menuItemText: {
+    fontFamily: Fonts.sansMedium,
     flex: 1,
     fontSize: 15,
     fontWeight: '500',
     color: '#374151',
     marginLeft: 12,
+  },
+  partnerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    padding: 16,
+    marginBottom: 16,
+  },
+  partnerCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  partnerCardTextContainer: {
+    flex: 1,
+  },
+  partnerCardTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    letterSpacing: 0.3,
+  },
+  partnerCardSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  partnerBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  partnerBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#2563EB',
+    letterSpacing: 0.5,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -282,11 +361,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   logoutBtnText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#EF4444',
     fontSize: 16,
     fontWeight: '600',
   },
   errorText: {
+    fontFamily: Fonts.sans,
     color: '#EF4444',
     fontSize: 16,
     marginBottom: 16,

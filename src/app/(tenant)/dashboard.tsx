@@ -7,6 +7,7 @@ import api from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
+import { Fonts } from '../../constants/theme';
 
 export default function TenantDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -47,6 +48,10 @@ export default function TenantDashboard() {
     fetchData().finally(() => setRefreshing(false));
   }, []);
 
+  const firstName = user?.full_name?.trim()
+    ? user.full_name.trim().split(/\s+/)[0]
+    : (user?.first_name || (user?.email ? user.email.split('@')[0] : ''));
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView 
@@ -58,12 +63,22 @@ export default function TenantDashboard() {
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={[styles.logoText, { marginBottom: 0 }]}>kobrokr</Text>
-            <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
-              <Ionicons name="person-circle-outline" size={32} color="#111827" />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Pressable 
+                style={styles.partnerBtnSmall} 
+                onPress={() => {}}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="briefcase-outline" size={13} color="#2563EB" />
+                <Text style={styles.partnerBtnSmallText}>BECOME A PARTNER</Text>
+              </Pressable>
+              <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
+                <Ionicons name="person-circle-outline" size={32} color="#111827" />
+              </Pressable>
+            </View>
           </View>
-          <Text style={styles.title}>
-            Welcome back{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''} 👋
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+            Welcome back{firstName ? `, ${firstName}` : ''} 👋
           </Text>
           <Text style={styles.subtitle}>Find your perfect property on kobrokr</Text>
         </View>
@@ -165,20 +180,41 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logoText: {
-    fontSize: 22,
-    fontWeight: '900',
+    fontFamily: Fonts.display,
+    fontSize: 24,
+    fontWeight: '700',
     color: '#2563EB',
     letterSpacing: -0.5,
     marginBottom: 12,
   },
+  partnerBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  partnerBtnSmallText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
+    letterSpacing: 0.3,
+  },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 20,
+    fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontFamily: Fonts.sans,
+    fontSize: 13,
     color: '#6B7280',
   },
   searchContainer: {
@@ -188,6 +224,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: Fonts.sans,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -204,6 +241,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
@@ -221,12 +259,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   statLabel: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#6B7280',
   },
   statValue: {
+    fontFamily: Fonts.monoMedium,
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginTop: 4,
   },
   badge: {
@@ -237,8 +277,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   badgeText: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   recentContainer: {
     marginBottom: 24,
@@ -250,11 +291,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   recentTitle: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
   },
   recentViewAll: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#2563EB',
   },
@@ -276,12 +319,14 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   propertyTitle: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: '#111827',
     marginBottom: 2,
   },
   propertyLocality: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#9CA3AF',
   },
@@ -289,11 +334,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   propertyPrice: {
+    fontFamily: Fonts.monoMedium,
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#1D4ED8',
   },
   propertySpecs: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#9CA3AF',
   },
@@ -307,12 +354,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyTitle: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: '#4B5563',
     marginBottom: 4,
   },
   emptySubtitle: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 16,
@@ -325,6 +374,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   emptyButtonText: {
+    fontFamily: Fonts.sansMedium,
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
@@ -337,6 +387,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoutButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',

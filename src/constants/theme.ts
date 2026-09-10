@@ -27,29 +27,49 @@ export const Colors = {
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
   web: {
-    sans: 'var(--font-display)',
+    display: "'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif",
+    displayMedium: "'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif",
+    displaySemiBold: "'Space Grotesk', 'IBM Plex Sans', system-ui, sans-serif",
+    sans: "'IBM Plex Sans', system-ui, -apple-system, sans-serif",
+    sansMedium: "'IBM Plex Sans', system-ui, -apple-system, sans-serif",
+    sansSemiBold: "'IBM Plex Sans', system-ui, -apple-system, sans-serif",
+    sansBold: "'IBM Plex Sans', system-ui, -apple-system, sans-serif",
     serif: 'var(--font-serif)',
     rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
+    mono: "'IBM Plex Mono', ui-monospace, monospace",
+    monoMedium: "'IBM Plex Mono', ui-monospace, monospace",
+    monoSemiBold: "'IBM Plex Mono', ui-monospace, monospace",
   },
-});
+  default: {
+    display: 'SpaceGrotesk-Bold',
+    displayMedium: 'SpaceGrotesk-Medium',
+    displaySemiBold: 'SpaceGrotesk-SemiBold',
+    sans: 'IBMPlexSans-Regular',
+    sansMedium: 'IBMPlexSans-Medium',
+    sansSemiBold: 'IBMPlexSans-SemiBold',
+    sansBold: 'IBMPlexSans-Bold',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'IBMPlexMono-Regular',
+    monoMedium: 'IBMPlexMono-Medium',
+    monoSemiBold: 'IBMPlexMono-SemiBold',
+  },
+}) as {
+  display: string;
+  displayMedium: string;
+  displaySemiBold: string;
+  sans: string;
+  sansMedium: string;
+  sansSemiBold: string;
+  sansBold: string;
+  serif: string;
+  rounded: string;
+  mono: string;
+  monoMedium: string;
+  monoSemiBold: string;
+};
+
 
 export const Spacing = {
   half: 2,

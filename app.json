@@ -35,7 +35,23 @@
           "imageWidth": 76
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/IBMPlexSans-Regular.ttf",
+            "./assets/fonts/IBMPlexSans-Medium.ttf",
+            "./assets/fonts/IBMPlexSans-SemiBold.ttf",
+            "./assets/fonts/IBMPlexSans-Bold.ttf",
+            "./assets/fonts/SpaceGrotesk-Medium.ttf",
+            "./assets/fonts/SpaceGrotesk-SemiBold.ttf",
+            "./assets/fonts/SpaceGrotesk-Bold.ttf",
+            "./assets/fonts/IBMPlexMono-Regular.ttf",
+            "./assets/fonts/IBMPlexMono-Medium.ttf",
+            "./assets/fonts/IBMPlexMono-SemiBold.ttf"
+          ]
+        }
+      ],
       "expo-image",
       "expo-status-bar",
       "expo-web-browser"

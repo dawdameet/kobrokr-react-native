@@ -4,6 +4,7 @@ import { router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { storage } from '../lib/storage';
+import { Fonts } from '../constants/theme';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -103,14 +104,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   label: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 10,
     fontWeight: '500',
   },
   activeLabel: {
+    fontFamily: Fonts.sansBold,
     color: '#2563EB',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   inactiveLabel: {
+    fontFamily: Fonts.sansMedium,
     color: '#9CA3AF',
   }
 });
