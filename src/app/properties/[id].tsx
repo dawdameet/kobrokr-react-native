@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
 import { formatPrice } from '../../lib/utils';
+import { Fonts } from '../../constants/theme';
 
 export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
@@ -385,6 +386,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
+    fontFamily: Fonts.sans,
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 16,
@@ -396,6 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
     color: '#111827',
     fontWeight: '600',
@@ -435,6 +438,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryPlaceholderText: {
+    fontFamily: Fonts.sans,
     color: '#9CA3AF',
     marginTop: 8,
     fontSize: 14,
@@ -449,6 +453,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   imageCountText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
@@ -465,6 +470,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EAB308',
   },
   dummyBadgeText: {
+    fontFamily: Fonts.sansBold,
     color: '#713F12', // yellow-900
     fontSize: 10,
     fontWeight: 'bold',
@@ -477,6 +483,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   projectName: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#9CA3AF',
     textTransform: 'uppercase',
@@ -484,6 +491,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 22,
     fontWeight: 'bold',
     color: '#111827',
@@ -491,11 +499,13 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   locality: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 12,
   },
   price: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 24,
     fontWeight: '800',
     color: '#1D4ED8',
@@ -507,6 +517,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
+    fontFamily: Fonts.sansMedium,
     backgroundColor: '#F3F4F6',
     color: '#4B5563',
     paddingHorizontal: 10,
@@ -543,12 +554,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#F3F4F6',
   },
   sectionTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 12,
   },
   description: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#4B5563',
     lineHeight: 22,
@@ -567,6 +580,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   amenityChipText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#374151',
     fontWeight: '500',
@@ -580,11 +594,13 @@ const styles = StyleSheet.create({
     width: '45%',
   },
   detailLabel: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#9CA3AF',
     marginBottom: 2,
   },
   detailValue: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: '#111827',
@@ -605,6 +621,7 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   saveButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
@@ -621,6 +638,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   brokerCardTitle: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 12,
     fontWeight: '600',
     color: '#6B7280',
@@ -648,6 +666,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   brokerInitials: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: '#2563EB',
@@ -656,16 +675,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brokerName: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
   },
   brokerAgency: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
   brokerExp: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
@@ -685,6 +707,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   callButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
@@ -702,6 +725,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   waButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#374151',
     fontSize: 14,
     fontWeight: '600',
@@ -729,6 +753,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 20,
     fontWeight: 'bold',
     color: '#111827',
@@ -745,11 +770,13 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   colListTitle: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
   },
   colListMeta: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
@@ -764,14 +791,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   colAddBtnText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#1D4ED8',
     fontWeight: 'bold',
     fontSize: 14,
   },
   colAddBtnTextDisabled: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#9CA3AF',
   },
   emptyColText: {
+    fontFamily: Fonts.sans,
     textAlign: 'center',
     color: '#6B7280',
     paddingVertical: 24,
@@ -786,6 +816,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   newColBtnText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#4B5563',
     fontWeight: 'bold',
   },
@@ -798,12 +829,14 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   createColLabel: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 8,
   },
   createColInput: {
+    fontFamily: Fonts.sans,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -826,6 +859,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createColCancelText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#374151',
     fontWeight: 'bold',
   },
@@ -837,6 +871,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   createColSaveText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontWeight: 'bold',
   }

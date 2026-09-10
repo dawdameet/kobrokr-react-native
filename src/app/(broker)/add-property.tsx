@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../lib/api';
+import { Fonts } from '../../constants/theme';
 
 const PROPERTY_TYPES = ["apartment", "house", "villa", "plot", "office", "shop", "warehouse", "other"];
 const ALL_CITIES = ['Mumbai', 'Pune', 'Delhi NCR', 'Bangalore', 'Hyderabad'];
@@ -311,6 +312,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   headerTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
@@ -328,6 +330,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cardTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 16,
     fontWeight: 'bold',
     color: '#111827',
@@ -345,12 +348,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 12,
     fontWeight: '600',
     color: '#4B5563',
     marginBottom: 6,
   },
   input: {
+    fontFamily: Fonts.sans,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -362,6 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   inputText: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
   },
@@ -392,11 +398,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   radioText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
   },
   radioTextActive: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#111827',
     fontWeight: '600',
   },
@@ -418,11 +426,13 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   chipText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#6B7280',
     textTransform: 'capitalize',
   },
   chipTextActive: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#1D4ED8',
     fontWeight: '600',
   },
@@ -444,10 +454,12 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
   },
   amenityText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#4B5563',
   },
   amenityTextActive: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#1D4ED8',
     fontWeight: '600',
   },
@@ -486,6 +498,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   addImageText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
     color: '#9CA3AF',
     marginTop: 4,
@@ -506,6 +519,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',

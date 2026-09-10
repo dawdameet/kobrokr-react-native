@@ -7,6 +7,7 @@ import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
 import { formatPrice } from '../lib/utils';
+import { Fonts } from '../constants/theme';
 
 const TYPES = ['apartment', 'house', 'villa', 'plot', 'office', 'shop', 'warehouse', 'other'];
 const LISTING_TYPES = [{ value: '', label: 'Any' }, { value: 'sale', label: 'Buy' }, { value: 'rent', label: 'Rent' }];
@@ -129,7 +130,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: Fonts.sans,
     paddingVertical: 12,
     fontSize: 14,
     color: '#111827',
@@ -277,6 +279,7 @@ const styles = StyleSheet.create({
   },
   filterInput: {
     width: 120,
+    fontFamily: Fonts.sans,
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -292,6 +295,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyFilterText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
@@ -301,6 +305,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   resultsCount: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
@@ -343,21 +348,24 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EAB308',
   },
   dummyBadgeText: {
+    fontFamily: Fonts.monoMedium,
     color: '#713F12', // yellow-900
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
     letterSpacing: 1,
   },
   cardContent: {
     padding: 16,
   },
   cardTitle: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
   },
   cardLocation: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 8,
@@ -368,11 +376,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardPrice: {
+    fontFamily: Fonts.monoMedium,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#1D4ED8',
   },
   cardArea: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginLeft: 6,
@@ -383,6 +393,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   tag: {
+    fontFamily: Fonts.sansMedium,
     backgroundColor: '#F3F4F6',
     color: '#4B5563',
     paddingHorizontal: 8,
@@ -397,12 +408,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 8,
   },
   emptySub: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
   }

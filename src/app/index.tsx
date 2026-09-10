@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-nati
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../lib/storage';
+import { Fonts } from '../constants/theme';
 
 export default function LandingScreen() {
   const [checking, setChecking] = useState(true);
@@ -74,12 +75,14 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
+    fontFamily: Fonts.display,
     fontSize: 48,
     fontWeight: 'bold',
     color: '#2563EB', // blue-600
     marginBottom: 8,
   },
   subtitle: {
+    fontFamily: Fonts.sans,
     fontSize: 16,
     color: '#6B7280', // gray-500
     marginBottom: 48,
@@ -97,6 +100,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonPrimaryText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
@@ -111,6 +115,7 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB', // gray-300
   },
   buttonSecondaryText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#374151', // gray-700
     fontSize: 16,
     fontWeight: '600',

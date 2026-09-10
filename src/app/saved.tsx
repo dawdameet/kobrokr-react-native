@@ -7,6 +7,7 @@ import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
 import { formatPrice } from '../lib/utils';
+import { Fonts } from '../constants/theme';
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
@@ -194,7 +195,7 @@ export default function SavedScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   backButton: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
+  headerTitle: { fontFamily: Fonts.displaySemiBold, fontSize: 18, fontWeight: '600', color: '#111827' },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
@@ -297,28 +298,28 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: { borderBottomColor: '#2563EB' },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#6B7280' },
+  tabText: { fontFamily: Fonts.sansSemiBold, fontSize: 14, fontWeight: '600', color: '#6B7280' },
   tabTextActive: { color: '#2563EB' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: '#EF4444', fontSize: 14 },
+  errorText: { fontFamily: Fonts.sans, color: '#EF4444', fontSize: 14 },
   listContent: { padding: 16, gap: 16, paddingBottom: 40 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
   cardImage: { width: '100%', height: 160, resizeMode: 'cover' },
   cardImagePlaceholder: { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   cardContent: { padding: 16 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  cardLocation: { fontSize: 12, color: '#6B7280', marginBottom: 8 },
+  cardTitle: { fontFamily: Fonts.sansSemiBold, fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  cardLocation: { fontFamily: Fonts.sans, fontSize: 12, color: '#6B7280', marginBottom: 8 },
   cardPriceRow: { flexDirection: 'row', alignItems: 'center' },
-  cardPrice: { fontSize: 16, fontWeight: 'bold', color: '#1D4ED8' },
-  cardArea: { fontSize: 12, color: '#6B7280', marginLeft: 6 },
+  cardPrice: { fontFamily: Fonts.monoMedium, fontSize: 16, fontWeight: '600', color: '#1D4ED8' },
+  cardArea: { fontFamily: Fonts.sans, fontSize: 12, color: '#6B7280', marginLeft: 6 },
   actionsContainer: { flexDirection: 'row', padding: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#FAFAFA' },
   actionRemoveBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8, borderRadius: 8, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
-  actionRemoveText: { color: '#EF4444', fontSize: 14, fontWeight: '600' },
+  actionRemoveText: { fontFamily: Fonts.sansSemiBold, color: '#EF4444', fontSize: 14, fontWeight: '600' },
   emptyContainer: { paddingVertical: 64, alignItems: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8 },
-  emptySub: { fontSize: 14, color: '#6B7280', marginBottom: 24 },
+  emptyTitle: { fontFamily: Fonts.displaySemiBold, fontSize: 18, fontWeight: '600', color: '#111827', marginBottom: 8 },
+  emptySub: { fontFamily: Fonts.sans, fontSize: 14, color: '#6B7280', marginBottom: 24 },
   emptyBtn: { backgroundColor: '#2563EB', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
-  emptyBtnText: { color: '#FFFFFF', fontWeight: '600' },
+  emptyBtnText: { fontFamily: Fonts.sansSemiBold, color: '#FFFFFF', fontWeight: '600' },
   
   // Collections styles
   collectionCard: {
@@ -338,11 +339,13 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   collectionTitle: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#111827',
   },
   collectionMeta: {
+    fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
@@ -357,6 +360,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyColText: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#9CA3AF',
   },
@@ -387,6 +391,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   colPropTitle: {
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 12,
     fontWeight: '600',
     color: '#374151',

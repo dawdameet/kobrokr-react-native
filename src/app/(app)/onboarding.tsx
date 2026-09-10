@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { clearSession } from '../../lib/auth';
 import { router } from 'expo-router';
+import { Fonts } from '../../constants/theme';
 
 export default function OnboardingScreen() {
   const handleLogout = async () => {
@@ -36,12 +37,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 24,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 8,
   },
   subtitle: {
+    fontFamily: Fonts.sans,
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 32,
@@ -54,6 +57,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   buttonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 16,

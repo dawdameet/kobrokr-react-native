@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../../lib/api';
 import { formatPrice } from '../../lib/utils';
+import { Fonts } from '../../constants/theme';
 
 export default function MyListingsScreen() {
   const [listings, setListings] = useState<any[]>([]);
@@ -131,7 +132,7 @@ export default function MyListingsScreen() {
     };
 
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -204,8 +205,9 @@ export default function MyListingsScreen() {
       padding: 4,
     },
     headerTitle: {
+      fontFamily: Fonts.displaySemiBold,
       fontSize: 18,
-      fontWeight: 'bold',
+      fontWeight: '600',
       color: '#111827',
     },
     addButton: {
@@ -233,6 +235,7 @@ export default function MyListingsScreen() {
     },
     searchInput: {
       flex: 1,
+      fontFamily: Fonts.sans,
       paddingVertical: 10,
       fontSize: 14,
       color: '#111827',
@@ -243,6 +246,7 @@ export default function MyListingsScreen() {
       alignItems: 'center',
     },
     errorText: {
+      fontFamily: Fonts.sans,
       color: '#EF4444',
       fontSize: 14,
     },
@@ -280,6 +284,7 @@ export default function MyListingsScreen() {
     statusInactive: { backgroundColor: '#F3F4F6' },
     statusSold: { backgroundColor: '#DBEAFE' },
     statusText: {
+      fontFamily: Fonts.sansBold,
       fontSize: 10,
       fontWeight: '700',
       textTransform: 'uppercase',
@@ -297,20 +302,23 @@ export default function MyListingsScreen() {
       borderRadius: 4,
     },
     dummyBadgeText: {
+      fontFamily: Fonts.monoMedium,
       color: '#713F12', // yellow-900
       fontSize: 10,
-      fontWeight: 'bold',
+      fontWeight: '700',
     },
     cardContent: {
       padding: 16,
     },
     cardTitle: {
+      fontFamily: Fonts.sansSemiBold,
       fontSize: 16,
       fontWeight: '600',
       color: '#111827',
       marginBottom: 4,
     },
     cardLocation: {
+      fontFamily: Fonts.sans,
       fontSize: 12,
       color: '#6B7280',
       marginBottom: 8,
@@ -320,11 +328,13 @@ export default function MyListingsScreen() {
       alignItems: 'center',
     },
     cardPrice: {
+      fontFamily: Fonts.monoMedium,
       fontSize: 16,
-      fontWeight: 'bold',
+      fontWeight: '600',
       color: '#1D4ED8',
     },
     cardArea: {
+      fontFamily: Fonts.sans,
       fontSize: 12,
       color: '#6B7280',
       marginLeft: 6,
@@ -349,6 +359,7 @@ export default function MyListingsScreen() {
       backgroundColor: '#FFFFFF',
     },
     actionToggleText: {
+      fontFamily: Fonts.sansSemiBold,
       color: '#4B5563',
       fontSize: 12,
       fontWeight: '600',
@@ -358,6 +369,7 @@ export default function MyListingsScreen() {
       backgroundColor: '#EFF6FF',
     },
     actionEditText: {
+      fontFamily: Fonts.sansSemiBold,
       color: '#2563EB',
       fontSize: 12,
       fontWeight: '600',
@@ -367,6 +379,7 @@ export default function MyListingsScreen() {
       backgroundColor: '#FEF2F2',
     },
     actionDeleteText: {
+      fontFamily: Fonts.sansSemiBold,
       color: '#EF4444',
       fontSize: 12,
       fontWeight: '600',
@@ -376,12 +389,14 @@ export default function MyListingsScreen() {
       alignItems: 'center',
     },
     emptyTitle: {
+      fontFamily: Fonts.displaySemiBold,
       fontSize: 18,
       fontWeight: '600',
       color: '#111827',
       marginBottom: 8,
     },
     emptySub: {
+      fontFamily: Fonts.sans,
       fontSize: 14,
       color: '#6B7280',
       marginBottom: 24,
@@ -393,6 +408,7 @@ export default function MyListingsScreen() {
       borderRadius: 12,
     },
     emptyBtnText: {
+      fontFamily: Fonts.sansSemiBold,
       color: '#FFFFFF',
       fontWeight: '600',
     }

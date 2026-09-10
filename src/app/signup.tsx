@@ -6,6 +6,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import api from '../lib/api';
 import { setSession } from '../lib/auth';
+import { Fonts } from '../constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -126,7 +127,7 @@ export default function SignupScreen() {
         params: { role: roleTab, email, confirm: '1' }
       });
 
-    } catch (err) {
+    } catch (err: any) {
       const payload = err.response?.data || {};
       setError(payload.error || payload.detail || 'Signup failed');
     } finally {
@@ -327,6 +328,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logo: {
+    fontFamily: Fonts.display,
     fontSize: 32,
     fontWeight: 'bold',
     color: '#2563EB',
@@ -353,20 +355,24 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   roleText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: '#6B7280',
   },
   roleTextActive: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#111827',
   },
   title: {
+    fontFamily: Fonts.displaySemiBold,
     fontSize: 24,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 4,
   },
   subtitle: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 24,
@@ -381,6 +387,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   googleButtonText: {
+    fontFamily: Fonts.sansMedium,
     color: '#374151',
     fontSize: 15,
     fontWeight: '500',
@@ -396,6 +403,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   dividerText: {
+    fontFamily: Fonts.sans,
     paddingHorizontal: 12,
     color: '#6B7280',
     fontSize: 12,
@@ -409,6 +417,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
+    fontFamily: Fonts.sans,
     color: '#B91C1C',
     fontSize: 14,
   },
@@ -419,11 +428,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
   },
   input: {
+    fontFamily: Fonts.sans,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#D1D5DB',
@@ -444,6 +455,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
@@ -453,10 +465,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
+    fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
   },
   linkText: {
+    fontFamily: Fonts.sansSemiBold,
     color: '#2563EB',
     fontWeight: '500',
   }

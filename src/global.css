@@ -8,7 +8,7 @@
   --font-serif: Georgia, 'Times New Roman', serif;
 }
 
-body, html, #root {
+body, html, #root, * {
   font-family: var(--font-sans);
 }
 

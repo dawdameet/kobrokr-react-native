@@ -53,7 +53,7 @@ export default function TenantDashboard() {
     : (user?.first_name || (user?.email ? user.email.split('@')[0] : ''));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -63,19 +63,9 @@ export default function TenantDashboard() {
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={[styles.logoText, { marginBottom: 0 }]}>kobrokr</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Pressable 
-                style={styles.partnerBtnSmall} 
-                onPress={() => {}}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="briefcase-outline" size={13} color="#2563EB" />
-                <Text style={styles.partnerBtnSmallText}>BECOME A PARTNER</Text>
-              </Pressable>
-              <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
-                <Ionicons name="person-circle-outline" size={32} color="#111827" />
-              </Pressable>
-            </View>
+            <Pressable onPress={() => router.push('/profile')} style={{ padding: 4 }}>
+              <Ionicons name="person-circle-outline" size={32} color="#111827" />
+            </Pressable>
           </View>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
             Welcome back{firstName ? `, ${firstName}` : ''} 👋
@@ -163,6 +153,19 @@ export default function TenantDashboard() {
         )}
 
       </ScrollView>
+
+      {/* Floating Ball: Become a Partner */}
+      <Pressable 
+        style={styles.floatingPartnerBall} 
+        onPress={() => {}}
+        accessibilityLabel="Become a Partner"
+        accessibilityRole="button"
+      >
+        <Ionicons name="briefcase" size={24} color="#FFFFFF" />
+        <View style={styles.floatingBadge}>
+          <Text style={styles.floatingBadgeText}>PARTNER</Text>
+        </View>
+      </Pressable>
     </SafeAreaView>
   );
 }
@@ -171,10 +174,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    position: 'relative',
   },
   scrollContent: {
     padding: 24,
+    paddingBottom: 90,
     flexGrow: 1,
+  },
+  floatingPartnerBall: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1D4ED8',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 99,
+  },
+  floatingBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -4,
+    backgroundColor: '#1E40AF',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  floatingBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   header: {
     marginBottom: 24,
@@ -186,24 +226,6 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     letterSpacing: -0.5,
     marginBottom: 12,
-  },
-  partnerBtnSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  partnerBtnSmallText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#2563EB',
-    letterSpacing: 0.3,
   },
   title: {
     fontFamily: Fonts.displaySemiBold,
