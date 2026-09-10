@@ -231,7 +231,7 @@ export default function DiscoverVideoCard({
       )}
 
       {/* Right Sidebar Actions */}
-      <View style={[styles.rightRail, { bottom: Math.max(insets.bottom, 12) + 78 }]}>
+      <View style={[styles.rightRail, { bottom: Math.max(insets.bottom, 12) + 82 }]}>
         {/* Like / Save */}
         <Pressable style={styles.actionBtn} onPress={handleToggleSave}>
           <View style={[styles.actionIconCircle, isSaved && styles.actionIconSaved]}>
@@ -274,7 +274,7 @@ export default function DiscoverVideoCard({
       </View>
 
       {/* Bottom Information Layer */}
-      <View style={[styles.bottomInfo, { bottom: Math.max(insets.bottom, 12) + 72 }]}>
+      <View style={[styles.bottomInfo, { bottom: Math.max(insets.bottom, 12) + 82 }]}>
         {/* Broker Tag */}
         {broker && (
           <View style={styles.brokerRow}>
@@ -431,10 +431,9 @@ const styles = StyleSheet.create({
   rightRail: {
     position: 'absolute',
     right: 12,
-    bottom: 30,
     alignItems: 'center',
     gap: 14,
-    zIndex: 30,
+    zIndex: 40,
   },
   actionBtn: {
     alignItems: 'center',
@@ -482,12 +481,11 @@ const styles = StyleSheet.create({
   },
   bottomInfo: {
     position: 'absolute',
-    bottom: 12,
     left: 12,
-    right: 68,
+    right: 88,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
