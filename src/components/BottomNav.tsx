@@ -38,8 +38,6 @@ export default function BottomNav() {
 
   const navItems = role === 'broker' ? brokerNavItems : tenantNavItems;
 
-  const isDarkNav = pathname === '/discover';
-
   const isActive = (to: string) => {
     if (pathname === to) return true;
     if (pathname === '/' && to === '/dashboard') return true;
@@ -61,13 +59,9 @@ export default function BottomNav() {
 
   if (!role) return null; // Don't show if we don't know the role yet
 
-  const activeColor = isDarkNav ? '#60A5FA' : '#2563EB';
-  const inactiveColor = isDarkNav ? '#6B7280' : '#9CA3AF';
-
   return (
     <View style={[
       styles.container,
-      isDarkNav && styles.darkContainer,
       { paddingBottom: Math.max(insets.bottom, 12) }
     ]}>
       {navItems.map((item) => {
@@ -81,15 +75,13 @@ export default function BottomNav() {
             <Ionicons
               name={active ? item.activeIcon : item.icon}
               size={22}
-              color={active ? activeColor : inactiveColor}
+              color={active ? '#2563EB' : '#9CA3AF'}
               style={styles.icon}
             />
             <Text 
               style={[
                 styles.label,
-                active
-                  ? (isDarkNav ? styles.activeDarkLabel : styles.activeLabel)
-                  : (isDarkNav ? styles.inactiveDarkLabel : styles.inactiveLabel)
+                active ? styles.activeLabel : styles.inactiveLabel
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
@@ -113,10 +105,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
   },
-  darkContainer: {
-    backgroundColor: '#000000',
-    borderTopColor: '#1E293B',
-  },
   navItem: {
     flex: 1,
     alignItems: 'center',
@@ -135,17 +123,8 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '700',
   },
-  activeDarkLabel: {
-    fontFamily: Fonts.sansBold,
-    color: '#60A5FA',
-    fontWeight: '700',
-  },
   inactiveLabel: {
     fontFamily: Fonts.sansMedium,
     color: '#9CA3AF',
   },
-  inactiveDarkLabel: {
-    fontFamily: Fonts.sansMedium,
-    color: '#6B7280',
-  }
 });

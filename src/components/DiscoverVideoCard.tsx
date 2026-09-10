@@ -194,20 +194,14 @@ export default function DiscoverVideoCard({
           />
         )}
 
-        {/* Top Vignette Gradient */}
-        <View style={styles.topVignette} />
-
-        {/* Bottom Dark Gradient */}
-        <View style={styles.bottomVignette} />
-
         {/* Play / Pause Indicator */}
         {showPlayIcon && (
           <View style={styles.centerIconWrapper}>
             <View style={styles.centerIconBg}>
               <Ionicons
                 name={isPlaying ? 'play' : 'pause'}
-                size={42}
-                color="#FFFFFF"
+                size={38}
+                color="#111827"
               />
             </View>
           </View>
@@ -221,25 +215,18 @@ export default function DiscoverVideoCard({
         )}
       </Pressable>
 
-      {/* Top Controls: Sound Mute Toggle & Walkthrough Tag */}
-      <View style={styles.topBar}>
-        <View style={styles.walkthroughBadge}>
-          <Ionicons name={videoUrl ? "videocam" : "images"} size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
-          <Text style={styles.walkthroughText}>
-            {videoUrl ? 'VIDEO WALKTHROUGH' : 'PHOTO PREVIEW'}
-          </Text>
-        </View>
-
-        {videoUrl && (
+      {/* Top Controls: Sound Mute Toggle */}
+      {videoUrl && (
+        <View style={styles.topBar}>
           <Pressable style={styles.muteButton} onPress={onToggleMute}>
             <Ionicons
               name={isMuted ? 'volume-mute' : 'volume-high'}
               size={18}
-              color="#FFFFFF"
+              color="#111827"
             />
           </Pressable>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Right Sidebar Actions */}
       <View style={styles.rightRail}>
@@ -248,8 +235,8 @@ export default function DiscoverVideoCard({
           <View style={[styles.actionIconCircle, isSaved && styles.actionIconSaved]}>
             <Ionicons
               name={isSaved ? 'heart' : 'heart-outline'}
-              size={24}
-              color={isSaved ? '#EF4444' : '#FFFFFF'}
+              size={22}
+              color={isSaved ? '#EF4444' : '#111827'}
             />
           </View>
           <Text style={styles.actionLabel}>{isSaved ? 'Saved' : 'Save'}</Text>
@@ -258,7 +245,7 @@ export default function DiscoverVideoCard({
         {/* Share */}
         <Pressable style={styles.actionBtn} onPress={handleShare}>
           <View style={styles.actionIconCircle}>
-            <Ionicons name="share-social-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="share-social-outline" size={20} color="#111827" />
           </View>
           <Text style={styles.actionLabel}>Share</Text>
         </Pressable>
@@ -267,7 +254,7 @@ export default function DiscoverVideoCard({
         {broker?.mobile && (
           <Pressable style={styles.actionBtn} onPress={handleCall}>
             <View style={[styles.actionIconCircle, styles.callCircle]}>
-              <Ionicons name="call" size={20} color="#FFFFFF" />
+              <Ionicons name="call" size={18} color="#2563EB" />
             </View>
             <Text style={styles.actionLabel}>Call</Text>
           </Pressable>
@@ -277,7 +264,7 @@ export default function DiscoverVideoCard({
         {broker?.mobile && (
           <Pressable style={styles.actionBtn} onPress={handleWhatsApp}>
             <View style={[styles.actionIconCircle, styles.whatsappCircle]}>
-              <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
+              <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
             </View>
             <Text style={styles.actionLabel}>WhatsApp</Text>
           </Pressable>
@@ -296,7 +283,7 @@ export default function DiscoverVideoCard({
                 <Text style={styles.brokerInitial}>{broker.full_name?.[0] || 'B'}</Text>
               </View>
             )}
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.brokerName} numberOfLines={1}>
                 {broker.full_name}
               </Text>
@@ -313,9 +300,9 @@ export default function DiscoverVideoCard({
         {/* Price */}
         <Text style={styles.price}>{formatPrice(property.price)}</Text>
 
-        {/* Location & Badges */}
+        {/* Location */}
         <View style={styles.locationRow}>
-          <Ionicons name="location-sharp" size={14} color="#60A5FA" style={{ marginRight: 4 }} />
+          <Ionicons name="location-sharp" size={13} color="#2563EB" style={{ marginRight: 3 }} />
           <Text style={styles.locationText} numberOfLines={1}>
             {property.locality ? `${property.locality}, ` : ''}{property.city}
           </Text>
@@ -368,7 +355,7 @@ export default function DiscoverVideoCard({
           onPress={() => router.push(`/properties/${property.id}` as any)}
         >
           <Text style={styles.viewDetailsText}>View Property Details</Text>
-          <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
         </Pressable>
       </View>
     </View>
@@ -378,7 +365,7 @@ export default function DiscoverVideoCard({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     position: 'relative',
     overflow: 'hidden',
   },
@@ -388,25 +375,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#090D16',
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  topVignette: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  bottomVignette: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 320,
-    backgroundColor: 'rgba(0,0,0,0.65)',
   },
   centerIconWrapper: {
     position: 'absolute',
@@ -420,56 +391,47 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   centerIconBg: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   topBar: {
     position: 'absolute',
-    top: 16,
-    left: 16,
+    top: 14,
     right: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     zIndex: 30,
   },
-  walkthroughBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  walkthroughText: {
-    fontFamily: Fonts.monoMedium,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
   muteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   rightRail: {
     position: 'absolute',
-    right: 14,
-    bottom: 90,
+    right: 12,
+    bottom: 30,
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
     zIndex: 30,
   },
   actionBtn: {
@@ -477,46 +439,60 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   actionIconSaved: {
-    borderColor: '#EF4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEE2E2',
   },
   callCircle: {
-    backgroundColor: '#2563EB',
-    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
   },
   whatsappCircle: {
-    backgroundColor: '#16A34A',
-    borderColor: '#22C55E',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
   },
   actionLabel: {
-    fontFamily: Fonts.sansMedium,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 10,
     fontWeight: '600',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: '#111827',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#E5E7EB',
   },
   bottomInfo: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 76,
+    bottom: 12,
+    left: 12,
+    right: 68,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
     zIndex: 30,
   },
   brokerRow: {
@@ -526,25 +502,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   brokerAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   brokerAvatarFallback: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#2563EB',
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
   },
   brokerInitial: {
     fontFamily: Fonts.displaySemiBold,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -552,18 +528,17 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displaySemiBold,
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: '#111827',
   },
   agencyName: {
     fontFamily: Fonts.sans,
     fontSize: 10,
-    color: '#D1D5DB',
+    color: '#6B7280',
   },
   proBadge: {
-    backgroundColor: 'rgba(37, 99, 235, 0.9)',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -573,18 +548,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansBold,
     fontSize: 8,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#2563EB',
     letterSpacing: 0.5,
   },
   price: {
     fontFamily: Fonts.displaySemiBold,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#FFFFFF',
-    marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    color: '#111827',
+    marginBottom: 3,
   },
   locationRow: {
     flexDirection: 'row',
@@ -593,78 +565,70 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontFamily: Fonts.sansMedium,
-    fontSize: 13,
-    color: '#F3F4F6',
+    fontSize: 12,
+    color: '#4B5563',
     flex: 1,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   specsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 5,
     marginBottom: 8,
   },
   specBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: 6,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   specBadgeText: {
     fontFamily: Fonts.sansMedium,
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#374151',
   },
   listingTypeBadge: {
-    backgroundColor: 'rgba(37, 99, 235, 0.4)',
-    borderColor: 'rgba(96, 165, 250, 0.5)',
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
   },
   listingTypeText: {
-    color: '#93C5FD',
+    color: '#2563EB',
   },
   descWrapper: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   description: {
     fontFamily: Fonts.sans,
-    fontSize: 12,
+    fontSize: 11.5,
     lineHeight: 16,
-    color: '#E5E7EB',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    color: '#4B5563',
   },
   moreToggleText: {
     fontFamily: Fonts.sansSemiBold,
     fontSize: 11,
-    color: '#60A5FA',
+    color: '#2563EB',
     marginTop: 2,
   },
   viewDetailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(37, 99, 235, 0.95)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.6)',
-    shadowColor: '#1D4ED8',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   viewDetailsText: {
     fontFamily: Fonts.sansSemiBold,
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
     color: '#FFFFFF',
   },

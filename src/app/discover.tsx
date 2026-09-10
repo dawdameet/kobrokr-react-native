@@ -85,20 +85,14 @@ export default function DiscoverScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
-      {/* Header Overlay */}
+      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => safeGoBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Discover</Text>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>REELS</Text>
-          </View>
-        </View>
+        <Text style={styles.headerTitle}>Discover</Text>
         <Pressable onPress={() => router.push('/search')} style={styles.searchBtn}>
-          <Ionicons name="search" size={22} color="#FFFFFF" />
+          <Ionicons name="search" size={20} color="#111827" />
         </Pressable>
       </View>
 
@@ -111,7 +105,7 @@ export default function DiscoverScreen() {
           </View>
         ) : error && properties.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="videocam-off-outline" size={48} color="#6B7280" style={{ marginBottom: 12 }} />
+            <Ionicons name="videocam-off-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={fetchFeed}>
               <Text style={styles.retryBtnText}>Retry</Text>
@@ -119,7 +113,7 @@ export default function DiscoverScreen() {
           </View>
         ) : properties.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="videocam-outline" size={48} color="#6B7280" style={{ marginBottom: 12 }} />
+            <Ionicons name="videocam-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
             <Text style={styles.emptyTitle}>No Walkthroughs Yet</Text>
             <Text style={styles.emptySubtitle}>Check back soon for new property video tours.</Text>
           </View>
@@ -160,68 +154,45 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#000000',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#1E293B',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     zIndex: 50,
   },
   backBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerCenter: {
-    flexDirection: 'row',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
   headerTitle: {
     fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#111827',
     letterSpacing: -0.3,
   },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderColor: '#EF4444',
-    borderWidth: 0.5,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 4,
-  },
-  liveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#EF4444',
-  },
-  liveText: {
-    fontFamily: Fonts.monoMedium,
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#EF4444',
-    letterSpacing: 0.5,
-  },
   searchBtn: {
-    padding: 6,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   feedWrapper: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#F9FAFB',
   },
   centerContainer: {
     flex: 1,
@@ -232,7 +203,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: Fonts.sansMedium,
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#6B7280',
     marginTop: 12,
   },
   errorText: {
@@ -257,13 +228,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#111827',
     marginBottom: 6,
   },
   emptySubtitle: {
     fontFamily: Fonts.sans,
     fontSize: 13,
-    color: '#9CA3AF',
+    color: '#6B7280',
     textAlign: 'center',
   },
 });
