@@ -13,7 +13,6 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fonts } from '../constants/theme';
 import { formatPrice } from '../lib/utils';
 import api from '../lib/api';
@@ -34,11 +33,9 @@ export default function DiscoverVideoCard({
   onToggleMute,
   height,
 }: DiscoverVideoCardProps) {
-  const insets = useSafeAreaInsets();
   const [isPlaying, setIsPlaying] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const lastTapRef = useRef<number>(0);
 
@@ -219,7 +216,7 @@ export default function DiscoverVideoCard({
 
       {/* Top Controls: Sound Mute Toggle */}
       {videoUrl && (
-        <View style={[styles.topBar, { top: Math.max(insets.top, 12) + 52 }]}>
+        <View style={styles.topBar}>
           <Pressable style={styles.muteButton} onPress={onToggleMute}>
             <Ionicons
               name={isMuted ? 'volume-mute' : 'volume-high'}
@@ -231,7 +228,7 @@ export default function DiscoverVideoCard({
       )}
 
       {/* Right Sidebar Actions */}
-      <View style={[styles.rightRail, { bottom: Math.max(insets.bottom, 12) + 82 }]}>
+      <View style={styles.rightRail}>
         {/* Like / Save */}
         <Pressable style={styles.actionBtn} onPress={handleToggleSave}>
           <View style={[styles.actionIconCircle, isSaved && styles.actionIconSaved]}>
@@ -273,91 +270,41 @@ export default function DiscoverVideoCard({
         )}
       </View>
 
-      {/* Bottom Information Layer */}
-      <View style={[styles.bottomInfo, { bottom: Math.max(insets.bottom, 12) + 82 }]}>
-        {/* Broker Tag */}
-        {broker && (
-          <View style={styles.brokerRow}>
-            {broker.profile_photo ? (
-              <Image source={{ uri: broker.profile_photo }} style={styles.brokerAvatar} />
-            ) : (
-              <View style={styles.brokerAvatarFallback}>
-                <Text style={styles.brokerInitial}>{broker.full_name?.[0] || 'B'}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.brokerName} numberOfLines={1}>
-                {broker.full_name}
-              </Text>
-              {broker.agency_name ? (
-                <Text style={styles.agencyName} numberOfLines={1}>{broker.agency_name}</Text>
-              ) : null}
-            </View>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>PRO AGENT</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Price */}
-        <Text style={styles.price}>{formatPrice(property.price)}</Text>
-
-        {/* Location */}
-        <View style={styles.locationRow}>
-          <Ionicons name="location-sharp" size={13} color="#2563EB" style={{ marginRight: 3 }} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {property.locality ? `${property.locality}, ` : ''}{property.city}
-          </Text>
-        </View>
-
-        {/* Specs Pill Badges */}
-        <View style={styles.specsRow}>
-          {property.bhk && (
-            <View style={styles.specBadge}>
-              <Text style={styles.specBadgeText}>{property.bhk} BHK</Text>
-            </View>
-          )}
-          {property.area && (
-            <View style={styles.specBadge}>
-              <Text style={styles.specBadgeText}>{property.area} sq ft</Text>
-            </View>
-          )}
-          {property.type && (
-            <View style={styles.specBadge}>
-              <Text style={styles.specBadgeText}>{property.type.toUpperCase()}</Text>
-            </View>
-          )}
+      {/* Bottom Information Layer - Maximized Video View */}
+      <View style={styles.bottomInfo}>
+        {/* Price & Listing Type Pill */}
+        <View style={styles.priceRow}>
+          <Text style={styles.price}>{formatPrice(property.price)}</Text>
           {property.listing_type && (
-            <View style={[styles.specBadge, styles.listingTypeBadge]}>
-              <Text style={[styles.specBadgeText, styles.listingTypeText]}>
+            <View style={styles.listingTypeBadge}>
+              <Text style={styles.listingTypeText}>
                 {property.listing_type === 'sale' ? 'FOR SALE' : 'FOR RENT'}
               </Text>
             </View>
           )}
         </View>
 
-        {/* Expandable Caption */}
-        {property.description ? (
-          <Pressable onPress={() => setIsExpanded(!isExpanded)} style={styles.descWrapper}>
-            <Text
-              style={styles.description}
-              numberOfLines={isExpanded ? undefined : 2}
-            >
-              {property.description}
-            </Text>
-            <Text style={styles.moreToggleText}>
-              {isExpanded ? 'Show less' : '...more'}
-            </Text>
-          </Pressable>
-        ) : null}
+        {/* Specs & Location */}
+        <Text style={styles.specsText} numberOfLines={1}>
+          {property.bhk ? `${property.bhk} BHK · ` : ''}
+          {property.area ? `${property.area} sq ft · ` : ''}
+          {property.locality ? `${property.locality}, ` : ''}{property.city}
+        </Text>
 
-        {/* View Details Button */}
+        {/* Broker Tag */}
+        {broker?.full_name && (
+          <Text style={styles.brokerText} numberOfLines={1}>
+            By {broker.full_name}{broker.agency_name ? ` (${broker.agency_name})` : ''}
+          </Text>
+        )}
+
+        {/* Small Rounded View Property Button */}
         <Pressable
-          style={styles.viewDetailsBtn}
+          style={styles.viewPropertyPill}
           onPress={() => router.push(`/properties/${property.id}` as any)}
         >
-          <Text style={styles.viewDetailsText}>View Property Details</Text>
-          <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+          <Text style={styles.viewPropertyPillText}>View Property</Text>
+          <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
         </Pressable>
       </View>
     </View>
@@ -409,14 +356,14 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: 'absolute',
-    top: 14,
-    right: 16,
+    top: 12,
+    right: 12,
     zIndex: 30,
   },
   muteButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -431,18 +378,19 @@ const styles = StyleSheet.create({
   rightRail: {
     position: 'absolute',
     right: 12,
+    bottom: 12,
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     zIndex: 40,
   },
   actionBtn: {
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   actionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: 'rgba(255, 255, 255, 0.94)',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -468,13 +416,13 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontFamily: Fonts.sansSemiBold,
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '600',
     color: '#111827',
     backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: '#E5E7EB',
@@ -482,153 +430,78 @@ const styles = StyleSheet.create({
   bottomInfo: {
     position: 'absolute',
     left: 12,
-    right: 88,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 12,
+    right: 76,
+    bottom: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
     zIndex: 30,
   },
-  brokerRow: {
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
-  },
-  brokerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  brokerAvatarFallback: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2563EB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  brokerInitial: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  brokerName: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  agencyName: {
-    fontFamily: Fonts.sans,
-    fontSize: 10,
-    color: '#6B7280',
-  },
-  proBadge: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  proBadgeText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 8,
-    fontWeight: '700',
-    color: '#2563EB',
-    letterSpacing: 0.5,
+    marginBottom: 3,
   },
   price: {
     fontFamily: Fonts.displaySemiBold,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#111827',
-    marginBottom: 3,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  locationText: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 12,
-    color: '#4B5563',
-    flex: 1,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-    marginBottom: 8,
-  },
-  specBadge: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  specBadgeText: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#374151',
   },
   listingTypeBadge: {
     backgroundColor: '#EFF6FF',
     borderColor: '#BFDBFE',
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
   listingTypeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    fontWeight: '700',
     color: '#2563EB',
+    letterSpacing: 0.3,
   },
-  descWrapper: {
-    marginBottom: 10,
-  },
-  description: {
-    fontFamily: Fonts.sans,
+  specsText: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 11.5,
-    lineHeight: 16,
     color: '#4B5563',
+    marginBottom: 2,
   },
-  moreToggleText: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 11,
-    color: '#2563EB',
-    marginTop: 2,
+  brokerText: {
+    fontFamily: Fonts.sans,
+    fontSize: 10.5,
+    color: '#6B7280',
+    marginBottom: 4,
   },
-  viewDetailsBtn: {
+  viewPropertyPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     backgroundColor: '#2563EB',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
     elevation: 3,
   },
-  viewDetailsText: {
+  viewPropertyPillText: {
     fontFamily: Fonts.sansSemiBold,
-    fontSize: 12.5,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#FFFFFF',
   },

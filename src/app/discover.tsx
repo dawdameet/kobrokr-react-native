@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   Pressable,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../lib/api';
@@ -20,8 +20,7 @@ import { safeGoBack } from '../lib/utils';
 
 export default function DiscoverScreen() {
   const { height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const [containerHeight, setContainerHeight] = useState(windowHeight);
+  const [containerHeight, setContainerHeight] = useState(windowHeight - 130);
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,8 +84,19 @@ export default function DiscoverScreen() {
   }).current;
 
   return (
-    <View style={styles.container}>
-      {/* Main Feed Container - Fullscreen */}
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
+      {/* Top Bar - Solid White */}
+      <View style={styles.header}>
+        <Pressable onPress={() => safeGoBack()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+        </Pressable>
+        <Text style={styles.headerTitle}>Discover</Text>
+        <Pressable onPress={() => router.push('/search')} style={styles.searchBtn}>
+          <Ionicons name="search" size={20} color="#111827" />
+        </Pressable>
+      </View>
+
+      {/* Main Feed Container - Maximized Video Area */}
       <View style={styles.feedWrapper} onLayout={handleLayout}>
         {loading ? (
           <View style={styles.centerContainer}>
@@ -137,65 +147,48 @@ export default function DiscoverScreen() {
           />
         )}
       </View>
-
-      {/* Floating Transparent Topbar */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) }]}>
-        <Pressable onPress={() => safeGoBack()} style={styles.headerIconBtn}>
-          <Ionicons name="arrow-back" size={22} color="#111827" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Discover</Text>
-        <Pressable onPress={() => router.push('/search')} style={styles.headerIconBtn}>
-          <Ionicons name="search" size={20} color="#111827" />
-        </Pressable>
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-    position: 'relative',
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 0,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     zIndex: 50,
   },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
   },
   headerTitle: {
     fontFamily: Fonts.displaySemiBold,
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#111827',
     letterSpacing: -0.3,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+  },
+  searchBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   feedWrapper: {
     flex: 1,
