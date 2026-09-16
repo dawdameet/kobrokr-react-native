@@ -1,15 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
 
 export default function LandingScreen() {
   const [checking, setChecking] = useState(true);
+  const { ref, referral, referral_code } = useLocalSearchParams<{
+    ref?: string;
+    referral?: string;
+    referral_code?: string;
+  }>();
 
   useEffect(() => {
-    async function checkSession() {
+    async function initLanding() {
+      const incomingRef = ref || referral || referral_code;
+      if (incomingRef) {
+        const cleanCode = String(incomingRef).trim().toUpperCase();
+        if (cleanCode) {
+          await storage.set('applied_referral_code', cleanCode);
+        }
+      }
+
       try {
         const userStr = await storage.get('user');
         if (userStr) {
@@ -27,8 +40,8 @@ export default function LandingScreen() {
       }
       setChecking(false);
     }
-    checkSession();
-  }, []);
+    initLanding();
+  }, [ref, referral, referral_code]);
 
   if (checking) {
     return (

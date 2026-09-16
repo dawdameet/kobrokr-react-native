@@ -2,22 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import api from '../lib/api';
 import { setSession } from '../lib/auth';
+import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignupScreen() {
-  const { role: initialRole } = useLocalSearchParams();
+  const { role: initialRole, ref: referralParam, referral, referral_code } = useLocalSearchParams<{
+    role?: string;
+    ref?: string;
+    referral?: string;
+    referral_code?: string;
+  }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
   
   // New fields
   const [mobile, setMobile] = useState('');
@@ -28,6 +37,25 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function resolveReferral() {
+      const directCode = referralParam || referral || referral_code;
+      if (directCode) {
+        const clean = String(directCode).trim().toUpperCase();
+        setReferralCode(clean);
+        setIsAutoFilled(true);
+        await storage.set('applied_referral_code', clean);
+      } else {
+        const saved = await storage.get('applied_referral_code');
+        if (saved) {
+          setReferralCode(saved.trim().toUpperCase());
+          setIsAutoFilled(true);
+        }
+      }
+    }
+    resolveReferral();
+  }, [referralParam, referral, referral_code]);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -51,10 +79,18 @@ export default function SignupScreen() {
     }
 
     try {
-      const { data } = await api.post('/auth/google', {
+      const cleanRef = referralCode.trim().toUpperCase();
+      const payload: any = {
         credential: idToken,
         role: roleTab,
-      });
+      };
+
+      if (cleanRef) {
+        payload.referral_code = cleanRef;
+        await storage.set('applied_referral_code', cleanRef);
+      }
+
+      const { data } = await api.post('/auth/google', payload);
 
       await setSession(data.access_token, data.refresh_token, data.user);
       
@@ -104,6 +140,7 @@ export default function SignupScreen() {
     setLoading(true);
     
     try {
+      const cleanRef = referralCode.trim().toUpperCase();
       const payload: any = {
         full_name: name,
         email,
@@ -112,6 +149,11 @@ export default function SignupScreen() {
         city,
         role: roleTab,
       };
+
+      if (cleanRef) {
+        payload.referral_code = cleanRef;
+        await storage.set('applied_referral_code', cleanRef);
+      }
 
       if (roleTab === 'broker') {
         payload.agency_name = agencyName;
@@ -289,6 +331,34 @@ export default function SignupScreen() {
                 placeholder="••••••••"
                 secureTextEntry
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.referralLabelRow}>
+                <Text style={styles.label}>Referral Code (Optional)</Text>
+                {isAutoFilled && referralCode.trim().length > 0 && (
+                  <View style={styles.appliedBadge}>
+                    <Ionicons name="checkmark-circle" size={12} color="#15803D" />
+                    <Text style={styles.appliedBadgeText}>Link Applied</Text>
+                  </View>
+                )}
+              </View>
+              <TextInput 
+                style={[styles.input, isAutoFilled && styles.inputHighlight]}
+                value={referralCode}
+                onChangeText={(text) => {
+                  setReferralCode(text.toUpperCase());
+                  setIsAutoFilled(false);
+                }}
+                placeholder="e.g. KB-94X2A"
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <Text style={styles.helperText}>
+                {isAutoFilled 
+                  ? 'Referral code auto-detected from invite link.' 
+                  : 'Enter a friend or broker’s code to connect accounts & unlock partner benefits.'}
+              </Text>
             </View>
 
             <Pressable 
@@ -473,5 +543,34 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
     color: '#2563EB',
     fontWeight: '500',
+  },
+  referralLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  appliedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  appliedBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#15803D',
+  },
+  inputHighlight: {
+    borderColor: '#86EFAC',
+    backgroundColor: '#F0FDF4',
+  },
+  helperText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   }
 });

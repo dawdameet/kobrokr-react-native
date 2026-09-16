@@ -147,7 +147,7 @@ export default function ProfileScreen() {
         {/* Become a Partner Section */}
         <Pressable 
           style={styles.partnerCard}
-          onPress={() => {}}
+          onPress={() => router.push('/partner' as any)}
         >
           <View style={styles.partnerCardIconContainer}>
             <Ionicons name="briefcase" size={20} color="#2563EB" />

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../lib/api';
+import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
 
 export default function SubscriptionWidget() {
@@ -10,9 +11,45 @@ export default function SubscriptionWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [referralInput, setReferralInput] = useState('');
+  const [appliedCode, setAppliedCode] = useState('');
+  const [referralError, setReferralError] = useState('');
+
   useEffect(() => {
     fetchData();
+    checkReferralCode();
   }, []);
+
+  const checkReferralCode = async () => {
+    try {
+      const saved = await storage.get('applied_referral_code');
+      if (saved) {
+        const clean = saved.trim().toUpperCase();
+        setAppliedCode(clean);
+        setReferralInput(clean);
+      }
+    } catch (e) {
+      console.error('Error loading referral code', e);
+    }
+  };
+
+  const handleApplyCode = async () => {
+    const code = referralInput.trim().toUpperCase();
+    if (!code) {
+      setReferralError('Please enter a referral code');
+      return;
+    }
+    setReferralError('');
+    setAppliedCode(code);
+    await storage.set('applied_referral_code', code);
+  };
+
+  const handleRemoveCode = async () => {
+    setAppliedCode('');
+    setReferralInput('');
+    setReferralError('');
+    await storage.remove('applied_referral_code');
+  };
 
   const fetchData = async () => {
     try {
@@ -125,9 +162,59 @@ export default function SubscriptionWidget() {
         </View>
       </View>
 
+      {/* Referral / Affiliate Section */}
+      <View style={[styles.referralCard, appliedCode ? styles.referralCardApplied : null]}>
+        {appliedCode ? (
+          <View>
+            <View style={styles.referralAppliedRow}>
+              <View style={styles.referralAppliedBadge}>
+                <Ionicons name="pricetag" size={16} color="#15803D" />
+                <Text style={styles.referralAppliedText}>Code Applied: <Text style={styles.referralCodeHighlight}>{appliedCode}</Text></Text>
+              </View>
+              <Pressable onPress={handleRemoveCode} style={styles.referralRemoveBtn}>
+                <Text style={styles.referralRemoveText}>Remove</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.referralAppliedSub}>
+              Affiliate referral attached. Your upgrade will auto-attribute to this partner.
+            </Text>
+          </View>
+        ) : (
+          <View>
+            <Text style={styles.referralTitle}>Have an Affiliate / Referral Code?</Text>
+            <View style={styles.referralInputRow}>
+              <TextInput
+                style={styles.referralTextInput}
+                placeholder="e.g. KB-94X2A"
+                placeholderTextColor="#9CA3AF"
+                value={referralInput}
+                onChangeText={(text) => {
+                  setReferralInput(text.toUpperCase());
+                  setReferralError('');
+                }}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+              <Pressable style={styles.referralApplyBtn} onPress={handleApplyCode}>
+                <Text style={styles.referralApplyBtnText}>Apply</Text>
+              </Pressable>
+            </View>
+            {referralError ? <Text style={styles.referralErrorText}>{referralError}</Text> : null}
+            <Text style={styles.referralHelpText}>
+              Got a link or code from a partner? Type it here before upgrading.
+            </Text>
+          </View>
+        )}
+      </View>
+
       <Pressable 
         style={styles.ctaButton} 
-        onPress={() => Linking.openURL('https://kobrokr.com/pricing')}
+        onPress={() => {
+          const url = appliedCode 
+            ? `https://kobrokr.com/pricing?ref=${encodeURIComponent(appliedCode)}`
+            : 'https://kobrokr.com/pricing';
+          Linking.openURL(url);
+        }}
       >
         <Text style={styles.ctaButtonText}>Upgrade on Web Platform</Text>
         <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
@@ -296,5 +383,99 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  referralCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginTop: 16,
+  },
+  referralCardApplied: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#86EFAC',
+  },
+  referralAppliedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  referralAppliedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  referralAppliedText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 14,
+    color: '#15803D',
+  },
+  referralCodeHighlight: {
+    fontFamily: Fonts.monoSemiBold,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  referralRemoveBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  referralRemoveText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#EF4444',
+  },
+  referralAppliedSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#166534',
+  },
+  referralTitle: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 10,
+  },
+  referralInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  referralTextInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontFamily: Fonts.mono,
+    fontSize: 14,
+    color: '#111827',
+  },
+  referralApplyBtn: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 18,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  referralApplyBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  referralErrorText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
+  },
+  referralHelpText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 6,
   }
 });

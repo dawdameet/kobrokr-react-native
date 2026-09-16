@@ -173,7 +173,7 @@ export default function BrokerDashboard() {
       {/* Floating Ball: Become a Partner */}
       <Pressable 
         style={styles.floatingPartnerBall} 
-        onPress={() => {}}
+        onPress={() => router.push('/partner' as any)}
         accessibilityLabel="Become a Partner"
         accessibilityRole="button"
       >
