@@ -11,6 +11,7 @@ import { Fonts } from '../../constants/theme';
 export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams();
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
