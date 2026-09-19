@@ -77,14 +77,14 @@ export default function PartnerScreen() {
 
         // Fetch live affiliate stats from backend
         try {
-          const { data } = await api.get('/affiliate/overview');
+          const { data } = await api.get('/affiliate/me');
           if (data) {
             setStats({
-              totalReferrals: data.totalReferrals || 0,
-              paidConversions: data.paidConversions || 0,
-              totalEarned: data.totalEarned || 0,
-              pendingPayout: data.pendingPayout || 0,
-              commissionRate: data.commissionRate || 15,
+              totalReferrals: data.total_referrals || 0,
+              paidConversions: data.total_referrals || 0,
+              totalEarned: data.settled_earnings || 0,
+              pendingPayout: data.pending_earnings || 0,
+              commissionRate: 10,
             });
             if (data.referral_code) setReferralCode(data.referral_code);
             if (data.upi_id) {
@@ -105,7 +105,7 @@ export default function PartnerScreen() {
     loadPartnerData();
   }, []);
 
-  const referralLink = `https://kobrokr.com/pricing?ref=${encodeURIComponent(referralCode)}`;
+  const referralLink = `https://kobrokr.com/payment?ref=${encodeURIComponent(referralCode)}`;
 
   // Save UPI ID to backend database and local storage
   const persistUpiId = async (idToSave: string): Promise<boolean> => {

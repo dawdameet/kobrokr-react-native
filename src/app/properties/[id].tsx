@@ -115,7 +115,17 @@ export default function PropertyDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#2563EB" />
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
@@ -126,7 +136,17 @@ export default function PropertyDetailScreen() {
         <Pressable style={styles.backButton} onPress={() => safeGoBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
@@ -372,6 +392,16 @@ export default function PropertyDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

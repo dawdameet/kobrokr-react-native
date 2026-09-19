@@ -154,12 +154,16 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.partnerCardTextContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.partnerCardTitle}>BECOME A PARTNER</Text>
+              <Text style={styles.partnerCardTitle}>{affiliateStats ? 'YOUR AFFILIATE STATS' : 'BECOME A PARTNER'}</Text>
               <View style={styles.partnerBadge}>
                 <Text style={styles.partnerBadgeText}>AFFILIATE</Text>
               </View>
             </View>
-            <Text style={styles.partnerCardSubtitle}>Join the kobrokr affiliate network</Text>
+            <Text style={styles.partnerCardSubtitle}>
+              {affiliateStats 
+                ? `${affiliateStats.total_referrals} Referrals | ₹${affiliateStats.total_earned} Earned | ₹${affiliateStats.pending_payout} Pending` 
+                : 'Join the kobrokr affiliate network'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </Pressable>
