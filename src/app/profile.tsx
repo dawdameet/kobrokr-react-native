@@ -14,6 +14,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [affiliateStats, setAffiliateStats] = useState<any>(null);
 
   useEffect(() => {
     async function init() {
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
         const u = JSON.parse(uStr);
         setUserRole(u.role);
         fetchProfile(u.role);
+        fetchAffiliateStats();
       } else {
         setError('Not logged in');
         setLoading(false);
@@ -38,6 +40,21 @@ export default function ProfileScreen() {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAffiliateStats = async () => {
+    try {
+      const { data } = await api.get('/affiliate/me');
+      if (data && data.total_referrals !== undefined) {
+        setAffiliateStats({
+          total_referrals: data.total_referrals ?? 0,
+          total_earned: (data.settled_earnings ?? 0).toFixed(0),
+          pending_payout: (data.pending_earnings ?? 0).toFixed(0),
+        });
+      }
+    } catch (e) {
+      // Not a partner yet - leave affiliateStats as null
     }
   };
 
