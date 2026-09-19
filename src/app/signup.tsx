@@ -315,24 +315,34 @@ export default function SignupScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password *</Text>
-              <TextInput 
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
+                <TextInput 
+                  style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showPassword}
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 12 }}>
+                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                </Pressable>
+              </View>
             </View>
             
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Confirm Password *</Text>
-              <TextInput 
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                secureTextEntry
-              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
+                <TextInput 
+                  style={[styles.input, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={{ padding: 12 }}>
+                  <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>

@@ -194,9 +194,9 @@ export default function LoginScreen() {
                     placeholder="••••••••"
                     secureTextEntry={!showPassword}
                   />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 10 }}>
+                  <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 10 }}>
                     <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               </View>
 
