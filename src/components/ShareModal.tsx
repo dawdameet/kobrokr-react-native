@@ -34,7 +34,9 @@ export default function ShareModal({
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const shareLink = `https://kobrokr.com/client-share?b=${userId || ''}&p=${selectedIds.join(',')}`;
+  const isDev = __DEV__;
+  const baseUrl = isDev ? 'http://192.168.1.148:5173' : 'https://kobrokr.com';
+  const shareLink = `${baseUrl}/client-share?b=${userId || ''}&p=${selectedIds.join(',')}${isDev ? '&dev=1' : ''}`;
 
   useEffect(() => {
     if (visible && selectedIds.length > 0) {
