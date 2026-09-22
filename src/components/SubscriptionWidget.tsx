@@ -232,7 +232,7 @@ export default function SubscriptionWidget() {
           Linking.openURL(url);
         }}
       >
-        <Text style={styles.ctaButtonText}>Upgrade on Web Platform</Text>
+        <Text style={styles.ctaButtonText}>Upgrade</Text>
         <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
       </Pressable>
     </View>

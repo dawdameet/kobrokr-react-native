@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Share,
-  Linking,
-  Alert,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
-  Platform,
+  Linking,
   Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { storage } from '../lib/storage';
-import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import api from '../lib/api';
+import { storage } from '../lib/storage';
+import { safeGoBack } from '../lib/utils';
 
 const QUICK_UPI_HANDLES = ['@okhdfcbank', '@okaxis', '@paytm', '@ybl', '@icici'];
 
@@ -115,8 +115,18 @@ export default function PartnerScreen() {
       return false;
     }
 
+    const attemptsStr = await storage.get('upi_verification_attempts');
+    const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0;
+    
+    if (attempts >= 5) {
+      Alert.alert('Limit Exceeded', 'You have exceeded the maximum number of UPI registration attempts (5). Please contact support.');
+      return false;
+    }
+
     setSavingUpi(true);
     try {
+      // Increment attempts
+      await storage.set('upi_verification_attempts', (attempts + 1).toString());
       // 1. Save to backend database
       try {
         await api.post('/affiliate/payout-settings', { upi_id: cleanUpi });
@@ -260,7 +270,8 @@ export default function PartnerScreen() {
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.headerTitle}>Partner & Affiliate Hub</Text>
-            <Text style={styles.headerSubtitle}>Refer anyone & earn {stats.commissionRate}% on every sale</Text>
+            <Text style={styles.headerSubtitle}>Refer anyone & earn {stats.commissionRate}% on every pro plan signup
+            </Text>
           </View>
           <View style={styles.badgeTop}>
             <Text style={styles.badgeTopText}>{stats.commissionRate}% COMMISSION</Text>

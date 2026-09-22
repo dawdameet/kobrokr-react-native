@@ -12,7 +12,7 @@ import { Fonts } from '../constants/theme';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { role: initialRole } = useLocalSearchParams();
+  const { role: initialRole, verified } = useLocalSearchParams<{ role?: string; verified?: string }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
   
   const [email, setEmail] = useState('');
@@ -22,6 +22,21 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const [isUnverified, setIsUnverified] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
+
+
+  
+  useEffect(() => {
+    if (verified === 'true') {
+      setSuccessMsg('Email verified successfully! You can now log in.');
+      setError('');
+    }
+  }, [verified]);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -72,6 +87,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     Keyboard.dismiss();
+    setSuccessMsg('');
     if (!email || !password) {
       setError('Please enter both email and password.');
       return;
@@ -102,9 +118,31 @@ export default function LoginScreen() {
 
     } catch (err: any) {
       const payload = err.response?.data || {};
-      setError(payload.error || payload.detail || 'Login failed');
+      if (payload.email_unverified) {
+        setIsUnverified(true);
+        setUnverifiedEmail(payload.email || email);
+        setError('Please verify your email before logging in. Check your inbox.');
+      } else {
+        setError(payload.error || payload.detail || 'Login failed');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendLoading(true);
+    setResendMessage('');
+    try {
+      await api.post('/auth/resend-verification', {
+        email: unverifiedEmail,
+        role: roleTab
+      });
+      setResendMessage('Verification email sent! Check your inbox.');
+    } catch (err: any) {
+      setResendMessage(err.response?.data?.error || 'Failed to resend email.');
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -147,9 +185,35 @@ export default function LoginScreen() {
             </Text>
             <Text style={styles.subtitle}>Sign in to your kobrokr account</Text>
 
+            {successMsg ? (
+              <View style={[styles.errorContainer, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
+                <Text style={[styles.errorText, { color: '#15803D' }]}>{successMsg}</Text>
+              </View>
+            ) : null}
+
             {error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
+                {isUnverified && (
+                  <View style={{ marginTop: 12 }}>
+                    <Pressable 
+                      style={[styles.button, { backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, paddingVertical: 10 }]} 
+                      onPress={handleResend}
+                      disabled={resendLoading}
+                    >
+                      {resendLoading ? (
+                        <ActivityIndicator color="#B91C1C" size="small" />
+                      ) : (
+                        <Text style={[styles.buttonText, { color: '#B91C1C', fontSize: 14 }]}>Resend Verification Email</Text>
+                      )}
+                    </Pressable>
+                    {resendMessage ? (
+                      <Text style={{ marginTop: 8, fontSize: 12, color: resendMessage.includes('sent') ? '#15803D' : '#B91C1C', fontFamily: Fonts.sansMedium, textAlign: 'center' }}>
+                        {resendMessage}
+                      </Text>
+                    ) : null}
+                  </View>
+                )}
               </View>
             ) : null}
 
