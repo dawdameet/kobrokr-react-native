@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../lib/api';
+import { storage } from '../../lib/storage';
 import { safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
@@ -20,7 +21,23 @@ export default function AddPropertyScreen() {
   });
   
   const [images, setImages] = useState<any[]>([]);
+  const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadUser() {
+      const uStr = await storage.get('user');
+      if (uStr) {
+        try {
+          setCurrentUser(JSON.parse(uStr));
+        } catch {}
+      }
+    }
+    loadUser();
+  }, []);
+
+  const isPro = ['individual', 'enterprise', 'premium'].includes(currentUser?.plan?.toLowerCase?.() || '');
 
   const handleChange = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -54,6 +71,42 @@ export default function AddPropertyScreen() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePickVideo = async () => {
+    if (!isPro) {
+      Alert.alert(
+        'Pro Feature 🚀',
+        'Video walkthroughs are exclusively available for Pro members.\n\nBoost your property inquiries and get featured in Discovery Mode by upgrading your plan on Kobrokr Web.',
+        [
+          { text: 'Got it', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsEditing: true,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+          Alert.alert('Video Too Large', 'Please select a video under 50MB.');
+          return;
+        }
+        setVideo(asset);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to pick video');
+    }
+  };
+
+  const removeVideo = () => {
+    setVideo(null);
   };
 
   const handleSubmit = async () => {
@@ -104,6 +157,28 @@ export default function AddPropertyScreen() {
         await api.post(`/properties/${propertyId}/images`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
+      }
+
+      // 3. Upload video if any
+      if (video) {
+        const videoData = new FormData();
+        const filename = video.fileName || video.uri.split('/').pop() || 'walkthrough.mp4';
+        const ext = filename.split('.').pop()?.toLowerCase();
+        const mimeType = ext === 'mov' ? 'video/quicktime' : (ext === 'webm' ? 'video/webm' : 'video/mp4');
+
+        videoData.append('video', {
+          uri: video.uri,
+          name: filename,
+          type: mimeType,
+        } as any);
+
+        try {
+          await api.post(`/properties/${propertyId}/videos`, videoData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } catch (vidErr) {
+          console.error('Video upload failed:', vidErr);
+        }
       }
 
       Alert.alert('Success', 'Property listed successfully!', [
@@ -256,9 +331,58 @@ export default function AddPropertyScreen() {
           </View>
         </View>
 
+        {/* Walkthrough Video */}
+        <View style={styles.card}>
+          <View style={styles.videoHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="videocam" size={18} color="#2563EB" />
+              <Text style={styles.cardTitleNoMargin}>Walkthrough Video</Text>
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.videoSubtext}>
+            Featured in Discovery Mode feed. Boosts buyer inquiries up to 2x.
+          </Text>
+
+          {video ? (
+            <View style={styles.videoSelectedContainer}>
+              <View style={styles.videoIconCircle}>
+                <Ionicons name="videocam-outline" size={24} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.videoFileName} numberOfLines={1}>
+                  {video.fileName || 'Walkthrough Video'}
+                </Text>
+                <Text style={styles.videoFileSize}>
+                  {video.fileSize ? `${(video.fileSize / (1024 * 1024)).toFixed(1)} MB • ` : ''}Ready to upload
+                </Text>
+              </View>
+              <Pressable onPress={removeVideo} style={styles.removeVideoBtn}>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.addVideoBtn} onPress={handlePickVideo}>
+              <View style={styles.videoAddIconCircle}>
+                <Ionicons name="videocam-outline" size={26} color="#2563EB" />
+              </View>
+              <Text style={styles.addVideoText}>Upload Walkthrough Video</Text>
+              <Text style={styles.addVideoSub}>Max 50MB (MP4, MOV, WEBM)</Text>
+              {!isPro && (
+                <View style={styles.lockBadge}>
+                  <Ionicons name="lock-closed" size={12} color="#D97706" />
+                  <Text style={styles.lockBadgeText}>Tap to see Pro benefits</Text>
+                </View>
+              )}
+            </Pressable>
+          )}
+        </View>
+
         {/* Images */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Property Media ({images.length}/5)</Text>
+          <Text style={styles.cardTitle}>Property Photos ({images.length}/5)</Text>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
             {images.map((img, idx) => (
@@ -524,5 +648,114 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  videoHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  cardTitleNoMargin: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  proBadge: {
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  proBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
+  videoSubtext: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  addVideoBtn: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  videoAddIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  addVideoText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  addVideoSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  lockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  lockBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#B45309',
+    fontWeight: '600',
+  },
+  videoSelectedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    padding: 12,
+  },
+  videoIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  videoFileName: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    color: '#166534',
+    fontWeight: '600',
+  },
+  videoFileSize: {
+    fontFamily: Fonts.sans,
+    fontSize: 11,
+    color: '#15803D',
+  },
+  removeVideoBtn: {
+    padding: 8,
   }
 });
