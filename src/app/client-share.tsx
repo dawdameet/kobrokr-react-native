@@ -253,12 +253,40 @@ export default function ClientShareScreen() {
           </View>
         </View>
 
-        {broker.mobile && (
-          <Pressable style={styles.callBrokerBtn} onPress={() => handleCall(broker.mobile)}>
-            <Ionicons name="call" size={15} color="#FFFFFF" />
-            <Text style={styles.callBrokerBtnText}>Call</Text>
-          </Pressable>
-        )}
+        <View style={styles.headerRightActions}>
+          {currentUser ? (
+            <Pressable
+              style={styles.homeBtn}
+              onPress={() => {
+                if (currentUser.role === 'broker') {
+                  router.replace('/(broker)/dashboard');
+                } else if (currentUser.role === 'tenant') {
+                  router.replace('/(tenant)/dashboard');
+                } else {
+                  router.replace('/');
+                }
+              }}
+            >
+              <Ionicons name="home" size={15} color="#2563EB" />
+              <Text style={styles.homeBtnText}>Home</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={styles.loginHeaderBtn}
+              onPress={navigateToLogin}
+            >
+              <Ionicons name="log-in-outline" size={15} color="#FFFFFF" />
+              <Text style={styles.loginHeaderBtnText}>Log In</Text>
+            </Pressable>
+          )}
+
+          {broker.mobile && (
+            <Pressable style={styles.callBrokerBtn} onPress={() => handleCall(broker.mobile)}>
+              <Ionicons name="call" size={14} color="#FFFFFF" />
+              <Text style={styles.callBrokerBtnText}>Call</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Main List */}
@@ -491,6 +519,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 1,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  homeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  homeBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+  loginHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  loginHeaderBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   callBrokerBtn: {
     flexDirection: 'row',
