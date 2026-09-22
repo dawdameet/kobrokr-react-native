@@ -12,7 +12,7 @@ import { Fonts } from '../constants/theme';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { role: initialRole, verified } = useLocalSearchParams<{ role?: string; verified?: string }>();
+  const { role: initialRole, verified, redirect } = useLocalSearchParams<{ role?: string; verified?: string; redirect?: string }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
   
   const [email, setEmail] = useState('');
@@ -72,6 +72,11 @@ export default function LoginScreen() {
         return;
       }
 
+      if (redirect) {
+        router.replace(redirect as any);
+        return;
+      }
+
       if (data.user?.role === 'tenant') {
         router.replace('/(tenant)/dashboard');
       } else {
@@ -107,6 +112,11 @@ export default function LoginScreen() {
       
       if (!data.user?.mobile || !data.user?.city || (data.user?.role === 'broker' && (!data.user?.areas_served?.length))) {
         router.replace('/(app)/onboarding');
+        return;
+      }
+
+      if (redirect) {
+        router.replace(redirect as any);
         return;
       }
 
@@ -278,7 +288,7 @@ export default function LoginScreen() {
               </Pressable>
             </View>
 
-            <Pressable onPress={() => router.push(`/signup?role=${roleTab}`)} style={styles.footerLink}>
+            <Pressable onPress={() => router.push(`/signup?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}` as any)} style={styles.footerLink}>
               <Text style={styles.footerText}>No account? <Text style={styles.linkText}>Sign up</Text></Text>
             </Pressable>
           </View>

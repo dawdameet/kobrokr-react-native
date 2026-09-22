@@ -13,11 +13,12 @@ import { Fonts } from '../constants/theme';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function SignupScreen() {
-  const { role: initialRole, ref: referralParam, referral, referral_code } = useLocalSearchParams<{
+  const { role: initialRole, ref: referralParam, referral, referral_code, redirect } = useLocalSearchParams<{
     role?: string;
     ref?: string;
     referral?: string;
     referral_code?: string;
+    redirect?: string;
   }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
   
@@ -101,6 +102,11 @@ export default function SignupScreen() {
         return;
       }
 
+      if (redirect) {
+        router.replace(redirect as any);
+        return;
+      }
+
       if (data.user?.role === 'tenant') {
         router.replace('/(tenant)/dashboard');
       } else {
@@ -168,7 +174,7 @@ export default function SignupScreen() {
       // Redirect to login page after successful registration
       router.replace({
         pathname: '/login',
-        params: { role: roleTab, email, confirm: '1' }
+        params: { role: roleTab, email, confirm: '1', ...(redirect ? { redirect } : {}) }
       });
 
     } catch (err: any) {
@@ -386,7 +392,7 @@ export default function SignupScreen() {
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.push(`/login?role=${roleTab}`)} style={styles.footerLink}>
+          <Pressable onPress={() => router.push(`/login?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}` as any)} style={styles.footerLink}>
             <Text style={styles.footerText}>Already have an account? <Text style={styles.linkText}>Log in</Text></Text>
           </Pressable>
         </ScrollView>

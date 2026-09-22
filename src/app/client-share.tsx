@@ -9,11 +9,13 @@ import {
   Image,
   Linking,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../lib/api';
+import { storage } from '../lib/storage';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 
@@ -27,6 +29,25 @@ export default function ClientShareScreen() {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Authentication gate state
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState<'contact' | 'view_property' | 'general'>('general');
+
+  const redirectUrl = `/client-share?b=${brokerId || ''}&p=${propertyIds || ''}`;
+
+  useEffect(() => {
+    async function checkAuth() {
+      const uStr = await storage.get('user');
+      if (uStr) {
+        try {
+          setCurrentUser(JSON.parse(uStr));
+        } catch {}
+      }
+    }
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     if (!brokerId || !propertyIds) {
@@ -55,16 +76,45 @@ export default function ClientShareScreen() {
   }, [brokerId, propertyIds]);
 
   const handleCall = (phone: string) => {
+    if (!currentUser) {
+      setAuthModalReason('contact');
+      setShowAuthModal(true);
+      return;
+    }
     if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   const handleWhatsAppProperty = (p: any) => {
+    if (!currentUser) {
+      setAuthModalReason('contact');
+      setShowAuthModal(true);
+      return;
+    }
     if (!broker?.mobile) return;
     const cleanPhone = broker.mobile.replace(/\D/g, '');
     const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const firstName = broker.full_name?.split(' ')[0] || 'there';
     const message = `Hi ${firstName}, I'm interested in the property: ${p.title} (${p.locality || p.city}).`;
     Linking.openURL(`https://wa.me/${phoneFormatted}?text=${encodeURIComponent(message)}`);
+  };
+
+  const handlePropertyCardPress = (p: any) => {
+    if (!currentUser) {
+      setAuthModalReason('view_property');
+      setShowAuthModal(true);
+      return;
+    }
+    router.push(`/properties/${p.id}?b=${brokerId}` as any);
+  };
+
+  const navigateToLogin = () => {
+    setShowAuthModal(false);
+    router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}` as any);
+  };
+
+  const navigateToSignup = () => {
+    setShowAuthModal(false);
+    router.push(`/signup?redirect=${encodeURIComponent(redirectUrl)}` as any);
   };
 
   if (loading) {
@@ -99,7 +149,7 @@ export default function ClientShareScreen() {
     return (
       <Pressable
         style={styles.card}
-        onPress={() => router.push(`/properties/${p.id}?b=${brokerId}` as any)}
+        onPress={() => handlePropertyCardPress(p)}
       >
         {/* Card Image */}
         <View style={styles.cardImageWrapper}>
@@ -216,7 +266,10 @@ export default function ClientShareScreen() {
         data={properties}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderPropertyItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          !currentUser && { paddingBottom: 110 }
+        ]}
         ListHeaderComponent={
           <View style={styles.collectionIntro}>
             <Text style={styles.collectionTitle}>Property Collection</Text>
@@ -224,6 +277,27 @@ export default function ClientShareScreen() {
               Handpicked properties selected exclusively for you by{' '}
               <Text style={{ fontWeight: '600', color: '#1E293B' }}>{broker.full_name}</Text>.
             </Text>
+
+            {/* Guest Banner when not logged in */}
+            {!currentUser && (
+              <View style={styles.guestBanner}>
+                <View style={styles.guestBannerHeader}>
+                  <Ionicons name="person-circle-outline" size={20} color="#2563EB" />
+                  <Text style={styles.guestBannerTitle}>Viewing as Guest</Text>
+                </View>
+                <Text style={styles.guestBannerText}>
+                  Sign in or create a free account to unlock full details, inspect layouts, and chat with {broker.full_name?.split(' ')[0]}.
+                </Text>
+                <View style={styles.guestBannerActions}>
+                  <Pressable style={styles.guestBannerLoginBtn} onPress={navigateToLogin}>
+                    <Text style={styles.guestBannerLoginText}>Log In</Text>
+                  </Pressable>
+                  <Pressable style={styles.guestBannerSignupBtn} onPress={navigateToSignup}>
+                    <Text style={styles.guestBannerSignupText}>Sign Up</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -234,6 +308,78 @@ export default function ClientShareScreen() {
           </View>
         }
       />
+
+      {/* Persistent Bottom Bar for Guest Users */}
+      {!currentUser && (
+        <View style={styles.floatingBottomAuth}>
+          <View style={styles.floatingBottomAuthContent}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <Text style={styles.floatingAuthTitle}>Want to connect?</Text>
+              <Text style={styles.floatingAuthSubtitle} numberOfLines={1}>
+                Sign in to contact {broker.full_name?.split(' ')[0]}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.floatingAuthBtn}
+              onPress={() => {
+                setAuthModalReason('contact');
+                setShowAuthModal(true);
+              }}
+            >
+              <Text style={styles.floatingAuthBtnText}>Log In / Sign Up</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Auth Modal / Bottom Sheet */}
+      <Modal
+        visible={showAuthModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAuthModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalBackdropPressable} onPress={() => setShowAuthModal(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalDragHandle} />
+
+            <View style={styles.modalIconCircle}>
+              <Ionicons
+                name={authModalReason === 'contact' ? 'chatbubble-ellipses-outline' : 'lock-closed-outline'}
+                size={30}
+                color="#2563EB"
+              />
+            </View>
+
+            <Text style={styles.modalTitle}>
+              {authModalReason === 'contact'
+                ? `Connect with ${broker.full_name?.split(' ')[0] || 'Broker'}`
+                : 'Sign In to View Property'}
+            </Text>
+
+            <Text style={styles.modalSubtitle}>
+              {authModalReason === 'contact'
+                ? `Please sign in or create a free account to message ${broker.full_name}, make calls, or schedule viewings.`
+                : `Create a free account or log in to view full property specifications, photo galleries, and broker contact options.`}
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Pressable style={styles.modalPrimaryBtn} onPress={navigateToLogin}>
+                <Text style={styles.modalPrimaryBtnText}>Log In to Continue</Text>
+              </Pressable>
+
+              <Pressable style={styles.modalSecondaryBtn} onPress={navigateToSignup}>
+                <Text style={styles.modalSecondaryBtnText}>Create Free Account</Text>
+              </Pressable>
+
+              <Pressable style={styles.modalDismissBtn} onPress={() => setShowAuthModal(false)}>
+                <Text style={styles.modalDismissBtnText}>Continue Previewing</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -382,6 +528,63 @@ const styles = StyleSheet.create({
     marginTop: 4,
     lineHeight: 18,
   },
+  guestBanner: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 14,
+  },
+  guestBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  guestBannerTitle: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  guestBannerText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#3B82F6',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  guestBannerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  guestBannerLoginBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  guestBannerLoginText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  guestBannerSignupBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  guestBannerSignupText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 12,
+    color: '#1E40AF',
+    fontWeight: '600',
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -499,5 +702,142 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#94A3B8',
     marginTop: 4,
+  },
+  floatingBottomAuth: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  floatingBottomAuthContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  floatingAuthTitle: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  floatingAuthSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  floatingAuthBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  floatingAuthBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdropPressable: {
+    flex: 1,
+  },
+  modalSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    alignItems: 'center',
+  },
+  modalDragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#CBD5E1',
+    marginBottom: 16,
+  },
+  modalIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  modalTitle: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  modalSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 20,
+    paddingHorizontal: 12,
+  },
+  modalActions: {
+    width: '100%',
+    gap: 10,
+  },
+  modalPrimaryBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  modalPrimaryBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  modalSecondaryBtn: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  modalSecondaryBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '600',
+  },
+  modalDismissBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalDismissBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#94A3B8',
   },
 });
