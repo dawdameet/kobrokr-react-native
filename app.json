@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.kobrokr.mobile"
+      "bundleIdentifier": "com.kobrokr.mobile",
+      "associatedDomains": [
+        "applinks:kobrokr.com",
+        "applinks:www.kobrokr.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -19,6 +23,17 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.kobrokr.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "kobrokr.com", "pathPrefix": "/client-share" },
+            { "scheme": "https", "host": "www.kobrokr.com", "pathPrefix": "/client-share" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan"
     },
