@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Image, Modal, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Image, Modal, ScrollView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,6 +8,7 @@ import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
+import ShareModal from '../components/ShareModal';
 
 const TYPES = ['apartment', 'house', 'villa', 'plot', 'office', 'shop', 'warehouse', 'other'];
 const LISTING_TYPES = [{ value: '', label: 'Any' }, { value: 'sale', label: 'Buy' }, { value: 'rent', label: 'Rent' }];
@@ -37,6 +38,9 @@ export default function SearchScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [searched, setSearched] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Fetch results
   const runSearch = useCallback(async (targetPage = 1, append = false) => {
@@ -70,10 +74,35 @@ export default function SearchScreen() {
     }
   }, [nlQuery, filters, sort]);
 
-  // Initial load
+  // Initial load & user role resolution
   useEffect(() => {
+    async function loadUser() {
+      const uStr = await storage.get('user');
+      if (uStr) {
+        try {
+          setCurrentUser(JSON.parse(uStr));
+        } catch {}
+      }
+    }
+    loadUser();
     runSearch(1);
   }, []);
+
+  const isBroker = currentUser?.role === 'broker';
+
+  const toggleSelectForClient = (propertyId: string | number) => {
+    setSelectedIds((prev) => {
+      const exists = prev.includes(propertyId);
+      if (!exists && prev.length >= 5 && currentUser?.plan === 'free') {
+        Alert.alert(
+          'Selection Limit Reached',
+          'You can only select up to 5 properties at once on the Free plan.'
+        );
+        return prev;
+      }
+      return exists ? prev.filter((id) => id !== propertyId) : [...prev, propertyId];
+    });
+  };
 
   const handleSearch = () => {
     setShowFilters(false);
@@ -124,6 +153,33 @@ export default function SearchScreen() {
             )}
             {!!p.bhk && <Text style={styles.tag}>{p.bhk} BHK</Text>}
           </View>
+
+          {isBroker && (
+            <Pressable
+              style={[
+                styles.selectCardBtn,
+                selectedIds.includes(p.id) && styles.selectCardBtnActive,
+              ]}
+              onPress={(e) => {
+                e.stopPropagation();
+                toggleSelectForClient(p.id);
+              }}
+            >
+              <Ionicons
+                name={selectedIds.includes(p.id) ? 'checkmark-circle' : 'add-circle-outline'}
+                size={16}
+                color={selectedIds.includes(p.id) ? '#2563EB' : '#64748B'}
+              />
+              <Text
+                style={[
+                  styles.selectCardBtnText,
+                  selectedIds.includes(p.id) && styles.selectCardBtnTextActive,
+                ]}
+              >
+                {selectedIds.includes(p.id) ? 'Selected for Client' : 'Select for Client'}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </Pressable>
     );
@@ -207,6 +263,45 @@ export default function SearchScreen() {
           }
         />
       )}
+      {/* Floating Bottom Dock for Selected Items */}
+      {selectedIds.length > 0 && (
+        <View style={styles.floatingDock}>
+          <View style={styles.dockInfo}>
+            <View style={styles.dockCountBadge}>
+              <Text style={styles.dockCountText}>{selectedIds.length}</Text>
+            </View>
+            <Text style={styles.dockLabel}>Selected</Text>
+          </View>
+
+          <View style={styles.dockActions}>
+            <Pressable
+              style={styles.dockShareBtn}
+              onPress={() => setShowShareModal(true)}
+            >
+              <Ionicons name="share-social" size={16} color="#FFFFFF" />
+              <Text style={styles.dockShareBtnText}>Share with Client</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.dockClearBtn}
+              onPress={() => setSelectedIds([])}
+            >
+              <Ionicons name="close" size={18} color="#94A3B8" />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Share with Client Modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedIds={selectedIds}
+        userId={currentUser?.id}
+        onClose={() => {
+          setShowShareModal(false);
+          setSelectedIds([]);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -419,5 +514,98 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     fontSize: 14,
     color: '#6B7280',
-  }
+  },
+  selectCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  selectCardBtnActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  selectCardBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#475569',
+  },
+  selectCardBtnTextActive: {
+    fontFamily: Fonts.sansBold,
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+  floatingDock: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+    zIndex: 99,
+  },
+  dockInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dockCountBadge: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  dockCountText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dockLabel: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#E2E8F0',
+  },
+  dockActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dockShareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  dockShareBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dockClearBtn: {
+    padding: 6,
+    borderRadius: 16,
+    backgroundColor: '#1E293B',
+  },
 });

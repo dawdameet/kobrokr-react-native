@@ -4,7 +4,7 @@ import { usePathname, router } from 'expo-router';
 import { storage } from '../lib/storage';
 import api from '../lib/api';
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup'];
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/client-share'];
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
