@@ -8,6 +8,7 @@ import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
+import ShareModal from '../components/ShareModal';
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
@@ -16,12 +17,16 @@ export default function SavedScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sharePropertyIds, setSharePropertyIds] = useState<(string | number)[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     async function init() {
       const uStr = await storage.get('user');
       if (uStr) {
         const u = JSON.parse(uStr);
+        setCurrentUser(u);
         setUserRole(u.role);
         if (activeTab === 'saved') {
           fetchSaved(u.role);
@@ -146,13 +151,31 @@ export default function SavedScreen() {
     return (
       <View style={styles.collectionCard}>
         <View style={styles.collectionHeader}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.collectionTitle}>{col.name}</Text>
             <Text style={styles.collectionMeta}>{col.property_ids?.length || 0} / 5 properties</Text>
           </View>
-          <Pressable onPress={() => handleDeleteCollection(col.id, col.name)} style={styles.deleteColBtn}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-          </Pressable>
+          <View style={styles.collectionHeaderActions}>
+            {userRole === 'broker' && (
+              <Pressable
+                style={[
+                  styles.shareColBtn,
+                  (!col.property_ids || col.property_ids.length === 0) && styles.shareColBtnDisabled,
+                ]}
+                disabled={!col.property_ids || col.property_ids.length === 0}
+                onPress={() => {
+                  setSharePropertyIds(col.property_ids || []);
+                  setShowShareModal(true);
+                }}
+              >
+                <Ionicons name="share-social-outline" size={14} color="#2563EB" />
+                <Text style={styles.shareColBtnText}>Share</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => handleDeleteCollection(col.id, col.name)} style={styles.deleteColBtn}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </Pressable>
+          </View>
         </View>
 
         {(!col.property_ids || col.property_ids.length === 0) ? (
@@ -263,6 +286,17 @@ export default function SavedScreen() {
           }
         />
       )}
+
+      {/* Share with Client Modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedIds={sharePropertyIds}
+        userId={currentUser?.id}
+        onClose={() => {
+          setShowShareModal(false);
+          setSharePropertyIds([]);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -395,5 +429,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#374151',
-  }
+  },
+  collectionHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareColBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  shareColBtnDisabled: {
+    opacity: 0.5,
+  },
+  shareColBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
 });

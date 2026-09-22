@@ -14,6 +14,11 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [affiliateStats, setAffiliateStats] = useState<{
+    total_referrals: number;
+    total_earned: number;
+    pending_payout: number;
+  } | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -22,6 +27,7 @@ export default function ProfileScreen() {
         const u = JSON.parse(uStr);
         setUserRole(u.role);
         fetchProfile(u.role);
+        fetchAffiliateStats();
       } else {
         setError('Not logged in');
         setLoading(false);
@@ -29,6 +35,21 @@ export default function ProfileScreen() {
     }
     init();
   }, []);
+
+  const fetchAffiliateStats = async () => {
+    try {
+      const { data } = await api.get('/affiliate/me');
+      if (data) {
+        setAffiliateStats({
+          total_referrals: data.total_referrals || 0,
+          total_earned: data.settled_earnings || 0,
+          pending_payout: data.pending_earnings || 0,
+        });
+      }
+    } catch {
+      // User may not be registered as partner yet
+    }
+  };
 
   const fetchProfile = async (_role: string) => {
     try {
@@ -154,12 +175,16 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.partnerCardTextContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.partnerCardTitle}>BECOME A PARTNER</Text>
+              <Text style={styles.partnerCardTitle}>{affiliateStats ? 'YOUR AFFILIATE STATS' : 'BECOME A PARTNER'}</Text>
               <View style={styles.partnerBadge}>
                 <Text style={styles.partnerBadgeText}>AFFILIATE</Text>
               </View>
             </View>
-            <Text style={styles.partnerCardSubtitle}>Join the kobrokr affiliate network</Text>
+            <Text style={styles.partnerCardSubtitle}>
+              {affiliateStats 
+                ? `${affiliateStats.total_referrals} Referrals | ₹${affiliateStats.total_earned} Earned | ₹${affiliateStats.pending_payout} Pending` 
+                : 'Join the kobrokr affiliate network'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </Pressable>

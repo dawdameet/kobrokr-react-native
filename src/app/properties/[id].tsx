@@ -7,10 +7,11 @@ import api from '../../lib/api';
 import { storage } from '../../lib/storage';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
+import ShareModal from '../../components/ShareModal';
 
 export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
-  const { id } = useLocalSearchParams();
+  const { id, b: shareBrokerId } = useLocalSearchParams<{ id: string; b?: string }>();
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,18 +25,33 @@ export default function PropertyDetailScreen() {
   const [colLoading, setColLoading] = useState(false);
   const [isCreatingCol, setIsCreatingCol] = useState(false);
   const [newColName, setNewColName] = useState('');
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
+  const [sharingBroker, setSharingBroker] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     async function init() {
       const uStr = await storage.get('user');
       if (uStr) {
-        const u = JSON.parse(uStr);
-        setUserRole(u.role); // 'tenant' or 'broker'
+        try {
+          const u = JSON.parse(uStr);
+          setCurrentUser(u);
+          setUserRole(u.role); // 'tenant' or 'broker'
+        } catch {}
       }
       fetchProperty();
+      if (shareBrokerId) {
+        try {
+          const { data } = await api.get(`/broker/${shareBrokerId}/public`);
+          setSharingBroker(data);
+        } catch (e) {
+          console.log('Failed to fetch sharing broker info', e);
+        }
+      }
     }
     init();
-  }, [id]);
+  }, [id, shareBrokerId]);
 
   const fetchProperty = async () => {
     try {
@@ -115,7 +131,17 @@ export default function PropertyDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#2563EB" />
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
@@ -126,12 +152,22 @@ export default function PropertyDetailScreen() {
         <Pressable style={styles.backButton} onPress={() => safeGoBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
   const images = property.property_images || [];
-  const broker = property.brokers;
+  const broker = sharingBroker || property.brokers;
   const pricePerSqft = property.area ? `₹${Math.round(property.price / property.area).toLocaleString()}` : '—';
 
   return (
@@ -150,7 +186,9 @@ export default function PropertyDetailScreen() {
           {images.length > 0 ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {images.map((img: any, idx: number) => (
-                <Image key={idx} source={{ uri: img.url }} style={[styles.galleryImage, { width, height: width * 0.75 }]} />
+                <Pressable key={idx} onPress={() => setZoomImg(img.url)}>
+                  <Image source={{ uri: img.url }} style={[styles.galleryImage, { width, height: width * 0.75 }]} />
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
@@ -244,30 +282,41 @@ export default function PropertyDetailScreen() {
           </View>
           
           {/* Actions */}
-          <View style={[styles.section, styles.actionsRow]}>
-            <Pressable 
-              style={[styles.saveButton, saved && styles.saveButtonActive, { flex: 1 }]} 
-              onPress={handleSave} 
-              disabled={saving || saved}
-            >
-              <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
-              <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
-                {saved ? 'Saved' : saving ? 'Saving...' : 'Save'}
-              </Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
-              onPress={openColModal} 
-            >
-              <Ionicons name="folder-open-outline" size={20} color="#1D4ED8" />
-              <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Collect</Text>
-            </Pressable>
-          </View>
+          {!shareBrokerId && (
+            <View style={[styles.section, styles.actionsRow]}>
+              <Pressable 
+                style={[styles.saveButton, saved && styles.saveButtonActive, { flex: 1 }]} 
+                onPress={handleSave} 
+                disabled={saving || saved}
+              >
+                <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
+                <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
+                  {saved ? 'Saved' : saving ? 'Saving...' : 'Save'}
+                </Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
+                onPress={openColModal} 
+              >
+                <Ionicons name="folder-open-outline" size={20} color="#1D4ED8" />
+                <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Collect</Text>
+              </Pressable>
+              {userRole === 'broker' && (
+                <Pressable 
+                  style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
+                  onPress={() => setShowShareModal(true)} 
+                >
+                  <Ionicons name="share-social-outline" size={20} color="#1D4ED8" />
+                  <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Share</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           {/* Broker Card */}
           {broker && (
             <View style={styles.brokerCard}>
-              <Text style={styles.brokerCardTitle}>Listed by</Text>
+              <Text style={styles.brokerCardTitle}>{shareBrokerId ? 'SHARED BY' : 'Listed by'}</Text>
               
               <View style={styles.brokerInfo}>
                 {broker.profile_photo ? (
@@ -372,6 +421,24 @@ export default function PropertyDetailScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+          )}
+        </View>
+      </Modal>
+
+      {/* Share with Client Modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedIds={[id as string]}
+        userId={currentUser?.id}
+        onClose={() => setShowShareModal(false)}
+      />
     </SafeAreaView>
   );
 }

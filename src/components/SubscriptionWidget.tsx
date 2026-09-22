@@ -14,6 +14,8 @@ export default function SubscriptionWidget() {
   const [referralInput, setReferralInput] = useState('');
   const [appliedCode, setAppliedCode] = useState('');
   const [referralError, setReferralError] = useState('');
+  const [referralApplying, setReferralApplying] = useState(false);
+  const [referralDiscountPct, setReferralDiscountPct] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -40,14 +42,28 @@ export default function SubscriptionWidget() {
       return;
     }
     setReferralError('');
-    setAppliedCode(code);
-    await storage.set('applied_referral_code', code);
+    setReferralApplying(true);
+    try {
+      const res = await api.get(`/affiliate/validate?code=${encodeURIComponent(code)}`);
+      if (res.data && res.data.valid) {
+        setAppliedCode(code);
+        setReferralDiscountPct(res.data.discount_percentage || 10);
+        await storage.set('applied_referral_code', code);
+      } else {
+        setReferralError('Invalid or inactive referral code');
+      }
+    } catch (e: any) {
+      setReferralError(e?.response?.data?.message || 'Invalid referral code');
+    } finally {
+      setReferralApplying(false);
+    }
   };
 
   const handleRemoveCode = async () => {
     setAppliedCode('');
     setReferralInput('');
     setReferralError('');
+    setReferralDiscountPct(0);
     await storage.remove('applied_referral_code');
   };
 
@@ -211,8 +227,8 @@ export default function SubscriptionWidget() {
         style={styles.ctaButton} 
         onPress={() => {
           const url = appliedCode 
-            ? `https://kobrokr.com/pricing?ref=${encodeURIComponent(appliedCode)}`
-            : 'https://kobrokr.com/pricing';
+            ? `https://kobrokr.com/payment?ref=${encodeURIComponent(appliedCode)}`
+            : 'https://kobrokr.com/payment';
           Linking.openURL(url);
         }}
       >
