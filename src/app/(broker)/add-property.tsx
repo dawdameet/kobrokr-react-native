@@ -37,7 +37,8 @@ export default function AddPropertyScreen() {
     loadUser();
   }, []);
 
-  const isPro = ['individual', 'enterprise', 'premium'].includes(currentUser?.plan?.toLowerCase?.() || '');
+  // Temporarily enabled for testing so normal users can upload videos
+  const isPro = true; // ['individual', 'enterprise', 'premium'].includes(currentUser?.plan?.toLowerCase?.() || '');
 
   const handleChange = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
