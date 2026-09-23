@@ -151,10 +151,25 @@ export default function DiscoverVideoCard({
 
   const handleShare = async () => {
     try {
-      await Share.share({
-        title: property.title || 'Property on kobrokr',
-        message: `Check out this property on kobrokr: ${property.title} in ${property.locality || ''}, ${property.city} - ${formatPrice(property.price)}`,
-      });
+      const isDev = __DEV__;
+      const baseUrl = isDev ? 'http://192.168.1.148:5173' : 'https://kobrokr.com';
+      const brokerId = property.broker_id || broker?.id || '';
+      const shareLink = `${baseUrl}/client-share?b=${brokerId}&p=${property.id}${isDev ? '&dev=1' : ''}`;
+
+      const shareMessage = `Check out this property walkthrough on Kobrokr:\n${property.title} in ${property.locality ? property.locality + ', ' : ''}${property.city} - ${formatPrice(property.price)}\n\nWatch walkthrough video & open in app:\n${shareLink}`;
+
+      await Share.share(
+        Platform.OS === 'ios'
+          ? {
+              title: property.title || 'Property Walkthrough on Kobrokr',
+              message: shareMessage,
+              url: shareLink,
+            }
+          : {
+              title: property.title || 'Property Walkthrough on Kobrokr',
+              message: shareMessage,
+            }
+      );
     } catch (e) {
       console.log('Share error:', e);
     }

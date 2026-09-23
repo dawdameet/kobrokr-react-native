@@ -161,6 +161,13 @@ export default function ClientShareScreen() {
             </View>
           )}
 
+          {p.property_videos && p.property_videos.length > 0 && (
+            <View style={styles.videoBadge}>
+              <Ionicons name="videocam" size={11} color="#FFFFFF" />
+              <Text style={styles.videoBadgeText}>Video Tour</Text>
+            </View>
+          )}
+
           <View style={styles.priceTag}>
             <Text style={styles.priceTagText}>{formatPrice(p.price)}</Text>
           </View>
@@ -676,6 +683,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F1F5F9',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  videoBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   priceTag: {
     position: 'absolute',
