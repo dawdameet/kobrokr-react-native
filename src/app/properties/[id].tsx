@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
 import { formatPrice, safeGoBack } from '../../lib/utils';
@@ -29,6 +30,9 @@ export default function PropertyDetailScreen() {
   const [sharingBroker, setSharingBroker] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  const videoUrl = property?.property_videos?.[0]?.url || '';
+  const videoPlayer = useVideoPlayer(videoUrl);
 
   useEffect(() => {
     async function init() {
@@ -210,6 +214,19 @@ export default function PropertyDetailScreen() {
             </View>
           )}
         </View>
+
+        {videoUrl ? (
+          <View style={styles.videoSection}>
+            <Text style={styles.sectionTitle}>Walkthrough Video</Text>
+            <VideoView
+              style={styles.videoPlayer}
+              player={videoPlayer}
+              contentFit="contain"
+              nativeControls
+              allowsPictureInPicture={false}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.content}>
           {/* Main Info */}
@@ -494,6 +511,17 @@ const styles = StyleSheet.create({
   imageGallery: {
     backgroundColor: '#F3F4F6',
     position: 'relative',
+  },
+  videoSection: {
+    padding: 20,
+    paddingBottom: 0,
+  },
+  videoPlayer: {
+    width: '100%',
+    height: 220,
+    marginTop: 12,
+    backgroundColor: '#111827',
+    borderRadius: 12,
   },
   galleryImage: {
     resizeMode: 'cover',
