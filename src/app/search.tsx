@@ -219,10 +219,10 @@ export default function SearchScreen() {
         <View style={styles.filtersContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
             {/* Quick simple filters for now - full modal is better for advanced */}
-            <TextInput style={styles.filterInput} placeholder="City" value={filters.city} onChangeText={(t) => setFilters({...filters, city: t})} />
-            <TextInput style={styles.filterInput} placeholder="BHK" keyboardType="numeric" value={filters.bhk} onChangeText={(t) => setFilters({...filters, bhk: t})} />
-            <TextInput style={styles.filterInput} placeholder="Min Price" keyboardType="numeric" value={filters.price_min} onChangeText={(t) => setFilters({...filters, price_min: t})} />
-            <TextInput style={styles.filterInput} placeholder="Max Price" keyboardType="numeric" value={filters.price_max} onChangeText={(t) => setFilters({...filters, price_max: t})} />
+            <TextInput style={styles.filterInput} placeholder="City" placeholderTextColor="#9CA3AF" value={filters.city} onChangeText={(t) => setFilters({...filters, city: t})} />
+            <TextInput style={styles.filterInput} placeholder="BHK" placeholderTextColor="#9CA3AF" keyboardType="numeric" value={filters.bhk} onChangeText={(t) => setFilters({...filters, bhk: t})} />
+            <TextInput style={styles.filterInput} placeholder="Min Price" placeholderTextColor="#9CA3AF" keyboardType="numeric" value={filters.price_min} onChangeText={(t) => setFilters({...filters, price_min: t})} />
+            <TextInput style={styles.filterInput} placeholder="Max Price" placeholderTextColor="#9CA3AF" keyboardType="numeric" value={filters.price_max} onChangeText={(t) => setFilters({...filters, price_max: t})} />
           </ScrollView>
           <Pressable style={styles.applyFilterButton} onPress={handleSearch}>
             <Text style={styles.applyFilterText}>Apply Filters</Text>
@@ -246,7 +246,7 @@ export default function SearchScreen() {
           data={results}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderPropertyCard}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 88 }]}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
@@ -270,7 +270,7 @@ export default function SearchScreen() {
             <View style={styles.dockCountBadge}>
               <Text style={styles.dockCountText}>{selectedIds.length}</Text>
             </View>
-            <Text style={styles.dockLabel}>Selected</Text>
+            <Text style={styles.dockLabel} numberOfLines={1}>Selected</Text>
           </View>
 
           <View style={styles.dockActions}>
@@ -278,15 +278,16 @@ export default function SearchScreen() {
               style={styles.dockShareBtn}
               onPress={() => setShowShareModal(true)}
             >
-              <Ionicons name="share-social" size={16} color="#FFFFFF" />
-              <Text style={styles.dockShareBtnText}>Share with Client</Text>
+              <Ionicons name="share-social" size={15} color="#FFFFFF" />
+              <Text style={styles.dockShareBtnText} numberOfLines={1}>Share with Client</Text>
             </Pressable>
 
             <Pressable
               style={styles.dockClearBtn}
               onPress={() => setSelectedIds([])}
+              hitSlop={8}
             >
-              <Ionicons name="close" size={18} color="#94A3B8" />
+              <Ionicons name="close" size={16} color="#94A3B8" />
             </Pressable>
           </View>
         </View>
@@ -544,39 +545,45 @@ const styles = StyleSheet.create({
   },
   floatingDock: {
     position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
+    bottom: 16,
+    left: 14,
+    right: 14,
     backgroundColor: '#0F172A',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowRadius: 10,
     elevation: 8,
     zIndex: 99,
   },
   dockInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   dockCountBadge: {
     backgroundColor: '#2563EB',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dockCountText: {
     fontFamily: Fonts.sansBold,
     fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   dockLabel: {
     fontFamily: Fonts.sansMedium,
@@ -587,25 +594,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 1,
+    justifyContent: 'flex-end',
   },
   dockShareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     backgroundColor: '#2563EB',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    flexShrink: 1,
   },
   dockShareBtnText: {
     fontFamily: Fonts.sansBold,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
   },
   dockClearBtn: {
-    padding: 6,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -208,39 +208,52 @@ export default function AddPropertyScreen() {
           <Text style={styles.cardTitle}>Basic Information</Text>
           
           <Text style={styles.label}>Title *</Text>
-          <TextInput style={styles.input} value={form.title} onChangeText={(t) => handleChange('title', t)} placeholder="e.g. Spacious 3 BHK Sea View Penthouse" />
+          <TextInput 
+            style={styles.input} 
+            value={form.title} 
+            onChangeText={(t) => handleChange('title', t)} 
+            placeholder="e.g. Spacious 3 BHK Sea View Penthouse" 
+            placeholderTextColor="#9CA3AF"
+          />
 
           <Text style={styles.label}>Project Name</Text>
-          <TextInput style={styles.input} value={form.project_name} onChangeText={(t) => handleChange('project_name', t)} placeholder="e.g. Lodha Belmondo" />
+          <TextInput 
+            style={styles.input} 
+            value={form.project_name} 
+            onChangeText={(t) => handleChange('project_name', t)} 
+            placeholder="e.g. Lodha Belmondo" 
+            placeholderTextColor="#9CA3AF"
+          />
 
-          <View style={styles.row}>
-            <View style={styles.flex1}>
-              <Text style={styles.label}>Sale/Rent *</Text>
-              <View style={styles.radioGroup}>
-                <Pressable style={[styles.radio, form.listing_type === 'sale' && styles.radioActive]} onPress={() => handleChange('listing_type', 'sale')}>
-                  <Text style={[styles.radioText, form.listing_type === 'sale' && styles.radioTextActive]}>Sale</Text>
-                </Pressable>
-                <Pressable style={[styles.radio, form.listing_type === 'rent' && styles.radioActive]} onPress={() => handleChange('listing_type', 'rent')}>
-                  <Text style={[styles.radioText, form.listing_type === 'rent' && styles.radioTextActive]}>Rent</Text>
-                </Pressable>
-              </View>
-            </View>
-            <View style={styles.flex1}>
-              <Text style={styles.label}>Type *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollChips}>
-                {PROPERTY_TYPES.map(t => (
-                  <Pressable key={t} style={[styles.chip, form.type === t && styles.chipActive]} onPress={() => handleChange('type', t)}>
-                    <Text style={[styles.chipText, form.type === t && styles.chipTextActive]}>{t}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+          <Text style={styles.label}>Sale/Rent *</Text>
+          <View style={[styles.radioGroup, { marginBottom: 14 }]}>
+            <Pressable style={[styles.radio, form.listing_type === 'sale' && styles.radioActive]} onPress={() => handleChange('listing_type', 'sale')}>
+              <Text style={[styles.radioText, form.listing_type === 'sale' && styles.radioTextActive]}>Sale</Text>
+            </Pressable>
+            <Pressable style={[styles.radio, form.listing_type === 'rent' && styles.radioActive]} onPress={() => handleChange('listing_type', 'rent')}>
+              <Text style={[styles.radioText, form.listing_type === 'rent' && styles.radioTextActive]}>Rent</Text>
+            </Pressable>
+          </View>
+
+          <Text style={styles.label}>Type *</Text>
+          <View style={styles.chipsWrap}>
+            {PROPERTY_TYPES.map(t => (
+              <Pressable key={t} style={[styles.chip, form.type === t && styles.chipActive]} onPress={() => handleChange('type', t)}>
+                <Text style={[styles.chipText, form.type === t && styles.chipTextActive]}>{t}</Text>
+              </Pressable>
+            ))}
           </View>
           
           {form.type === 'other' && (
             <View style={{ marginTop: 12 }}>
               <Text style={styles.label}>Custom Type *</Text>
-              <TextInput style={styles.input} value={form.custom_property_type} onChangeText={(t) => handleChange('custom_property_type', t)} placeholder="e.g. Duplex" />
+              <TextInput 
+                style={styles.input} 
+                value={form.custom_property_type} 
+                onChangeText={(t) => handleChange('custom_property_type', t)} 
+                placeholder="e.g. Duplex" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           )}
         </View>
@@ -258,18 +271,38 @@ export default function AddPropertyScreen() {
             </View>
             <View style={styles.flex1}>
               <Text style={styles.label}>Locality *</Text>
-              <TextInput style={styles.input} value={form.locality} onChangeText={(t) => handleChange('locality', t)} placeholder="e.g. Bandra West" />
+              <TextInput 
+                style={styles.input} 
+                value={form.locality} 
+                onChangeText={(t) => handleChange('locality', t)} 
+                placeholder="e.g. Bandra West" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={styles.flex1}>
               <Text style={styles.label}>Price (₹) *</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.price} onChangeText={(t) => handleChange('price', t)} placeholder="e.g. 15000000" />
+              <TextInput 
+                style={styles.input} 
+                keyboardType="numeric" 
+                value={form.price} 
+                onChangeText={(t) => handleChange('price', t)} 
+                placeholder="e.g. 15000000" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
             <View style={styles.flex1}>
               <Text style={styles.label}>Area (sq ft) *</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.area} onChangeText={(t) => handleChange('area', t)} placeholder="e.g. 1250" />
+              <TextInput 
+                style={styles.input} 
+                keyboardType="numeric" 
+                value={form.area} 
+                onChangeText={(t) => handleChange('area', t)} 
+                placeholder="e.g. 1250" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           </View>
 
@@ -287,18 +320,39 @@ export default function AddPropertyScreen() {
             </View>
             <View style={styles.flex1}>
               <Text style={styles.label}>Count *</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.bhk} onChangeText={(t) => handleChange('bhk', t)} placeholder="e.g. 2" />
+              <TextInput 
+                style={styles.input} 
+                keyboardType="numeric" 
+                value={form.bhk} 
+                onChangeText={(t) => handleChange('bhk', t)} 
+                placeholder="e.g. 2" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={styles.flex1}>
               <Text style={styles.label}>Washrooms</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.washrooms} onChangeText={(t) => handleChange('washrooms', t)} placeholder="e.g. 2" />
+              <TextInput 
+                style={styles.input} 
+                keyboardType="numeric" 
+                value={form.washrooms} 
+                onChangeText={(t) => handleChange('washrooms', t)} 
+                placeholder="e.g. 2" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
             <View style={styles.flex1}>
               <Text style={styles.label}>Floor</Text>
-              <TextInput style={styles.input} keyboardType="numeric" value={form.floor} onChangeText={(t) => handleChange('floor', t)} placeholder="e.g. 5" />
+              <TextInput 
+                style={styles.input} 
+                keyboardType="numeric" 
+                value={form.floor} 
+                onChangeText={(t) => handleChange('floor', t)} 
+                placeholder="e.g. 5" 
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
           </View>
         </View>
@@ -313,6 +367,7 @@ export default function AddPropertyScreen() {
             value={form.description} 
             onChangeText={(t) => handleChange('description', t)} 
             placeholder="Detail outstanding features, proximity to key locations..." 
+            placeholderTextColor="#9CA3AF"
             multiline 
             numberOfLines={4} 
             textAlignVertical="top"
@@ -533,18 +588,20 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '600',
   },
-  scrollChips: {
+  chipsWrap: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginRight: 8,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   chipActive: {
     backgroundColor: '#EFF6FF',
@@ -552,8 +609,8 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontFamily: Fonts.sansMedium,
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#4B5563',
     textTransform: 'capitalize',
   },
   chipTextActive: {

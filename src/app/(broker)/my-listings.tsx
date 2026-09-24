@@ -118,13 +118,13 @@ export default function MyListingsScreen() {
 
           <View style={styles.actionsContainer}>
             <Pressable style={[styles.actionBtn, styles.actionToggle]} onPress={() => toggleStatus(p)}>
-              <Text style={styles.actionToggleText}>{p.status === 'active' ? 'Mark Inactive' : 'Mark Active'}</Text>
+              <Text style={styles.actionToggleText} numberOfLines={1}>{p.status === 'active' ? 'Mark Inactive' : 'Mark Active'}</Text>
             </Pressable>
             <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert('Coming Soon', 'Edit functionality will be added in a future update.')}>
-              <Text style={styles.actionEditText}>Edit</Text>
+              <Text style={styles.actionEditText} numberOfLines={1}>Edit</Text>
             </Pressable>
             <Pressable style={[styles.actionBtn, styles.actionDelete]} onPress={() => handleDelete(p)}>
-              <Text style={styles.actionDeleteText}>Delete</Text>
+              <Text style={styles.actionDeleteText} numberOfLines={1}>Delete</Text>
             </Pressable>
           </View>
         </View>
@@ -346,15 +346,18 @@ export default function MyListingsScreen() {
       borderTopWidth: 1,
       borderTopColor: '#F3F4F6',
       backgroundColor: '#FAFAFA',
+      alignItems: 'center',
     },
     actionBtn: {
-      flex: 1,
-      paddingVertical: 8,
+      paddingVertical: 9,
+      paddingHorizontal: 6,
       borderRadius: 8,
       alignItems: 'center',
+      justifyContent: 'center',
       borderWidth: 1,
     },
     actionToggle: {
+      flex: 1.35,
       borderColor: '#E5E7EB',
       backgroundColor: '#FFFFFF',
     },
@@ -363,8 +366,10 @@ export default function MyListingsScreen() {
       color: '#4B5563',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     actionEdit: {
+      flex: 0.8,
       borderColor: '#BFDBFE',
       backgroundColor: '#EFF6FF',
     },
@@ -373,8 +378,10 @@ export default function MyListingsScreen() {
       color: '#2563EB',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     actionDelete: {
+      flex: 0.85,
       borderColor: '#FECACA',
       backgroundColor: '#FEF2F2',
     },
@@ -383,6 +390,7 @@ export default function MyListingsScreen() {
       color: '#EF4444',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     emptyContainer: {
       paddingVertical: 64,
