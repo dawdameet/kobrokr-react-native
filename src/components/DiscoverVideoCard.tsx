@@ -152,7 +152,8 @@ export default function DiscoverVideoCard({
   const handleShare = async () => {
     try {
       const isDev = __DEV__;
-      const baseUrl = isDev ? 'http://192.168.1.148:5173' : 'https://kobrokr.com';
+      const devWebUrl = process.env.EXPO_PUBLIC_WEB_URL || (process.env.EXPO_PUBLIC_API_URL ? process.env.EXPO_PUBLIC_API_URL.replace(/:\d+$/, ':5173') : 'http://localhost:5173');
+      const baseUrl = isDev ? devWebUrl : 'https://kobrokr.com';
       const brokerId = property.broker_id || broker?.id || '';
       const shareLink = `${baseUrl}/client-share?b=${brokerId}&p=${property.id}${isDev ? '&dev=1' : ''}`;
 
