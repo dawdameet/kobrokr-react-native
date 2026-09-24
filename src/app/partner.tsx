@@ -33,6 +33,7 @@ export default function PartnerScreen() {
   const [copied, setCopied] = useState(false);
   const [showUpiModal, setShowUpiModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'whatsapp' | 'copy' | 'share' | null>(null);
+  const [referrals, setReferrals] = useState<any[]>([]);
 
   // Live or fallback stats
   const [stats, setStats] = useState({
@@ -77,14 +78,14 @@ export default function PartnerScreen() {
 
         // Fetch live affiliate stats from backend
         try {
-          const { data } = await api.get('/affiliate/me');
+          const { data } = await api.get('/affiliate/overview');
           if (data) {
             setStats({
-              totalReferrals: data.total_referrals || 0,
-              paidConversions: data.total_referrals || 0,
-              totalEarned: data.settled_earnings || 0,
-              pendingPayout: data.pending_earnings || 0,
-              commissionRate: 10,
+              totalReferrals: data.totalReferrals || 0,
+              paidConversions: data.paidConversions || 0,
+              totalEarned: data.totalEarned || 0,
+              pendingPayout: data.pendingPayout || 0,
+              commissionRate: data.commissionRate || 15,
             });
             if (data.referral_code) setReferralCode(data.referral_code);
             if (data.upi_id) {
@@ -93,6 +94,9 @@ export default function PartnerScreen() {
               await storage.set('affiliate_upi_id', data.upi_id);
             }
           }
+
+          const referralResponse = await api.get('/affiliate/referrals');
+          setReferrals(referralResponse.data?.referrals || []);
         } catch {
           // Fallback to local state if backend route is syncing
         }
@@ -391,6 +395,22 @@ export default function PartnerScreen() {
               <Text style={styles.statLabel}>Pending Payout</Text>
             </View>
           </View>
+
+          {referrals.some((referral) => referral.status === 'cancelled') && (
+            <View style={[styles.card, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1 }]}>
+              <Text style={[styles.cardTitle, { color: '#9A3412' }]}>Referral Benefit Updates</Text>
+              {referrals.filter((referral) => referral.status === 'cancelled').map((referral) => (
+                <View key={referral.id} style={{ marginTop: 10 }}>
+                  <Text style={{ fontFamily: Fonts.sansSemiBold, color: '#7C2D12' }}>
+                    Referral cancelled
+                  </Text>
+                  <Text style={{ fontFamily: Fonts.sans, color: '#9A3412', marginTop: 3, lineHeight: 20 }}>
+                    {referral.referee_email || 'This referred user'} cancelled their subscription. No further affiliate benefits will be paid for this referral through the 12-month period.
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Razorpay UPI Payout Settings */}
           <View style={styles.card}>
