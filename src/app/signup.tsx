@@ -62,12 +62,18 @@ export default function SignupScreen() {
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleSuccess(id_token);
+      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
+      if (idToken) {
+        handleGoogleSuccess(idToken);
+      } else {
+        setGoogleLoading(false);
+        setError('No ID token returned from Google');
+      }
     } else if (response?.type === 'error') {
       setGoogleLoading(false);
       setError(response.error?.message || 'Google Signup failed');
