@@ -45,12 +45,12 @@ export default function ProfileScreen() {
 
   const fetchAffiliateStats = async () => {
     try {
-      const { data } = await api.get('/affiliate/me');
-      if (data && data.total_referrals !== undefined) {
+      const { data } = await api.get('/affiliate/overview');
+      if (data && (data.totalReferrals !== undefined || data.total_referrals !== undefined)) {
         setAffiliateStats({
-          total_referrals: data.total_referrals ?? 0,
-          total_earned: (data.settled_earnings ?? 0).toFixed(0),
-          pending_payout: (data.pending_earnings ?? 0).toFixed(0),
+          total_referrals: data.totalReferrals ?? data.total_referrals ?? 0,
+          total_earned: String(data.totalEarned ?? data.settled_earnings ?? 0),
+          pending_payout: String(data.pendingPayout ?? data.pending_earnings ?? 0),
         });
       }
     } catch (e) {

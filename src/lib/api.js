@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 // Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000'
 // We use the environment variable if available
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000',
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://kobrokr.onrender.com',
 });
 
 // --------------------
@@ -47,7 +47,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000'}/auth/refresh`,
+          `${process.env.EXPO_PUBLIC_API_URL || 'https://kobrokr.onrender.com'}/auth/refresh`,
           {},
           {
             headers: {
