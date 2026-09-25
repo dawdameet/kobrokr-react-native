@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Image, Modal, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Image, Modal, ScrollView, Platform, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -9,6 +9,15 @@ import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import ShareModal from '../components/ShareModal';
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 const TYPES = ['apartment', 'house', 'villa', 'plot', 'office', 'shop', 'warehouse', 'other'];
 const LISTING_TYPES = [{ value: '', label: 'Any' }, { value: 'sale', label: 'Buy' }, { value: 'rent', label: 'Rent' }];
@@ -41,6 +50,7 @@ export default function SearchScreen() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch results
   const runSearch = useCallback(async (targetPage = 1, append = false) => {
@@ -71,6 +81,36 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
       setLoadingMore(false);
+    }
+  }, [nlQuery, filters, sort]);
+
+  // Pull to refresh: shuffles the properties
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const params: any = { page: 1, limit: 12, sort };
+      if (nlQuery.trim()) params.q = nlQuery.trim();
+      
+      Object.entries(filters).forEach(([k, v]) => {
+        if (Array.isArray(v)) {
+          if (v.length > 0) params[k] = v.join(',');
+        } else if (v !== '' && v != null) {
+          params[k] = v;
+        }
+      });
+
+      const { data } = await api.get('/search', { params });
+      const raw = data.results || [];
+      const shuffled = shuffleArray(raw);
+      setResults(shuffled);
+      setTotalCount(data.count ?? raw.length);
+      setHasMore(Boolean(data.has_more));
+      setPage(1);
+      setSearched(true);
+    } catch (err) {
+      console.log('Search refresh error:', err);
+    } finally {
+      setRefreshing(false);
     }
   }, [nlQuery, filters, sort]);
 
@@ -249,6 +289,13 @@ export default function SearchScreen() {
           contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 88 }]}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#2563EB"
+            />
+          }
           ListFooterComponent={
             loadingMore ? <ActivityIndicator size="small" color="#2563EB" style={{ margin: 16 }} /> : null
           }

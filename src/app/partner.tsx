@@ -273,7 +273,7 @@ export default function PartnerScreen() {
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.headerTitle}>Partner & Affiliate Hub</Text>
+            <Text style={styles.headerTitle}>Partner Program</Text>
             <Text style={styles.headerSubtitle}>Refer anyone & earn {stats.commissionRate}% on every pro plan signup
             </Text>
           </View>
@@ -405,7 +405,7 @@ export default function PartnerScreen() {
                     Referral cancelled
                   </Text>
                   <Text style={{ fontFamily: Fonts.sans, color: '#9A3412', marginTop: 3, lineHeight: 20 }}>
-                    {referral.referee_email || 'This referred user'} cancelled their subscription. No further affiliate benefits will be paid for this referral through the 12-month period.
+                    {referral.referee_email || 'This referred user'} cancelled their subscription. No further partner benefits will be paid for this referral through the 12-month period.
                   </Text>
                 </View>
               ))}

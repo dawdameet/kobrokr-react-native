@@ -161,7 +161,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Become a Partner Section */}
+        {/* Partner Program Section */}
         <Pressable 
           style={styles.partnerCard}
           onPress={() => router.push('/partner' as any)}
@@ -171,15 +171,15 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.partnerCardTextContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.partnerCardTitle}>{affiliateStats ? 'YOUR AFFILIATE STATS' : 'BECOME A PARTNER'}</Text>
+              <Text style={styles.partnerCardTitle}>{affiliateStats ? 'YOUR PARTNER STATS' : 'PARTNER PROGRAM'}</Text>
               <View style={styles.partnerBadge}>
-                <Text style={styles.partnerBadgeText}>AFFILIATE</Text>
+                <Text style={styles.partnerBadgeText}>PARTNER</Text>
               </View>
             </View>
             <Text style={styles.partnerCardSubtitle}>
               {affiliateStats 
                 ? `${affiliateStats.total_referrals} Referrals | ₹${affiliateStats.total_earned} Earned | ₹${affiliateStats.pending_payout} Pending` 
-                : 'Join the kobrokr affiliate network'}
+                : 'Join the KoBrokr Partner Program'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />

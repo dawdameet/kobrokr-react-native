@@ -18,6 +18,15 @@ import DiscoverVideoCard from '../components/DiscoverVideoCard';
 import { Fonts } from '../constants/theme';
 import { safeGoBack } from '../lib/utils';
 
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 export default function DiscoverScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const [containerHeight, setContainerHeight] = useState(windowHeight - 130);
@@ -37,14 +46,14 @@ export default function DiscoverScreen() {
       });
       const items: any[] = data?.results || [];
 
-      // Prioritize listings that have video walkthroughs first, followed by others
-      const sorted = [...items].sort((a, b) => {
-        const aHasVideo = (a.property_videos && a.property_videos.length > 0) ? 1 : 0;
-        const bHasVideo = (b.property_videos && b.property_videos.length > 0) ? 1 : 0;
-        return bHasVideo - aHasVideo;
-      });
+      // ONLY include listings that have a valid walkthrough video
+      const withVideo = items.filter(
+        (p) => p.property_videos && p.property_videos.length > 0 && p.property_videos.some((v: any) => Boolean(v?.url))
+      );
 
-      setProperties(sorted);
+      // Shuffle listings on load and refresh
+      setProperties(shuffleArray(withVideo));
+      setActiveIndex(0);
     } catch (err: any) {
       console.log('Discover feed error:', err);
       setError('Unable to load Discover feed.');

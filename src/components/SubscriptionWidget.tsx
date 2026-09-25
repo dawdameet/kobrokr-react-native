@@ -178,7 +178,7 @@ export default function SubscriptionWidget() {
         </View>
       </View>
 
-      {/* Referral / Affiliate Section */}
+      {/* Partner Referral Section */}
       <View style={[styles.referralCard, appliedCode ? styles.referralCardApplied : null]}>
         {appliedCode ? (
           <View>
@@ -192,12 +192,12 @@ export default function SubscriptionWidget() {
               </Pressable>
             </View>
             <Text style={styles.referralAppliedSub}>
-              Affiliate referral attached. Your upgrade will auto-attribute to this partner.
+              Partner referral attached. Your upgrade will auto-attribute to this partner.
             </Text>
           </View>
         ) : (
           <View>
-            <Text style={styles.referralTitle}>Have an Affiliate / Referral Code?</Text>
+            <Text style={styles.referralTitle}>Have a Partner / Referral Code?</Text>
             <View style={styles.referralInputRow}>
               <TextInput
                 style={styles.referralTextInput}

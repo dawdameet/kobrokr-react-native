@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Image, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
 import { safeGoBack } from '../../lib/utils';
@@ -77,9 +78,23 @@ export default function AddPropertyScreen() {
     if (!isPro) {
       Alert.alert(
         'Pro Feature 🚀',
-        'Video walkthroughs are exclusively available for Pro members.\n\nBoost your property inquiries and get featured in Discovery Mode by upgrading your plan on Kobrokr Web.',
+        'Video walkthroughs are exclusively available for Pro members.\n\nBoost your property inquiries and get featured in Discovery Mode by upgrading your plan on Kobrokr.',
         [
-          { text: 'Got it', style: 'cancel' }
+          { text: 'Got it', style: 'cancel' },
+          {
+            text: 'View Plans',
+            onPress: async () => {
+              const savedCode = await storage.get('applied_referral_code');
+              const url = savedCode
+                ? `https://kobrokr.com/plans?ref=${encodeURIComponent(savedCode)}`
+                : 'https://kobrokr.com/plans';
+              try {
+                await WebBrowser.openBrowserAsync(url);
+              } catch {
+                Linking.openURL(url);
+              }
+            },
+          },
         ]
       );
       return;
