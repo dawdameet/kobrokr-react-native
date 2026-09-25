@@ -3,13 +3,9 @@ import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, Keyboa
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import api from '../lib/api';
 import { setSession } from '../lib/auth';
 import { Fonts } from '../constants/theme';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const { role: initialRole, verified, redirect } = useLocalSearchParams<{ role?: string; verified?: string; redirect?: string }>();
@@ -20,7 +16,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -29,72 +24,12 @@ export default function LoginScreen() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
 
-
-  
   useEffect(() => {
     if (verified === 'true') {
       setSuccessMsg('Email verified successfully! You can now log in.');
       setError('');
     }
   }, [verified]);
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token || (response as any).authentication?.idToken;
-      if (idToken) {
-        handleGoogleSuccess(idToken);
-      } else {
-        setGoogleLoading(false);
-        setError('No ID token returned from Google');
-      }
-    } else if (response?.type === 'error') {
-      setGoogleLoading(false);
-      setError(response.error?.message || 'Google Login failed');
-    }
-  }, [response]);
-
-  const handleGoogleSuccess = async (idToken: string) => {
-    if (!idToken) {
-      setGoogleLoading(false);
-      setError('No ID token found');
-      return;
-    }
-
-    try {
-      const { data } = await api.post('/auth/google', {
-        credential: idToken,
-        role: roleTab,
-      });
-
-      await setSession(data.access_token, data.refresh_token, data.user);
-      
-      if (!data.user?.mobile || !data.user?.city || (data.user?.role === 'broker' && (!data.user?.areas_served?.length))) {
-        router.replace('/(app)/onboarding');
-        return;
-      }
-
-      if (redirect) {
-        router.replace(redirect as any);
-        return;
-      }
-
-      if (data.user?.role === 'tenant') {
-        router.replace('/(tenant)/dashboard');
-      } else {
-        router.replace('/(broker)/dashboard');
-      }
-
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Google Login failed');
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   const handleLogin = async () => {
     Keyboard.dismiss();
@@ -162,12 +97,6 @@ export default function LoginScreen() {
     }
   };
 
-  const initiateGoogleLogin = () => {
-    Keyboard.dismiss();
-    setError('');
-    setGoogleLoading(true);
-    promptAsync();
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -232,24 +161,6 @@ export default function LoginScreen() {
                 )}
               </View>
             ) : null}
-
-            <Pressable 
-              style={[styles.googleButton, googleLoading && styles.buttonDisabled]} 
-              onPress={initiateGoogleLogin}
-              disabled={googleLoading || loading || !request}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#111827" />
-              ) : (
-                <Text style={styles.googleButtonText}>Sign in with Google</Text>
-              )}
-            </Pressable>
-
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Or continue with email</Text>
-              <View style={styles.dividerLine} />
-            </View>
 
             <View style={styles.form}>
               <View style={styles.inputGroup}>
@@ -367,37 +278,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 24,
-  },
-  googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  googleButtonText: {
-    fontFamily: Fonts.sansMedium,
-    color: '#374151',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    fontFamily: Fonts.sans,
-    paddingHorizontal: 12,
-    color: '#6B7280',
-    fontSize: 12,
   },
   errorContainer: {
     backgroundColor: '#FEF2F2',

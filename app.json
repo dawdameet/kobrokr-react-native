@@ -5,10 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": [
-      "kobrokrmobile",
-      "com.googleusercontent.apps.300341333165-2e16c8b8250stnltpab53r9g37p5efjd"
-    ],
+    "scheme": "kobrokrmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
       "googleServicesFile": "./GoogleService-Info.plist",
