@@ -30,10 +30,21 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "kobrokr.com", "pathPrefix": "/client-share" },
-            { "scheme": "https", "host": "www.kobrokr.com", "pathPrefix": "/client-share" }
+            {
+              "scheme": "https",
+              "host": "kobrokr.com",
+              "pathPrefix": "/client-share"
+            },
+            {
+              "scheme": "https",
+              "host": "www.kobrokr.com",
+              "pathPrefix": "/client-share"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "predictiveBackGestureEnabled": false,
@@ -78,6 +89,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a521df33-404d-433e-ab98-bab80ec7563e"
+      }
     }
   }
 }
