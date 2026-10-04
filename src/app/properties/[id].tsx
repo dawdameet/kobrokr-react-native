@@ -10,12 +10,24 @@ import { storage } from '../../lib/storage';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 import ShareModal from '../../components/ShareModal';
+import { getPropertyPreview } from '../../lib/propertyCache';
 
 export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
   const { id, b: shareBrokerId } = useLocalSearchParams<{ id: string; b?: string }>();
-  const [property, setProperty] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const preview = id ? getPropertyPreview(id) : null;
+  const [property, setProperty] = useState<any>(() => {
+    if (preview) {
+      const copy = { ...preview };
+      if (copy.property_images) {
+        copy.property_images = [...copy.property_images].sort((a: any, b: any) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0));
+      }
+      return copy;
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(!preview);
+  const [fetchingFull, setFetchingFull] = useState(Boolean(preview));
   const [error, setError] = useState('');
   
   const [saving, setSaving] = useState(false);
@@ -67,9 +79,12 @@ export default function PropertyDetailScreen() {
       }
       setProperty(data);
     } catch (e) {
-      setError('Property not found');
+      if (!property && !preview) {
+        setError('Property not found');
+      }
     } finally {
       setLoading(false);
+      setFetchingFull(false);
     }
   };
 
@@ -385,6 +400,15 @@ export default function PropertyDetailScreen() {
                   </Pressable>
                 </View>
               )}
+            </View>
+          )}
+
+          {fetchingFull && !broker && (
+            <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={{ fontSize: 13, fontFamily: Fonts.sansMedium, color: '#64748B' }}>
+                Loading full details & contacts…
+              </Text>
             </View>
           )}
 

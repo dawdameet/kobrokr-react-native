@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Modal, ScrollView, Platform, Alert, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
+import { setPropertyPreview } from '../lib/propertyCache';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -38,7 +39,7 @@ interface PropertyCardProps {
   isSelected: boolean;
   isBroker: boolean;
   onSelect: (id: string | number) => void;
-  onPress: (id: string | number) => void;
+  onPress: (property: any) => void;
 }
 
 const PropertyCard = React.memo(function PropertyCard({
@@ -53,7 +54,7 @@ const PropertyCard = React.memo(function PropertyCard({
   return (
     <Pressable 
       style={styles.card} 
-      onPress={() => onPress(p.id)}
+      onPress={() => onPress(p)}
     >
       {cover ? (
         <Image
@@ -246,8 +247,11 @@ export default function SearchScreen() {
     }
   };
 
-  const handlePropertyPress = useCallback((id: string | number) => {
-    router.push(`/properties/${id}`);
+  const handlePropertyPress = useCallback((p: any) => {
+    if (p?.id) {
+      setPropertyPreview(p.id, p);
+      router.push(`/properties/${p.id}`);
+    }
   }, []);
 
   const renderPropertyCard = useCallback(({ item: p }: { item: any }) => (

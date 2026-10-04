@@ -10,6 +10,7 @@ import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import ShareModal from '../components/ShareModal';
+import { setPropertyPreview } from '../lib/propertyCache';
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
@@ -118,7 +119,10 @@ export default function SavedScreen() {
 
     return (
       <View style={styles.card}>
-        <Pressable onPress={() => router.push(`/properties/${p.id}`)}>
+        <Pressable onPress={() => {
+          setPropertyPreview(p.id, p);
+          router.push(`/properties/${p.id}`);
+        }}>
           {cover ? (
             <Image
               source={{ uri: cover }}
