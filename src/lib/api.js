@@ -44,11 +44,28 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Prevent infinite loop and don't intercept login requests
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    const isAuthRoute =
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/signup') ||
+      originalRequest.url?.includes('/auth/google') ||
+      originalRequest.url?.includes('/auth/refresh') ||
+      originalRequest.url?.includes('/auth/resend-verification') ||
+      originalRequest.url?.includes('/auth/forgot-password') ||
+      originalRequest.url?.includes('/auth/reset-password');
+
+    // Do not attempt token refresh or force-logout for auth endpoints
+    if (isAuthRoute) {
+      return Promise.reject(error);
+    }
+
+    // Prevent infinite loop on protected endpoints
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/login')
+      !originalRequest._retry
     ) {
       originalRequest._retry = true;
 

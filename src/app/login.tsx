@@ -7,6 +7,54 @@ import api from '../lib/api';
 import { setSession } from '../lib/auth';
 import { Fonts } from '../constants/theme';
 
+function getAuthErrorMessage(err: any, role: string) {
+  if (!err) return 'An unexpected error occurred. Please try again.';
+
+  if (!err.response) {
+    if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
+      return 'The server took too long to respond. The backend may be starting up—please try again in 15-30 seconds.';
+    }
+    if (err.message === 'Network Error') {
+      return 'Unable to reach the server. Please check your internet connection and try again.';
+    }
+    return err.message || 'Unable to connect to the server. Please try again.';
+  }
+
+  const { status, data } = err.response;
+
+  if (typeof data === 'string') {
+    if (status === 502 || status === 503 || status === 504) {
+      return 'The server is currently waking up or experiencing high traffic. Please wait 15-20 seconds and try again.';
+    }
+    if (status >= 500) {
+      return 'A server error occurred (500). Please try again shortly.';
+    }
+    return `Server error (${status}). Please try again.`;
+  }
+
+  if (data && typeof data === 'object') {
+    if (typeof data.error === 'string' && data.error.trim()) return data.error;
+    if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+    if (Array.isArray(data.detail)) {
+      return data.detail.map((d: any) => d.msg || d.message || JSON.stringify(d)).join(', ');
+    }
+  }
+
+  if (status === 401) {
+    const otherRole = role === 'broker' ? 'Tenant' : 'Broker';
+    return `Invalid email or password. If your account is registered as a ${otherRole}, please switch to the ${otherRole} tab above.`;
+  }
+  if (status === 403) {
+    return 'Account access restricted. Please verify your email before logging in.';
+  }
+  if (status === 404) {
+    return 'Account not found. Please double-check your email or sign up.';
+  }
+
+  return 'Login failed. Please verify your email and password, and ensure the correct tab (Tenant or Broker) is selected.';
+}
+
 export default function LoginScreen() {
   const { role: initialRole, verified, redirect } = useLocalSearchParams<{ role?: string; verified?: string; redirect?: string }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
@@ -72,10 +120,8 @@ export default function LoginScreen() {
       if (payload.email_unverified) {
         setIsUnverified(true);
         setUnverifiedEmail(payload.email || email);
-        setError('Please verify your email before logging in. Check your inbox.');
-      } else {
-        setError(payload.error || payload.detail || 'Login failed');
       }
+      setError(getAuthErrorMessage(err, roleTab));
     } finally {
       setLoading(false);
     }
