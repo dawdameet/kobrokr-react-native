@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../../lib/storage';
+import { statsStore } from '../../lib/statsStore';
 import { router } from 'expo-router';
 import api from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,10 @@ import { Fonts } from '../../constants/theme';
 
 export default function BrokerDashboard() {
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState({ listings: null as null | number, active: null as null | number, saved: null as null | number });
+  const cachedBrokerStats = statsStore.getStats()?.broker;
+  const [stats, setStats] = useState(
+    cachedBrokerStats || { listings: null as null | number, active: null as null | number, saved: null as null | number }
+  );
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [nlQuery, setNlQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -22,9 +26,30 @@ export default function BrokerDashboard() {
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
-      fetchData();
     }
     loadData();
+
+    const unsubscribe = statsStore.subscribe((allStats) => {
+      if (allStats?.broker) {
+        setStats(allStats.broker);
+      }
+    });
+
+    statsStore.init().then((initial) => {
+      if (initial?.broker) {
+        setStats(initial.broker);
+      }
+      if (!initial?.broker || statsStore.isStale()) {
+        fetchData();
+      } else {
+        // Quietly fetch recent listings for preview
+        api.get('/properties/my')
+          .then((res) => setRecentListings(res.data.slice(0, 3)))
+          .catch(() => {});
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   const fetchData = async () => {
@@ -34,15 +59,19 @@ export default function BrokerDashboard() {
         api.get('/saved'),
       ]);
       const listings = listingsRes.data;
-      setStats({
+      const newStats = {
         listings: listings.length,
         active: listings.filter((p: any) => p.status === 'active').length,
         saved: savedRes.data.length,
-      });
+      };
+      statsStore.setBrokerStats(newStats);
+      setStats(newStats);
       setRecentListings(listings.slice(0, 3));
     } catch (e) {
       console.log('Failed to fetch broker stats', e);
-      setStats({ listings: 0, active: 0, saved: 0 });
+      if (!statsStore.getStats()?.broker) {
+        setStats({ listings: 0, active: 0, saved: 0 });
+      }
     }
   };
 

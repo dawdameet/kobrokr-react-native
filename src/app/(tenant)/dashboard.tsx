@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../../lib/storage';
+import { statsStore } from '../../lib/statsStore';
 import { router } from 'expo-router';
 import api from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,8 @@ import { Fonts } from '../../constants/theme';
 
 export default function TenantDashboard() {
   const [user, setUser] = useState<any>(null);
-  const [savedCount, setSavedCount] = useState<number | null>(null);
+  const cachedSaved = statsStore.getStats()?.tenant?.saved;
+  const [savedCount, setSavedCount] = useState<number | null>(cachedSaved ?? null);
   const [recentSaved, setRecentSaved] = useState<any[]>([]);
   const [nlQuery, setNlQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -22,20 +24,44 @@ export default function TenantDashboard() {
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
-      fetchData();
     }
     loadData();
+
+    const unsubscribe = statsStore.subscribe((allStats) => {
+      if (allStats?.tenant?.saved !== undefined) {
+        setSavedCount(allStats.tenant.saved);
+      }
+    });
+
+    statsStore.init().then((initial) => {
+      if (initial?.tenant?.saved !== undefined) {
+        setSavedCount(initial.tenant.saved);
+      }
+      if (initial?.tenant?.saved === undefined || statsStore.isStale()) {
+        fetchData();
+      } else {
+        // Quietly fetch recent saved for preview
+        api.get('/saved/tenant')
+          .then((res) => setRecentSaved(res.data.slice(0, 3)))
+          .catch(() => {});
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   const fetchData = async () => {
     try {
       // Endpoint from web app
       const { data } = await api.get('/saved/tenant');
+      statsStore.setTenantStats({ saved: data.length });
       setSavedCount(data.length);
       setRecentSaved(data.slice(0, 3));
     } catch (e) {
       console.log('Failed to fetch saved properties', e);
-      setSavedCount(0);
+      if (statsStore.getStats()?.tenant?.saved === undefined) {
+        setSavedCount(0);
+      }
     }
   };
 

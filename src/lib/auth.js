@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { setCachedToken, clearCachedToken } from './api';
+import { statsStore } from './statsStore';
 
 export const setSession = async (access_token, refresh_token, user) => {
   setCachedToken(access_token);
@@ -13,6 +14,7 @@ export const clearSession = async () => {
   await storage.remove('access_token');
   await storage.remove('refresh_token');
   await storage.remove('user');
+  statsStore.clear();
 };
 
 export const getUser = async () => {

@@ -11,6 +11,7 @@ import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import ShareModal from '../components/ShareModal';
 import { setPropertyPreview } from '../lib/propertyCache';
+import { statsStore } from '../lib/statsStore';
 
 export default function SavedScreen() {
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
@@ -49,6 +50,14 @@ export default function SavedScreen() {
       const endpoint = role === 'tenant' ? '/saved/tenant' : '/saved';
       const { data } = await api.get(endpoint);
       setSaved(data);
+      if (role === 'tenant') {
+        statsStore.setTenantStats({ saved: data.length });
+      } else {
+        const broker = statsStore.getStats()?.broker;
+        if (broker) {
+          statsStore.setBrokerStats({ ...broker, saved: data.length });
+        }
+      }
     } catch (e) {
       setError('Failed to load saved properties');
     } finally {
@@ -73,6 +82,7 @@ export default function SavedScreen() {
       const endpoint = userRole === 'tenant' ? `/saved/tenant/${propertyId}` : `/saved/${propertyId}`;
       await api.delete(endpoint);
       setSaved(prev => prev.filter(s => s.properties?.id !== propertyId));
+      statsStore.decrementSaved();
     } catch (e) {
       Alert.alert('Error', 'Failed to remove property');
     }

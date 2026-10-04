@@ -17,6 +17,7 @@ import { Fonts } from '../constants/theme';
 import { formatPrice } from '../lib/utils';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
+import { statsStore } from '../lib/statsStore';
 
 interface DiscoverVideoCardProps {
   property: any;
@@ -122,6 +123,11 @@ function DiscoverVideoCardComponent({
     const nextSaved = !savedLocally;
     setSavedLocally(nextSaved);
     onToggleSave?.(property.id, nextSaved);
+    if (nextSaved) {
+      statsStore.incrementSaved();
+    } else {
+      statsStore.decrementSaved();
+    }
     try {
       const userStr = await storage.get('user');
       const u = userStr ? JSON.parse(userStr) : null;
@@ -135,6 +141,11 @@ function DiscoverVideoCardComponent({
       // Revert if failed
       setSavedLocally(!nextSaved);
       onToggleSave?.(property.id, !nextSaved);
+      if (nextSaved) {
+        statsStore.decrementSaved();
+      } else {
+        statsStore.incrementSaved();
+      }
     }
   };
 

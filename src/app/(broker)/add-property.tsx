@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
+import { statsStore } from '../../lib/statsStore';
 import { safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
@@ -154,6 +155,7 @@ export default function AddPropertyScreen() {
       // 1. Create listing
       const { data } = await api.post('/properties', payload);
       const propertyId = data.id;
+      statsStore.incrementListings(true);
 
       // 2. Upload images if any
       if (images.length > 0) {

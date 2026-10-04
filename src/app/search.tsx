@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Modal, ScrollView, Platform, Alert, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { setPropertyPreview } from '../lib/propertyCache';
+import { searchBridgeCache } from '../lib/searchBridgeCache';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
@@ -125,29 +126,53 @@ const PropertyCard = React.memo(function PropertyCard({
 });
 
 export default function SearchScreen() {
-  const [nlQuery, setNlQuery] = useState('');
+  const searchParams = useLocalSearchParams<{ q?: string }>();
+  const initialQ = searchParams.q || '';
+  const [nlQuery, setNlQuery] = useState(initialQ);
   const [filters, setFilters] = useState<any>({
     city: '', locality: '', type: '', bhk: '', price_min: '', price_max: '', listing_type: '', area_min: '', amenities: []
   });
   const [sort, setSort] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
+
+  const queryKey = useMemo(() => {
+    return JSON.stringify({ q: nlQuery.trim(), filters, sort });
+  }, [nlQuery, filters, sort]);
+
+  const bridge = useMemo(() => searchBridgeCache.getBridge(queryKey), [queryKey]);
   
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<any[]>(() => bridge?.windowSlice || []);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [searched, setSearched] = useState(false);
+  const [totalCount, setTotalCount] = useState<number>(() => bridge?.totalCount || 0);
+  const [searched, setSearched] = useState<boolean>(() => !!bridge);
+  const [isBridging, setIsBridging] = useState<boolean>(() => !!bridge);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const flatListRef = useRef<FlatList>(null);
+  const scrollOffsetRef = useRef(0);
+
+  // Restore scroll offset from bridge cache immediately
+  useEffect(() => {
+    if (bridge && typeof bridge.scrollOffset === 'number' && bridge.scrollOffset > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: bridge.scrollOffset!, animated: false });
+      }, 50);
+    }
+  }, [bridge]);
+
   // Fetch results
   const runSearch = useCallback(async (targetPage = 1, append = false) => {
     if (append) setLoadingMore(true);
-    else { setLoading(true); setSearched(false); }
+    else {
+      setLoading(true);
+      if (!bridge && results.length === 0) setSearched(false);
+    }
 
     try {
       const params: any = { page: targetPage, limit: 12, sort };
@@ -168,13 +193,16 @@ export default function SearchScreen() {
       setHasMore(Boolean(data.has_more));
       setPage(targetPage);
       setSearched(true);
+      setIsBridging(false);
+      searchBridgeCache.clear();
     } catch (err) {
       console.log('Search error:', err);
+      setIsBridging(false);
     } finally {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [nlQuery, filters, sort]);
+  }, [nlQuery, filters, sort, bridge, results.length]);
 
   // Pull to refresh: shuffles the properties
   const onRefresh = useCallback(async () => {
@@ -199,6 +227,8 @@ export default function SearchScreen() {
       setHasMore(Boolean(data.has_more));
       setPage(1);
       setSearched(true);
+      setIsBridging(false);
+      searchBridgeCache.clear();
     } catch (err) {
       console.log('Search refresh error:', err);
     } finally {
@@ -250,9 +280,17 @@ export default function SearchScreen() {
   const handlePropertyPress = useCallback((p: any) => {
     if (p?.id) {
       setPropertyPreview(p.id, p);
+      const index = results.findIndex((item: any) => item.id === p.id);
+      searchBridgeCache.saveWindow({
+        results,
+        index: index >= 0 ? index : 0,
+        scrollOffset: scrollOffsetRef.current,
+        totalCount,
+        queryKey,
+      });
       router.push(`/properties/${p.id}`);
     }
-  }, []);
+  }, [results, totalCount, queryKey]);
 
   const renderPropertyCard = useCallback(({ item: p }: { item: any }) => (
     <PropertyCard
@@ -311,17 +349,24 @@ export default function SearchScreen() {
 
       {/* Results */}
       <View style={styles.resultsHeader}>
-        {searched && !loading && (
+        {(searched || results.length > 0) && (!loading || results.length > 0) && (
           <Text style={styles.resultsCount}>{totalCount} Properties Found</Text>
         )}
       </View>
 
-      {loading ? (
+      {isBridging && (
+        <View style={styles.bridgeBanner}>
+          <Text style={styles.bridgeBannerText}>Instant Preview · Updating in background...</Text>
+        </View>
+      )}
+
+      {loading && results.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : (
         <FlatList
+          ref={flatListRef}
           data={results}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderPropertyCard}
@@ -330,6 +375,10 @@ export default function SearchScreen() {
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 88 }]}
+          onScroll={(e) => {
+            scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           refreshControl={
@@ -340,7 +389,14 @@ export default function SearchScreen() {
             />
           }
           ListFooterComponent={
-            loadingMore ? <ActivityIndicator size="small" color="#2563EB" style={{ margin: 16 }} /> : null
+            loadingMore || isBridging ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#2563EB" />
+                {isBridging && (
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>Loading remaining properties...</Text>
+                )}
+              </View>
+            ) : null
           }
           ListEmptyComponent={
             searched ? (
@@ -401,6 +457,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  bridgeBanner: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  bridgeBannerText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#1D4ED8',
+    textAlign: 'center',
   },
   header: {
     flexDirection: 'row',

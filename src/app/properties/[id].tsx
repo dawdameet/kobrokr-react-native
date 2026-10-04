@@ -11,6 +11,7 @@ import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 import ShareModal from '../../components/ShareModal';
 import { getPropertyPreview } from '../../lib/propertyCache';
+import { statsStore } from '../../lib/statsStore';
 
 export default function PropertyDetailScreen() {
   const { width } = useWindowDimensions();
@@ -94,6 +95,7 @@ export default function PropertyDetailScreen() {
       const endpoint = userRole === 'tenant' ? '/saved/tenant' : '/saved';
       await api.post(endpoint, { property_id: id });
       setSaved(true);
+      statsStore.incrementSaved();
     } catch (e) {
       // Mark as saved anyway if it fails (might already be saved)
       setSaved(true);

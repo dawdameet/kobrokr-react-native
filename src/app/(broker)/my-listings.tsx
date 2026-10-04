@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../../lib/api';
+import { statsStore } from '../../lib/statsStore';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
@@ -97,6 +98,12 @@ export default function MyListingsScreen() {
     try {
       const { data } = await api.get('/properties/my');
       setListings(data);
+      const activeCount = data.filter((p: any) => p.status === 'active').length;
+      statsStore.setBrokerStats({
+        listings: data.length,
+        active: activeCount,
+        saved: statsStore.getStats()?.broker?.saved ?? 0,
+      });
     } catch (e) {
       setError('Failed to load listings');
     } finally {
@@ -111,6 +118,7 @@ export default function MyListingsScreen() {
       setListings(prev =>
         prev.map(p => (p.id === property.id ? { ...p, status: newStatus } : p))
       );
+      statsStore.updateListingStatus(property.status, newStatus);
     } catch (e) {
       Alert.alert('Error', 'Failed to update status');
     }
@@ -129,6 +137,7 @@ export default function MyListingsScreen() {
             try {
               await api.delete(`/properties/${property.id}`);
               setListings(prev => prev.filter(p => p.id !== property.id));
+              statsStore.decrementListings(property.status === 'active');
             } catch (e) {
               Alert.alert('Error', 'Failed to delete listing');
             }
