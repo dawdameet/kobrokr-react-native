@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,7 +142,12 @@ export default function PropertyDetailScreen() {
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (
-            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
           )}
         </View>
       </Modal>
@@ -162,7 +168,12 @@ export default function PropertyDetailScreen() {
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (
-            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
           )}
         </View>
       </Modal>
@@ -191,7 +202,13 @@ export default function PropertyDetailScreen() {
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {images.map((img: any, idx: number) => (
                 <Pressable key={idx} onPress={() => setZoomImg(img.url)}>
-                  <Image source={{ uri: img.url }} style={[styles.galleryImage, { width, height: width * 0.75 }]} />
+                  <Image
+                    source={{ uri: img.url }}
+                    style={[styles.galleryImage, { width, height: width * 0.75 }]}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
                 </Pressable>
               ))}
             </ScrollView>
@@ -337,7 +354,13 @@ export default function PropertyDetailScreen() {
               
               <View style={styles.brokerInfo}>
                 {broker.profile_photo ? (
-                  <Image source={{ uri: broker.profile_photo }} style={styles.brokerImage} />
+                  <Image
+                    source={{ uri: broker.profile_photo }}
+                    style={styles.brokerImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
                 ) : (
                   <View style={styles.brokerImagePlaceholder}>
                     <Text style={styles.brokerInitials}>{broker.full_name?.[0]}</Text>
@@ -444,7 +467,12 @@ export default function PropertyDetailScreen() {
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (
-            <Image source={{ uri: zoomImg }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
           )}
         </View>
       </Modal>
@@ -524,7 +552,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   galleryImage: {
-    resizeMode: 'cover',
   },
   galleryPlaceholder: {
     flex: 1,

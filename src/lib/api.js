@@ -8,11 +8,25 @@ const api = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://kobrokr.onrender.com',
 });
 
+let inMemoryAccessToken = null;
+
+export function setCachedToken(token) {
+  inMemoryAccessToken = token;
+}
+
+export function clearCachedToken() {
+  inMemoryAccessToken = null;
+}
+
 // --------------------
 // Request interceptor
 // --------------------
 api.interceptors.request.use(async (config) => {
-  const token = await storage.get('access_token');
+  let token = inMemoryAccessToken;
+  if (!token) {
+    token = await storage.get('access_token');
+    if (token) inMemoryAccessToken = token;
+  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -56,6 +70,7 @@ api.interceptors.response.use(
           }
         );
 
+        inMemoryAccessToken = data.access_token;
         await storage.set('access_token', data.access_token);
 
         originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
@@ -72,6 +87,7 @@ api.interceptors.response.use(
 );
 
 async function logout() {
+  inMemoryAccessToken = null;
   await storage.remove('access_token');
   await storage.remove('refresh_token');
   await storage.remove('user');

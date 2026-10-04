@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Image,
   Linking,
   Share,
   Platform,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -22,19 +22,23 @@ interface DiscoverVideoCardProps {
   property: any;
   isActive: boolean;
   isMuted: boolean;
+  isSaved?: boolean;
+  onToggleSave?: (propertyId: number, nextSaved: boolean) => void;
   onToggleMute: () => void;
   height: number;
 }
 
-export default function DiscoverVideoCard({
+function DiscoverVideoCardComponent({
   property,
   isActive,
   isMuted,
+  isSaved = false,
+  onToggleSave,
   onToggleMute,
   height,
 }: DiscoverVideoCardProps) {
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
+  const [savedLocally, setSavedLocally] = useState(Boolean(isSaved));
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const lastTapRef = useRef<number>(0);
@@ -42,6 +46,11 @@ export default function DiscoverVideoCard({
   const videoUrl = property.property_videos?.[0]?.url;
   const coverImage = property.property_images?.find((img: any) => img.is_cover)?.url || property.property_images?.[0]?.url;
   const broker = property.brokers;
+
+  // Sync saved state when parent props update
+  useEffect(() => {
+    setSavedLocally(Boolean(isSaved));
+  }, [isSaved]);
 
   // Video player configuration
   const player = useVideoPlayer(videoUrl || '', (p) => {
@@ -69,28 +78,6 @@ export default function DiscoverVideoCard({
     if (!player) return;
     player.muted = isMuted;
   }, [isMuted, player]);
-
-  // Check saved state initially
-  useEffect(() => {
-    let isMounted = true;
-    async function checkSaved() {
-      try {
-        const userStr = await storage.get('user');
-        if (!userStr) return;
-        const u = JSON.parse(userStr);
-        const endpoint = u.role === 'tenant' ? '/saved/tenant' : '/saved';
-        const { data } = await api.get(endpoint);
-        if (isMounted && Array.isArray(data)) {
-          const match = data.some((s: any) => s.properties?.id === property.id || s.property_id === property.id);
-          setIsSaved(match);
-        }
-      } catch (e) {
-        // silent fail on check
-      }
-    }
-    checkSaved();
-    return () => { isMounted = false; };
-  }, [property.id]);
 
   const togglePlayPause = () => {
     if (!player) return;
@@ -126,26 +113,28 @@ export default function DiscoverVideoCard({
   const triggerLike = async () => {
     setShowHeartAnim(true);
     setTimeout(() => setShowHeartAnim(false), 900);
-    if (!isSaved) {
+    if (!savedLocally) {
       handleToggleSave();
     }
   };
 
   const handleToggleSave = async () => {
+    const nextSaved = !savedLocally;
+    setSavedLocally(nextSaved);
+    onToggleSave?.(property.id, nextSaved);
     try {
       const userStr = await storage.get('user');
       const u = userStr ? JSON.parse(userStr) : null;
       const endpoint = u?.role === 'tenant' ? '/saved/tenant' : '/saved';
-      if (isSaved) {
-        setIsSaved(false);
+      if (!nextSaved) {
         await api.delete(`${endpoint}/${property.id}`);
       } else {
-        setIsSaved(true);
         await api.post(endpoint, { property_id: property.id });
       }
     } catch (e) {
       // Revert if failed
-      setIsSaved(prev => !prev);
+      setSavedLocally(!nextSaved);
+      onToggleSave?.(property.id, !nextSaved);
     }
   };
 
@@ -205,7 +194,9 @@ export default function DiscoverVideoCard({
           <Image
             source={{ uri: coverImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800' }}
             style={StyleSheet.absoluteFill}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
           />
         )}
 
@@ -522,3 +513,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
+const DiscoverVideoCard = React.memo(DiscoverVideoCardComponent);
+export default DiscoverVideoCard;

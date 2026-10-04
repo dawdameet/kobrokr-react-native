@@ -9,11 +9,13 @@ import {
   LayoutChangeEvent,
   useWindowDimensions,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import api from '../lib/api';
+import { storage } from '../lib/storage';
 import DiscoverVideoCard from '../components/DiscoverVideoCard';
 import { Fonts } from '../constants/theme';
 import { safeGoBack } from '../lib/utils';
@@ -31,6 +33,7 @@ export default function DiscoverScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const [containerHeight, setContainerHeight] = useState(windowHeight - 130);
   const [properties, setProperties] = useState<any[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -40,11 +43,31 @@ export default function DiscoverScreen() {
   const fetchFeed = useCallback(async () => {
     try {
       setError('');
-      // Fetch latest properties with video support
-      const { data } = await api.get('/search', {
-        params: { limit: 50, sort: 'newest' },
-      });
-      const items: any[] = data?.results || [];
+      // Fetch latest properties and saved items concurrently in ONE parallel batch
+      const [searchRes, savedData] = await Promise.all([
+        api.get('/search', { params: { limit: 50, sort: 'newest' } }),
+        (async () => {
+          try {
+            const userStr = await storage.get('user');
+            const u = userStr ? JSON.parse(userStr) : null;
+            const endpoint = u?.role === 'tenant' ? '/saved/tenant' : '/saved';
+            const res = await api.get(endpoint);
+            return Array.isArray(res.data) ? res.data : [];
+          } catch {
+            return [];
+          }
+        })(),
+      ]);
+
+      const items: any[] = searchRes.data?.results || [];
+
+      // Build Set of saved IDs
+      const ids = new Set<number>();
+      for (const item of savedData) {
+        const id = item.property_id || item.properties?.id;
+        if (id) ids.add(Number(id));
+      }
+      setSavedIds(ids);
 
       // ONLY include listings that have a valid walkthrough video
       const withVideo = items.filter(
@@ -78,6 +101,27 @@ export default function DiscoverScreen() {
       setContainerHeight(height);
     }
   };
+
+  const handleToggleSave = useCallback((propertyId: number, nextSaved: boolean) => {
+    setSavedIds(prev => {
+      const next = new Set(prev);
+      if (nextSaved) {
+        next.add(propertyId);
+      } else {
+        next.delete(propertyId);
+      }
+      return next;
+    });
+  }, []);
+
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: containerHeight,
+      offset: containerHeight * index,
+      index,
+    }),
+    [containerHeight]
+  );
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
     if (viewableItems && viewableItems.length > 0) {
@@ -135,10 +179,17 @@ export default function DiscoverScreen() {
                 property={item}
                 isActive={index === activeIndex}
                 isMuted={isMuted}
+                isSaved={savedIds.has(item.id)}
+                onToggleSave={handleToggleSave}
                 onToggleMute={() => setIsMuted(prev => !prev)}
                 height={containerHeight}
               />
             )}
+            getItemLayout={getItemLayout}
+            windowSize={3}
+            maxToRenderPerBatch={2}
+            initialNumToRender={2}
+            removeClippedSubviews={Platform.OS === 'android'}
             pagingEnabled
             showsVerticalScrollIndicator={false}
             snapToInterval={containerHeight}

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Image, Modal, ScrollView, Platform, Alert, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator, Modal, ScrollView, Platform, Alert, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -31,6 +32,96 @@ const SORT_OPTIONS = [
   { value: 'price_high', label: 'Price: High → Low' },
   { value: 'area', label: 'Largest Area' },
 ];
+
+interface PropertyCardProps {
+  property: any;
+  isSelected: boolean;
+  isBroker: boolean;
+  onSelect: (id: string | number) => void;
+  onPress: (id: string | number) => void;
+}
+
+const PropertyCard = React.memo(function PropertyCard({
+  property: p,
+  isSelected,
+  isBroker,
+  onSelect,
+  onPress,
+}: PropertyCardProps) {
+  const cover = p.property_images?.find((i: any) => i.is_cover)?.url || p.property_images?.[0]?.url;
+
+  return (
+    <Pressable 
+      style={styles.card} 
+      onPress={() => onPress(p.id)}
+    >
+      {cover ? (
+        <Image
+          source={{ uri: cover }}
+          style={styles.cardImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
+      ) : (
+        <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+          <Ionicons name="image-outline" size={32} color="#D1D5DB" />
+        </View>
+      )}
+      
+      {p.is_dummy && (
+        <View style={styles.dummyBadge}>
+          <Text style={styles.dummyBadgeText}>DUMMY LISTING</Text>
+        </View>
+      )}
+
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle} numberOfLines={1}>{p.title}</Text>
+        <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
+
+        <View style={styles.cardPriceRow}>
+          <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
+          <Text style={styles.cardArea}>· {p.area} sq ft</Text>
+        </View>
+
+        <View style={styles.tagsContainer}>
+          <Text style={styles.tag}>{p.type}</Text>
+          {p.listing_type && (
+            <Text style={styles.tag}>{p.listing_type === 'rent' ? 'Rent' : 'Sale'}</Text>
+          )}
+          {!!p.bhk && <Text style={styles.tag}>{p.bhk} BHK</Text>}
+        </View>
+
+        {isBroker && (
+          <Pressable
+            style={[
+              styles.selectCardBtn,
+              isSelected && styles.selectCardBtnActive,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              onSelect(p.id);
+            }}
+          >
+            <Ionicons
+              name={isSelected ? 'checkmark-circle' : 'add-circle-outline'}
+              size={16}
+              color={isSelected ? '#2563EB' : '#64748B'}
+            />
+            <Text
+              style={[
+                styles.selectCardBtnText,
+                isSelected && styles.selectCardBtnTextActive,
+              ]}
+            >
+              {isSelected ? 'Selected for Client' : 'Select for Client'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </Pressable>
+  );
+});
 
 export default function SearchScreen() {
   const [nlQuery, setNlQuery] = useState('');
@@ -130,7 +221,7 @@ export default function SearchScreen() {
 
   const isBroker = currentUser?.role === 'broker';
 
-  const toggleSelectForClient = (propertyId: string | number) => {
+  const toggleSelectForClient = useCallback((propertyId: string | number) => {
     setSelectedIds((prev) => {
       const exists = prev.includes(propertyId);
       if (!exists && prev.length >= 5 && currentUser?.plan === 'free') {
@@ -142,7 +233,7 @@ export default function SearchScreen() {
       }
       return exists ? prev.filter((id) => id !== propertyId) : [...prev, propertyId];
     });
-  };
+  }, [currentUser?.plan]);
 
   const handleSearch = () => {
     setShowFilters(false);
@@ -155,75 +246,19 @@ export default function SearchScreen() {
     }
   };
 
-  const renderPropertyCard = ({ item: p }: { item: any }) => {
-    const cover = p.property_images?.find((i: any) => i.is_cover)?.url || p.property_images?.[0]?.url;
-    
-    return (
-      <Pressable 
-        style={styles.card} 
-        onPress={() => router.push(`/properties/${p.id}`)}
-      >
-        {cover ? (
-          <Image source={{ uri: cover }} style={styles.cardImage} />
-        ) : (
-          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-            <Ionicons name="image-outline" size={32} color="#D1D5DB" />
-          </View>
-        )}
-        
-        {p.is_dummy && (
-          <View style={styles.dummyBadge}>
-            <Text style={styles.dummyBadgeText}>DUMMY LISTING</Text>
-          </View>
-        )}
+  const handlePropertyPress = useCallback((id: string | number) => {
+    router.push(`/properties/${id}`);
+  }, []);
 
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{p.title}</Text>
-          <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
-
-          <View style={styles.cardPriceRow}>
-            <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
-            <Text style={styles.cardArea}>· {p.area} sq ft</Text>
-          </View>
-
-          <View style={styles.tagsContainer}>
-            <Text style={styles.tag}>{p.type}</Text>
-            {p.listing_type && (
-              <Text style={styles.tag}>{p.listing_type === 'rent' ? 'Rent' : 'Sale'}</Text>
-            )}
-            {!!p.bhk && <Text style={styles.tag}>{p.bhk} BHK</Text>}
-          </View>
-
-          {isBroker && (
-            <Pressable
-              style={[
-                styles.selectCardBtn,
-                selectedIds.includes(p.id) && styles.selectCardBtnActive,
-              ]}
-              onPress={(e) => {
-                e.stopPropagation();
-                toggleSelectForClient(p.id);
-              }}
-            >
-              <Ionicons
-                name={selectedIds.includes(p.id) ? 'checkmark-circle' : 'add-circle-outline'}
-                size={16}
-                color={selectedIds.includes(p.id) ? '#2563EB' : '#64748B'}
-              />
-              <Text
-                style={[
-                  styles.selectCardBtnText,
-                  selectedIds.includes(p.id) && styles.selectCardBtnTextActive,
-                ]}
-              >
-                {selectedIds.includes(p.id) ? 'Selected for Client' : 'Select for Client'}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      </Pressable>
-    );
-  };
+  const renderPropertyCard = useCallback(({ item: p }: { item: any }) => (
+    <PropertyCard
+      property={p}
+      isSelected={selectedIds.includes(p.id)}
+      isBroker={isBroker}
+      onSelect={toggleSelectForClient}
+      onPress={handlePropertyPress}
+    />
+  ), [selectedIds, isBroker, toggleSelectForClient, handlePropertyPress]);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
@@ -286,6 +321,10 @@ export default function SearchScreen() {
           data={results}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderPropertyCard}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 88 }]}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}

@@ -6,11 +6,11 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
-  Image,
   Linking,
   Platform,
   Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,7 +154,13 @@ export default function ClientShareScreen() {
         {/* Card Image */}
         <View style={styles.cardImageWrapper}>
           {cover ? (
-            <Image source={{ uri: cover }} style={styles.cardImage} />
+            <Image
+              source={{ uri: cover }}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={[styles.cardImage, styles.placeholderImage]}>
               <Ionicons name="home-outline" size={36} color="#CBD5E1" />
@@ -242,7 +248,13 @@ export default function ClientShareScreen() {
       <View style={styles.header}>
         <View style={styles.brokerHeaderInfo}>
           {broker.profile_photo ? (
-            <Image source={{ uri: broker.profile_photo }} style={styles.brokerAvatar} />
+            <Image
+              source={{ uri: broker.profile_photo }}
+              style={styles.brokerAvatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={styles.brokerAvatarPlaceholder}>
               <Text style={styles.brokerAvatarInitials}>
@@ -301,6 +313,10 @@ export default function ClientShareScreen() {
         data={properties}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderPropertyItem}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
         contentContainerStyle={[
           styles.listContent,
           !currentUser && { paddingBottom: 110 }

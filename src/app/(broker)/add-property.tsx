@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Image, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -457,7 +458,12 @@ export default function AddPropertyScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
             {images.map((img, idx) => (
               <View key={idx} style={styles.imageWrapper}>
-                <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                <Image
+                  source={{ uri: img.uri }}
+                  style={styles.thumbnail}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
                 <Pressable style={styles.removeImage} onPress={() => removeImage(idx)}>
                   <Ionicons name="close" size={16} color="#FFFFFF" />
                 </Pressable>

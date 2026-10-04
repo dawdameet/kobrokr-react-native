@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Image, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -119,7 +120,13 @@ export default function SavedScreen() {
       <View style={styles.card}>
         <Pressable onPress={() => router.push(`/properties/${p.id}`)}>
           {cover ? (
-            <Image source={{ uri: cover }} style={styles.cardImage} />
+            <Image
+              source={{ uri: cover }}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
               <Ionicons name="image-outline" size={32} color="#D1D5DB" />
@@ -192,7 +199,13 @@ export default function SavedScreen() {
                 <Pressable key={pid} onPress={() => router.push(`/properties/${pid}`)} style={styles.colPropItem}>
                   <View style={styles.colPropImageWrapper}>
                     {coverImg ? (
-                      <Image source={{ uri: coverImg }} style={styles.colPropImage} />
+                      <Image
+                        source={{ uri: coverImg }}
+                        style={styles.colPropImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={150}
+                      />
                     ) : (
                       <View style={[styles.colPropImage, styles.cardImagePlaceholder]}>
                         <Ionicons name="home-outline" size={24} color="#D1D5DB" />
@@ -259,6 +272,10 @@ export default function SavedScreen() {
           data={saved}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderSavedItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -276,6 +293,10 @@ export default function SavedScreen() {
           data={collections}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderCollection}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -338,7 +359,7 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: Fonts.sans, color: '#EF4444', fontSize: 14 },
   listContent: { padding: 16, gap: 16, paddingBottom: 40 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
-  cardImage: { width: '100%', height: 160, resizeMode: 'cover' },
+  cardImage: { width: '100%', height: 160 },
   cardImagePlaceholder: { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   cardContent: { padding: 16 },
   cardTitle: { fontFamily: Fonts.sansSemiBold, fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
