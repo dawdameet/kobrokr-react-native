@@ -56,10 +56,18 @@ function getAuthErrorMessage(err: any, role: string) {
 }
 
 export default function LoginScreen() {
-  const { role: initialRole, verified, redirect } = useLocalSearchParams<{ role?: string; verified?: string; redirect?: string }>();
+  const { role: initialRole, verified, redirect, email: paramEmail, confirm } = useLocalSearchParams<{ 
+    role?: string; 
+    verified?: string; 
+    redirect?: string;
+    email?: string;
+    confirm?: string;
+  }>();
+
+  const isConfirmRequired = confirm === '1';
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
   
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(paramEmail || '');
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false);
   
@@ -67,8 +75,8 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const [isUnverified, setIsUnverified] = useState(false);
-  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [isUnverified, setIsUnverified] = useState(isConfirmRequired);
+  const [unverifiedEmail, setUnverifiedEmail] = useState(paramEmail || '');
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
 
@@ -76,8 +84,16 @@ export default function LoginScreen() {
     if (verified === 'true') {
       setSuccessMsg('Email verified successfully! You can now log in.');
       setError('');
+      setIsUnverified(false);
     }
   }, [verified]);
+
+  useEffect(() => {
+    if (paramEmail && !email) {
+      setEmail(paramEmail);
+      setUnverifiedEmail(paramEmail);
+    }
+  }, [paramEmail]);
 
   const handleLogin = async () => {
     Keyboard.dismiss();
@@ -128,11 +144,16 @@ export default function LoginScreen() {
   };
 
   const handleResend = async () => {
+    const targetEmail = (unverifiedEmail || email || '').trim();
+    if (!targetEmail) {
+      setError('Please enter your email to resend verification.');
+      return;
+    }
     setResendLoading(true);
     setResendMessage('');
     try {
       await api.post('/auth/resend-verification', {
-        email: unverifiedEmail,
+        email: targetEmail,
         role: roleTab
       });
       setResendMessage('Verification email sent! Check your inbox.');
@@ -175,6 +196,38 @@ export default function LoginScreen() {
               {roleTab === 'broker' ? 'Login as Broker' : 'Login as Tenant'}
             </Text>
             <Text style={styles.subtitle}>Sign in to your kobrokr account</Text>
+
+            {isConfirmRequired && (
+              <View style={[styles.errorContainer, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', marginBottom: 16 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                  <Ionicons name="mail" size={22} color="#2563EB" style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontFamily: Fonts.sansSemiBold, color: '#1E3A8A', marginBottom: 4 }}>
+                      Verify your email to continue
+                    </Text>
+                    <Text style={{ fontSize: 13, fontFamily: Fonts.sans, color: '#1D4ED8', lineHeight: 18, marginBottom: 10 }}>
+                      Account created! We've sent a verification link to {email || paramEmail || 'your email'}. Please check your inbox and verify your email before logging in.
+                    </Text>
+                    <Pressable 
+                      style={[styles.button, { backgroundColor: '#FFFFFF', borderColor: '#93C5FD', borderWidth: 1, paddingVertical: 8, paddingHorizontal: 14, alignSelf: 'flex-start' }]} 
+                      onPress={handleResend}
+                      disabled={resendLoading}
+                    >
+                      {resendLoading ? (
+                        <ActivityIndicator color="#2563EB" size="small" />
+                      ) : (
+                        <Text style={[styles.buttonText, { color: '#2563EB', fontSize: 13 }]}>Resend Verification Email</Text>
+                      )}
+                    </Pressable>
+                    {resendMessage ? (
+                      <Text style={{ marginTop: 8, fontSize: 12, color: resendMessage.includes('sent') ? '#15803D' : '#B91C1C', fontFamily: Fonts.sansMedium }}>
+                        {resendMessage}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            )}
 
             {successMsg ? (
               <View style={[styles.errorContainer, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}>
