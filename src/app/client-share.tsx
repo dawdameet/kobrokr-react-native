@@ -14,12 +14,14 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 
 export default function ClientShareScreen() {
+  const { t } = useTranslation();
   const { b: brokerId, p: propertyIds } = useLocalSearchParams<{
     b?: string;
     p?: string;
@@ -267,7 +269,7 @@ export default function ClientShareScreen() {
               {broker.full_name}
             </Text>
             <Text style={styles.brokerAgency} numberOfLines={1}>
-              {broker.agency_name || 'Independent Broker'}
+              {broker.agency_name || t('clientShare.independentBroker')}
             </Text>
           </View>
         </View>
@@ -287,7 +289,7 @@ export default function ClientShareScreen() {
               }}
             >
               <Ionicons name="home" size={15} color="#2563EB" />
-              <Text style={styles.homeBtnText}>Home</Text>
+              <Text style={styles.homeBtnText}>{t('nav.home')}</Text>
             </Pressable>
           ) : (
             <Pressable
@@ -295,14 +297,14 @@ export default function ClientShareScreen() {
               onPress={navigateToLogin}
             >
               <Ionicons name="log-in-outline" size={15} color="#FFFFFF" />
-              <Text style={styles.loginHeaderBtnText}>Log In</Text>
+              <Text style={styles.loginHeaderBtnText}>{t('clientShare.logIn')}</Text>
             </Pressable>
           )}
 
           {broker.mobile && (
             <Pressable style={styles.callBrokerBtn} onPress={() => handleCall(broker.mobile)}>
               <Ionicons name="call" size={14} color="#FFFFFF" />
-              <Text style={styles.callBrokerBtnText}>Call</Text>
+              <Text style={styles.callBrokerBtnText}>{t('common.call')}</Text>
             </Pressable>
           )}
         </View>
@@ -323,7 +325,7 @@ export default function ClientShareScreen() {
         ]}
         ListHeaderComponent={
           <View style={styles.collectionIntro}>
-            <Text style={styles.collectionTitle}>Property Collection</Text>
+            <Text style={styles.collectionTitle}>{t('clientShare.collectionTitle')}</Text>
             <Text style={styles.collectionSubtitle}>
               Handpicked properties selected exclusively for you by{' '}
               <Text style={{ fontWeight: '600', color: '#1E293B' }}>{broker.full_name}</Text>.
@@ -334,17 +336,17 @@ export default function ClientShareScreen() {
               <View style={styles.guestBanner}>
                 <View style={styles.guestBannerHeader}>
                   <Ionicons name="person-circle-outline" size={20} color="#2563EB" />
-                  <Text style={styles.guestBannerTitle}>Viewing as Guest</Text>
+                  <Text style={styles.guestBannerTitle}>{t('clientShare.viewingAsGuest')}</Text>
                 </View>
                 <Text style={styles.guestBannerText}>
                   Sign in or create a free account to unlock full details, inspect layouts, and chat with {broker.full_name?.split(' ')[0]}.
                 </Text>
                 <View style={styles.guestBannerActions}>
                   <Pressable style={styles.guestBannerLoginBtn} onPress={navigateToLogin}>
-                    <Text style={styles.guestBannerLoginText}>Log In</Text>
+                    <Text style={styles.guestBannerLoginText}>{t('clientShare.logIn')}</Text>
                   </Pressable>
                   <Pressable style={styles.guestBannerSignupBtn} onPress={navigateToSignup}>
-                    <Text style={styles.guestBannerSignupText}>Sign Up</Text>
+                    <Text style={styles.guestBannerSignupText}>{t('clientShare.signUp')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -354,8 +356,8 @@ export default function ClientShareScreen() {
         ListEmptyComponent={
           <View style={styles.emptyList}>
             <Ionicons name="folder-open-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyListTitle}>No properties found</Text>
-            <Text style={styles.emptyListSub}>This collection contains no active properties.</Text>
+            <Text style={styles.emptyListTitle}>{t('clientShare.noPropertiesFound')}</Text>
+            <Text style={styles.emptyListSub}>{t('clientShare.noActiveProperties')}</Text>
           </View>
         }
       />
@@ -365,7 +367,7 @@ export default function ClientShareScreen() {
         <View style={styles.floatingBottomAuth}>
           <View style={styles.floatingBottomAuthContent}>
             <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.floatingAuthTitle}>Want to connect?</Text>
+              <Text style={styles.floatingAuthTitle}>{t('clientShare.wantToConnect')}</Text>
               <Text style={styles.floatingAuthSubtitle} numberOfLines={1}>
                 Sign in to contact {broker.full_name?.split(' ')[0]}
               </Text>
@@ -377,7 +379,7 @@ export default function ClientShareScreen() {
                 setShowAuthModal(true);
               }}
             >
-              <Text style={styles.floatingAuthBtnText}>Log In / Sign Up</Text>
+              <Text style={styles.floatingAuthBtnText}>{t('clientShare.logIn')} / {t('clientShare.signUp')}</Text>
             </Pressable>
           </View>
         </View>

@@ -6,11 +6,13 @@ import { statsStore } from '../../lib/statsStore';
 import { router } from 'expo-router';
 import api from '../../lib/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
 export default function TenantDashboard() {
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const cachedSaved = statsStore.getStats()?.tenant?.saved;
   const [savedCount, setSavedCount] = useState<number | null>(cachedSaved ?? null);
@@ -94,9 +96,9 @@ export default function TenantDashboard() {
             </Pressable>
           </View>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
-            Welcome back{firstName ? `, ${firstName}` : ''} 👋
+            {t('tenantDashboard.greeting')}{firstName ? `, ${firstName}` : ''} 👋
           </Text>
-          <Text style={styles.subtitle}>Find your perfect property on kobrokr</Text>
+          <Text style={styles.subtitle}>{t('tenantDashboard.subtitle')}</Text>
         </View>
 
         {/* Quick Search */}
@@ -105,33 +107,33 @@ export default function TenantDashboard() {
             style={styles.searchInput}
             value={nlQuery}
             onChangeText={setNlQuery}
-            placeholder='Search "2 bhk in Powai"'
+            placeholder={t('tenantDashboard.searchPlaceholder')}
             placeholderTextColor="#9CA3AF"
           />
           <Pressable style={styles.searchButton} onPress={handleSearch}>
-            <Text style={styles.searchButtonText}>Search</Text>
+            <Text style={styles.searchButtonText}>{t('common.search')}</Text>
           </Pressable>
         </View>
 
         {/* Stat Cards */}
         <View style={styles.statsContainer}>
           <Pressable style={styles.statCard} onPress={() => router.push('/saved')}>
-            <Text style={styles.statLabel}>Saved Properties</Text>
+            <Text style={styles.statLabel}>{t('brokerDashboard.savedProperties')}</Text>
             {savedCount === null ? (
               <ActivityIndicator size="small" color="#9333EA" style={{ marginTop: 8 }} />
             ) : (
               <Text style={[styles.statValue, { color: '#9333EA' }]}>{savedCount}</Text>
             )}
             <View style={[styles.badge, { backgroundColor: '#F3E8FF' }]}>
-              <Text style={[styles.badgeText, { color: '#9333EA' }]}>View →</Text>
+              <Text style={[styles.badgeText, { color: '#9333EA' }]}>{t('brokerDashboard.view')}</Text>
             </View>
           </Pressable>
 
           <Pressable style={styles.statCard} onPress={() => router.push('/search')}>
-            <Text style={styles.statLabel}>Browse Properties</Text>
-            <Text style={[styles.statValue, { color: '#2563EB' }]}>Search</Text>
+            <Text style={styles.statLabel}>{t('tenantDashboard.browseProperties')}</Text>
+            <Text style={[styles.statValue, { color: '#2563EB' }]}>{t('common.search')}</Text>
             <View style={[styles.badge, { backgroundColor: '#DBEAFE' }]}>
-              <Text style={[styles.badgeText, { color: '#2563EB' }]}>Start →</Text>
+              <Text style={[styles.badgeText, { color: '#2563EB' }]}>{t('tenantDashboard.start')}</Text>
             </View>
           </Pressable>
         </View>
@@ -140,8 +142,8 @@ export default function TenantDashboard() {
         {recentSaved.length > 0 && (
           <View style={styles.recentContainer}>
             <View style={styles.recentHeader}>
-              <Text style={styles.recentTitle}>Recently Saved</Text>
-              <Text style={styles.recentViewAll}>View all →</Text>
+              <Text style={styles.recentTitle}>{t('tenantDashboard.recentlySaved')}</Text>
+              <Text style={styles.recentViewAll}>{t('tenantDashboard.viewAll')}</Text>
             </View>
             <View style={styles.recentList}>
               {recentSaved.map((s, index) => {

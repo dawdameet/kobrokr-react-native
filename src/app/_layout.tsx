@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import BottomNav from '../components/BottomNav';
 import AuthGate from '../components/AuthGate';
+import '../i18n';
 
 // Keep the splash screen visible while fonts are loading
 SplashScreen.preventAutoHideAsync().catch(() => {});

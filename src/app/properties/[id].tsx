@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
+import { useTranslation } from 'react-i18next';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 import ShareModal from '../../components/ShareModal';
@@ -14,6 +15,7 @@ import { getPropertyPreview } from '../../lib/propertyCache';
 import { statsStore } from '../../lib/statsStore';
 
 export default function PropertyDetailScreen() {
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const { id, b: shareBrokerId } = useLocalSearchParams<{ id: string; b?: string }>();
   const preview = id ? getPropertyPreview(id) : null;
@@ -251,7 +253,7 @@ export default function PropertyDetailScreen() {
 
         {videoUrl ? (
           <View style={styles.videoSection}>
-            <Text style={styles.sectionTitle}>Walkthrough Video</Text>
+            <Text style={styles.sectionTitle}>{t('property.walkthroughVideo')}</Text>
             <VideoView
               style={styles.videoPlayer}
               player={videoPlayer}
@@ -272,16 +274,16 @@ export default function PropertyDetailScreen() {
             <Text style={styles.price}>{formatPrice(property.price)}</Text>
 
             <View style={styles.tagsContainer}>
-              <Text style={[styles.tag, styles.tagType]}>{property.type}</Text>
-              {property.listing_type && <Text style={[styles.tag, styles.tagListingType]}>{property.listing_type}</Text>}
-              {property.bhk && <Text style={styles.tag}>{property.bhk} BHK</Text>}
-              <Text style={styles.tag}>{property.area} sq ft</Text>
+              <Text style={[styles.tag, styles.tagType]}>{t(`enums.propertyTypes.${property.type}`, { defaultValue: property.type })}</Text>
+              {property.listing_type && <Text style={[styles.tag, styles.tagListingType]}>{t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type })}</Text>}
+              {property.bhk && <Text style={styles.tag}>{property.bhk} {t('property.bhk')}</Text>}
+              <Text style={styles.tag}>{property.area} {t('property.sqFt')}</Text>
               
               <Text style={[styles.tag, 
                 property.status === 'active' ? styles.tagStatusActive : 
                 property.status === 'sold' ? styles.tagStatusSold : styles.tagStatusDefault
               ]}>
-                {property.status}
+                {t(`enums.status.${property.status}`, { defaultValue: property.status })}
               </Text>
             </View>
           </View>
@@ -289,7 +291,7 @@ export default function PropertyDetailScreen() {
           {/* Description */}
           {property.description && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Property Description</Text>
+              <Text style={styles.sectionTitle}>{t('property.propertyDescription')}</Text>
               <Text style={styles.description}>{property.description}</Text>
             </View>
           )}
@@ -297,11 +299,11 @@ export default function PropertyDetailScreen() {
           {/* Amenities */}
           {property.amenities && property.amenities.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Amenities</Text>
+              <Text style={styles.sectionTitle}>{t('property.amenities')}</Text>
               <View style={styles.amenitiesGrid}>
                 {property.amenities.map((item: string, idx: number) => (
                   <View key={idx} style={styles.amenityChip}>
-                    <Text style={styles.amenityChipText}>{item}</Text>
+                    <Text style={styles.amenityChipText}>{t(`enums.amenities.${item}`, { defaultValue: item })}</Text>
                   </View>
                 ))}
               </View>
@@ -310,19 +312,19 @@ export default function PropertyDetailScreen() {
 
           {/* Details Grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Details</Text>
+            <Text style={styles.sectionTitle}>{t('property.details')}</Text>
             <View style={styles.detailsGrid}>
               {[
-                ['Project', property.project_name || '—'],
-                ['Listing Type', property.listing_type || '—'],
-                ['Property Type', property.type],
-                ['City', property.city],
-                ['Locality', property.locality],
-                ['Area', `${property.area} sq ft`],
-                ['BHK', property.bhk || '—'],
-                ['Washrooms', property.washrooms || '—'],
-                ['Floor', property.floor !== null && property.floor !== undefined ? (property.floor === 0 ? 'Ground' : property.floor) : '—'],
-                ['Price / sq ft', pricePerSqft]
+                [t('property.project'), property.project_name || '—'],
+                [t('property.listingType'), property.listing_type ? t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type }) : '—'],
+                [t('property.propertyType'), t(`enums.propertyTypes.${property.type}`, { defaultValue: property.type })],
+                [t('property.city'), property.city],
+                [t('property.locality'), property.locality],
+                [t('property.area'), `${property.area} ${t('property.sqFt')}`],
+                [t('property.bhk'), property.bhk || '—'],
+                [t('property.washrooms'), property.washrooms || '—'],
+                [t('property.floor'), property.floor !== null && property.floor !== undefined ? (property.floor === 0 ? t('property.groundFloor') : property.floor) : '—'],
+                [t('property.priceSqft'), pricePerSqft]
               ].map(([label, value], idx) => (
                 <View key={idx} style={styles.detailItem}>
                   <Text style={styles.detailLabel}>{label}</Text>
@@ -342,7 +344,7 @@ export default function PropertyDetailScreen() {
               >
                 <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
                 <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
-                  {saved ? 'Saved' : saving ? 'Saving...' : 'Save'}
+                  {saved ? t('property.saved') : saving ? t('property.saving') : t('property.saveProperty')}
                 </Text>
               </Pressable>
               <Pressable 
@@ -350,7 +352,7 @@ export default function PropertyDetailScreen() {
                 onPress={openColModal} 
               >
                 <Ionicons name="folder-open-outline" size={20} color="#1D4ED8" />
-                <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Collect</Text>
+                <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>{t('property.collect')}</Text>
               </Pressable>
               {userRole === 'broker' && (
                 <Pressable 
@@ -358,7 +360,7 @@ export default function PropertyDetailScreen() {
                   onPress={() => setShowShareModal(true)} 
                 >
                   <Ionicons name="share-social-outline" size={20} color="#1D4ED8" />
-                  <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Share</Text>
+                  <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>{t('common.share')}</Text>
                 </Pressable>
               )}
             </View>
@@ -367,7 +369,7 @@ export default function PropertyDetailScreen() {
           {/* Broker Card */}
           {broker && (
             <View style={styles.brokerCard}>
-              <Text style={styles.brokerCardTitle}>{shareBrokerId ? 'SHARED BY' : 'Listed by'}</Text>
+              <Text style={styles.brokerCardTitle}>{shareBrokerId ? t('property.sharedBy') : t('property.listedBy')}</Text>
               
               <View style={styles.brokerInfo}>
                 {broker.profile_photo ? (
@@ -386,7 +388,7 @@ export default function PropertyDetailScreen() {
                 <View style={styles.brokerDetails}>
                   <Text style={styles.brokerName}>{broker.full_name}</Text>
                   {broker.agency_name && <Text style={styles.brokerAgency}>{broker.agency_name}</Text>}
-                  {broker.experience > 0 && <Text style={styles.brokerExp}>{broker.experience} years experience</Text>}
+                  {broker.experience > 0 && <Text style={styles.brokerExp}>{broker.experience} {t('property.yearsExperience')}</Text>}
                 </View>
               </View>
 
@@ -394,11 +396,11 @@ export default function PropertyDetailScreen() {
                 <View style={styles.contactActions}>
                   <Pressable style={styles.callButton} onPress={() => handleCall(broker.mobile)}>
                     <Ionicons name="call" size={16} color="#FFFFFF" />
-                    <Text style={styles.callButtonText}>Call Broker</Text>
+                    <Text style={styles.callButtonText}>{t('property.callBroker')}</Text>
                   </Pressable>
                   <Pressable style={styles.waButton} onPress={() => handleWhatsApp(broker.mobile)}>
                     <Ionicons name="logo-whatsapp" size={16} color="#374151" />
-                    <Text style={styles.waButtonText}>WhatsApp</Text>
+                    <Text style={styles.waButtonText}>{t('common.whatsapp')}</Text>
                   </Pressable>
                 </View>
               )}
@@ -409,7 +411,7 @@ export default function PropertyDetailScreen() {
             <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
               <ActivityIndicator size="small" color="#2563EB" />
               <Text style={{ fontSize: 13, fontFamily: Fonts.sansMedium, color: '#64748B' }}>
-                Loading full details & contacts…
+                {t('property.loadingDetails')}
               </Text>
             </View>
           )}
@@ -422,7 +424,7 @@ export default function PropertyDetailScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add to Collection</Text>
+              <Text style={styles.modalTitle}>{t('property.addToCollection')}</Text>
               <Pressable onPress={() => setShowColModal(false)} style={{ padding: 4 }}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </Pressable>

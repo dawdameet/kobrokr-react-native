@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { formatPrice } from '../lib/utils';
 import { Fonts } from '../constants/theme';
@@ -30,6 +31,7 @@ export default function ShareModal({
   userId,
   onClose,
 }: ShareModalProps) {
+  const { t } = useTranslation();
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -65,7 +67,7 @@ export default function ShareModal({
   const handleWhatsApp = () => {
     const url = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
     Linking.openURL(url).catch(() => {
-      Alert.alert('Unable to open WhatsApp', 'Please ensure WhatsApp is installed on your device.');
+      Alert.alert(t('share.whatsappAlertTitle'), t('share.whatsappAlertMessage'));
     });
   };
 
@@ -110,13 +112,13 @@ export default function ShareModal({
           <View style={styles.header}>
             <View style={{ flex: 1 }}>
               <View style={styles.titleRow}>
-                <Text style={styles.title}>Share with Client</Text>
+                <Text style={styles.title}>{t('share.shareWithClient')}</Text>
                 <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{count} {count === 1 ? 'item' : 'items'}</Text>
+                  <Text style={styles.countBadgeText}>{count} {count === 1 ? t('share.item') : t('share.items')}</Text>
                 </View>
               </View>
               <Text style={styles.subtitle}>
-                Your contact info will be shown, holding broker details are hidden.
+                {t('share.clientNote')}
               </Text>
             </View>
 
@@ -135,21 +137,21 @@ export default function ShareModal({
             </View>
             <Pressable style={styles.copyBtn} onPress={handleCopyLink}>
               <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={15} color="#2563EB" />
-              <Text style={styles.copyBtnText}>{copied ? 'Copied' : 'Share Link'}</Text>
+              <Text style={styles.copyBtnText}>{copied ? t('share.copied') : t('share.shareLink')}</Text>
             </Pressable>
           </View>
 
           {/* Preview Section */}
           <View style={styles.previewContainer}>
             <View style={styles.previewHeader}>
-              <Text style={styles.previewHeading}>CLIENT PREVIEW</Text>
-              <Text style={styles.previewMeta}>White-labeled view</Text>
+              <Text style={styles.previewHeading}>{t('share.clientPreview')}</Text>
+              <Text style={styles.previewMeta}>{t('share.whiteLabeled')}</Text>
             </View>
 
             {loading ? (
               <View style={styles.loadingBox}>
                 <ActivityIndicator size="small" color="#2563EB" />
-                <Text style={styles.loadingText}>Loading property preview...</Text>
+                <Text style={styles.loadingText}>{t('share.loadingPreview')}</Text>
               </View>
             ) : properties.length > 0 ? (
               <ScrollView
@@ -185,7 +187,7 @@ export default function ShareModal({
                           {p.locality ? `${p.locality}, ${p.city}` : p.city}
                         </Text>
                         {!!p.area && (
-                          <Text style={styles.previewCardArea}>{p.area} sq ft</Text>
+                          <Text style={styles.previewCardArea}>{p.area} {t('property.sqFt')}</Text>
                         )}
                       </View>
                     </View>
@@ -194,7 +196,7 @@ export default function ShareModal({
               </ScrollView>
             ) : (
               <View style={styles.emptyPreviewBox}>
-                <Text style={styles.emptyPreviewText}>No properties selected</Text>
+                <Text style={styles.emptyPreviewText}>{t('share.noPropertiesSelected')}</Text>
               </View>
             )}
           </View>
@@ -203,12 +205,12 @@ export default function ShareModal({
           <View style={styles.actionsContainer}>
             <Pressable style={styles.whatsappBtn} onPress={handleWhatsApp}>
               <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
-              <Text style={styles.whatsappBtnText}>Send via WhatsApp</Text>
+              <Text style={styles.whatsappBtnText}>{t('share.sendViaWhatsapp')}</Text>
             </Pressable>
 
             <Pressable style={styles.moreShareBtn} onPress={handleNativeShare}>
               <Ionicons name="share-social-outline" size={18} color="#374151" />
-              <Text style={styles.moreShareBtnText}>More Options</Text>
+              <Text style={styles.moreShareBtnText}>{t('share.moreOptions')}</Text>
             </Pressable>
           </View>
         </View>

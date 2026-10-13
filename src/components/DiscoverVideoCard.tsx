@@ -13,6 +13,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useTranslation } from 'react-i18next';
 import { Fonts } from '../constants/theme';
 import { formatPrice } from '../lib/utils';
 import api from '../lib/api';
@@ -38,6 +39,7 @@ function DiscoverVideoCardComponent({
   onToggleMute,
   height,
 }: DiscoverVideoCardProps) {
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(true);
   const [savedLocally, setSavedLocally] = useState(Boolean(isSaved));
   const [showHeartAnim, setShowHeartAnim] = useState(false);
@@ -256,7 +258,7 @@ function DiscoverVideoCardComponent({
               color={isSaved ? '#EF4444' : '#111827'}
             />
           </View>
-          <Text style={styles.actionLabel}>{isSaved ? 'Saved' : 'Save'}</Text>
+          <Text style={styles.actionLabel}>{isSaved ? t('property.saved') : t('property.saveProperty')}</Text>
         </Pressable>
 
         {/* Share */}
@@ -264,7 +266,7 @@ function DiscoverVideoCardComponent({
           <View style={styles.actionIconCircle}>
             <Ionicons name="share-social-outline" size={20} color="#111827" />
           </View>
-          <Text style={styles.actionLabel}>Share</Text>
+          <Text style={styles.actionLabel}>{t('common.share')}</Text>
         </Pressable>
 
         {/* Call Broker */}
@@ -273,7 +275,7 @@ function DiscoverVideoCardComponent({
             <View style={[styles.actionIconCircle, styles.callCircle]}>
               <Ionicons name="call" size={18} color="#2563EB" />
             </View>
-            <Text style={styles.actionLabel}>Call</Text>
+            <Text style={styles.actionLabel}>{t('common.call')}</Text>
           </Pressable>
         )}
 
@@ -283,7 +285,7 @@ function DiscoverVideoCardComponent({
             <View style={[styles.actionIconCircle, styles.whatsappCircle]}>
               <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
             </View>
-            <Text style={styles.actionLabel}>WhatsApp</Text>
+            <Text style={styles.actionLabel}>{t('common.whatsapp')}</Text>
           </Pressable>
         )}
       </View>
@@ -296,7 +298,7 @@ function DiscoverVideoCardComponent({
           {property.listing_type && (
             <View style={styles.listingTypeBadge}>
               <Text style={styles.listingTypeText}>
-                {property.listing_type === 'sale' ? 'FOR SALE' : 'FOR RENT'}
+                {t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type }).toUpperCase()}
               </Text>
             </View>
           )}
@@ -304,15 +306,15 @@ function DiscoverVideoCardComponent({
 
         {/* Specs & Location */}
         <Text style={styles.specsText} numberOfLines={1}>
-          {property.bhk ? `${property.bhk} BHK · ` : ''}
-          {property.area ? `${property.area} sq ft · ` : ''}
+          {property.bhk ? `${property.bhk} ${t('property.bhk')} · ` : ''}
+          {property.area ? `${property.area} ${t('property.sqFt')} · ` : ''}
           {property.locality ? `${property.locality}, ` : ''}{property.city}
         </Text>
 
         {/* Broker Tag */}
         {broker?.full_name && (
           <Text style={styles.brokerText} numberOfLines={1}>
-            By {broker.full_name}{broker.agency_name ? ` (${broker.agency_name})` : ''}
+            {broker.full_name}{broker.agency_name ? ` (${broker.agency_name})` : ''}
           </Text>
         )}
 
@@ -321,7 +323,7 @@ function DiscoverVideoCardComponent({
           style={styles.viewPropertyPill}
           onPress={() => router.push(`/properties/${property.id}` as any)}
         >
-          <Text style={styles.viewPropertyPillText}>View Property</Text>
+          <Text style={styles.viewPropertyPillText}>{t('property.viewProperty')}</Text>
           <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
         </Pressable>
       </View>

@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
 import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
+import { SUPPORTED_LANGUAGES, setAppLanguage } from '../i18n';
 
 export default function ProfileScreen() {
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -59,10 +62,10 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       { 
-        text: 'Log Out', 
+        text: t('profile.logout'), 
         style: 'destructive',
         onPress: async () => {
           await storage.remove('access_token');
@@ -85,13 +88,15 @@ export default function ProfileScreen() {
   if (error || !profile) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>{error || 'Profile not found'}</Text>
+        <Text style={styles.errorText}>{error ? t('profile.errorLoading') : t('profile.notFound')}</Text>
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutBtnText}>Log Out Anyway</Text>
+          <Text style={styles.logoutBtnText}>{t('profile.logoutAnyway')}</Text>
         </Pressable>
       </SafeAreaView>
     );
   }
+
+  const currentLangCode = i18n.language || 'en';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,7 +104,7 @@ export default function ProfileScreen() {
         <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={styles.headerTitle}>{t('profile.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -115,12 +120,12 @@ export default function ProfileScreen() {
 
         {/* Info Section */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Information</Text>
+          <Text style={styles.cardTitle}>{t('profile.accountInfo')}</Text>
           
           <View style={styles.infoRow}>
             <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoLabel}>{t('profile.email')}</Text>
               <Text style={styles.infoValue}>{profile.email}</Text>
             </View>
           </View>
@@ -128,16 +133,16 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>Mobile Number</Text>
-              <Text style={styles.infoValue}>{profile.mobile || 'Not provided'}</Text>
+              <Text style={styles.infoLabel}>{t('profile.mobile')}</Text>
+              <Text style={styles.infoValue}>{profile.mobile || t('profile.notProvided')}</Text>
             </View>
           </View>
 
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>City</Text>
-              <Text style={styles.infoValue}>{profile.city || 'Not provided'}</Text>
+              <Text style={styles.infoLabel}>{t('profile.city')}</Text>
+              <Text style={styles.infoValue}>{profile.city || t('profile.notProvided')}</Text>
             </View>
           </View>
 
@@ -145,18 +150,57 @@ export default function ProfileScreen() {
             <View style={styles.infoRow}>
               <Ionicons name="business-outline" size={20} color="#6B7280" style={styles.infoIcon} />
               <View>
-                <Text style={styles.infoLabel}>Agency</Text>
+                <Text style={styles.infoLabel}>{t('profile.agency')}</Text>
                 <Text style={styles.infoValue}>{profile.agency_name}</Text>
               </View>
             </View>
           )}
         </View>
 
+        {/* Language Selection Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="globe-outline" size={18} color="#2563EB" />
+            <Text style={styles.cardTitle}>{t('profile.language')}</Text>
+          </View>
+          <Text style={styles.cardSubtitle}>{t('profile.languageNotice')}</Text>
+
+          <View style={styles.languageOptionsContainer}>
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const isSelected = currentLangCode.startsWith(lang.code);
+              return (
+                <Pressable
+                  key={lang.code}
+                  style={[styles.languageOption, isSelected && styles.languageOptionSelected]}
+                  onPress={() => setAppLanguage(lang.code)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.languageNativeLabel, isSelected && styles.languageTextSelected]}>
+                      {lang.nativeLabel}
+                    </Text>
+                    <Text style={[styles.languageEnglishLabel, isSelected && styles.languageSubtextSelected]}>
+                      {lang.label}
+                    </Text>
+                  </View>
+                  {isSelected ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#2563EB" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={22} color="#D1D5DB" />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Action Section */}
         <View style={styles.card}>
-          <Pressable style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => Alert.alert('Coming Soon', 'Edit profile will be available in a future update.')}>
+          <Pressable 
+            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
+            onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileNotice'))}
+          >
             <Ionicons name="create-outline" size={20} color="#374151" />
-            <Text style={styles.menuItemText}>Edit Profile</Text>
+            <Text style={styles.menuItemText}>{t('profile.editProfile')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
           </Pressable>
         </View>
@@ -171,15 +215,15 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.partnerCardTextContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.partnerCardTitle}>{affiliateStats ? 'YOUR PARTNER STATS' : 'PARTNER PROGRAM'}</Text>
+              <Text style={styles.partnerCardTitle}>{affiliateStats ? t('profile.yourPartnerStats') : t('profile.partnerProgram')}</Text>
               <View style={styles.partnerBadge}>
-                <Text style={styles.partnerBadgeText}>PARTNER</Text>
+                <Text style={styles.partnerBadgeText}>{t('profile.partnerBadge')}</Text>
               </View>
             </View>
             <Text style={styles.partnerCardSubtitle}>
               {affiliateStats 
-                ? `${affiliateStats.total_referrals} Referrals | ₹${affiliateStats.total_earned} Earned | ₹${affiliateStats.pending_payout} Pending` 
-                : 'Join the KoBrokr Partner Program'}
+                ? `${affiliateStats.total_referrals} ${t('profile.referrals')} | ₹${affiliateStats.total_earned} ${t('profile.earned')} | ₹${affiliateStats.pending_payout} ${t('profile.pending')}` 
+                : t('profile.joinPartner')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -189,7 +233,7 @@ export default function ProfileScreen() {
 
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={styles.logoutBtnText}>Log Out</Text>
+          <Text style={styles.logoutBtnText}>{t('profile.logout')}</Text>
         </Pressable>
 
       </ScrollView>
@@ -274,14 +318,61 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   cardTitle: {
     fontFamily: Fonts.sansSemiBold,
     fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
     textTransform: 'uppercase',
-    marginBottom: 16,
     letterSpacing: 0.5,
+  },
+  cardSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 12,
+  },
+  languageOptionsContainer: {
+    gap: 8,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  languageOptionSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
+  },
+  languageNativeLabel: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  languageEnglishLabel: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  languageTextSelected: {
+    color: '#1D4ED8',
+  },
+  languageSubtextSelected: {
+    color: '#3B82F6',
   },
   infoRow: {
     flexDirection: 'row',

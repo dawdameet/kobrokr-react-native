@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../../lib/api';
 import { statsStore } from '../../lib/statsStore';
 import { formatPrice, safeGoBack } from '../../lib/utils';
@@ -20,6 +21,7 @@ const ListingCard = React.memo(function ListingCard({
   onToggleStatus,
   onDelete,
 }: ListingCardProps) {
+  const { t } = useTranslation();
   const cover = p.property_images?.find((i: any) => i.is_cover)?.url || p.property_images?.[0]?.url;
 
   return (
@@ -48,12 +50,12 @@ const ListingCard = React.memo(function ListingCard({
             styles.statusText,
             p.status === 'active' ? styles.statusTextActive :
               p.status === 'sold' ? styles.statusTextSold : styles.statusTextInactive
-          ]}>{p.status}</Text>
+          ]}>{t(`enums.status.${p.status}`, { defaultValue: p.status })}</Text>
         </View>
 
         {p.is_dummy && (
           <View style={styles.dummyBadge}>
-            <Text style={styles.dummyBadgeText}>DUMMY LISTING</Text>
+            <Text style={styles.dummyBadgeText}>{t('property.dummyListing')}</Text>
           </View>
         )}
 
@@ -63,21 +65,21 @@ const ListingCard = React.memo(function ListingCard({
 
           <View style={styles.cardPriceRow}>
             <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
-            <Text style={styles.cardArea}>· {p.area} sq ft</Text>
-            {p.bhk && <Text style={styles.cardArea}>· {p.bhk} BHK</Text>}
+            <Text style={styles.cardArea}>· {p.area} {t('property.sqFt')}</Text>
+            {p.bhk && <Text style={styles.cardArea}>· {p.bhk} {t('property.bhk')}</Text>}
           </View>
         </View>
       </Pressable>
 
       <View style={styles.actionsContainer}>
         <Pressable style={[styles.actionBtn, styles.actionToggle]} onPress={() => onToggleStatus(p)}>
-          <Text style={styles.actionToggleText} numberOfLines={1}>{p.status === 'active' ? 'Mark Inactive' : 'Mark Active'}</Text>
+          <Text style={styles.actionToggleText} numberOfLines={1}>{p.status === 'active' ? t('myListings.markInactive') : t('myListings.markActive')}</Text>
         </Pressable>
-        <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert('Coming Soon', 'Edit functionality will be added in a future update.')}>
-          <Text style={styles.actionEditText} numberOfLines={1}>Edit</Text>
+        <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert(t('common.comingSoon'), t('myListings.editNotice'))}>
+          <Text style={styles.actionEditText} numberOfLines={1}>{t('common.edit')}</Text>
         </Pressable>
         <Pressable style={[styles.actionBtn, styles.actionDelete]} onPress={() => onDelete(p)}>
-          <Text style={styles.actionDeleteText} numberOfLines={1}>Delete</Text>
+          <Text style={styles.actionDeleteText} numberOfLines={1}>{t('common.delete')}</Text>
         </Pressable>
       </View>
     </View>
@@ -85,6 +87,7 @@ const ListingCard = React.memo(function ListingCard({
 });
 
 export default function MyListingsScreen() {
+  const { t } = useTranslation();
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -120,18 +123,18 @@ export default function MyListingsScreen() {
       );
       statsStore.updateListingStatus(property.status, newStatus);
     } catch (e) {
-      Alert.alert('Error', 'Failed to update status');
+      Alert.alert(t('common.error'), t('myListings.updateFailed'));
     }
-  }, []);
+  }, [t]);
 
   const handleDelete = useCallback((property: any) => {
     Alert.alert(
-      'Delete Listing',
-      `Are you sure you want to delete "${property.title}"? This cannot be undone.`,
+      t('myListings.deleteTitle'),
+      `${t('myListings.deleteConfirm')} ("${property.title}")`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -139,13 +142,13 @@ export default function MyListingsScreen() {
               setListings(prev => prev.filter(p => p.id !== property.id));
               statsStore.decrementListings(property.status === 'active');
             } catch (e) {
-              Alert.alert('Error', 'Failed to delete listing');
+              Alert.alert(t('common.error'), t('myListings.deleteFailed'));
             }
           }
         }
       ]
     );
-  }, []);
+  }, [t]);
 
   const filteredListings = useMemo(() => {
     if (!search) return listings;
@@ -167,7 +170,7 @@ export default function MyListingsScreen() {
           <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
-          <Text style={styles.headerTitle}>My Listings</Text>
+          <Text style={styles.headerTitle}>{t('myListings.title')}</Text>
           <Pressable onPress={() => router.push('/(broker)/add-property')} style={styles.addButton}>
             <Ionicons name="add" size={24} color="#2563EB" />
           </Pressable>
@@ -180,7 +183,7 @@ export default function MyListingsScreen() {
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search by title or locality..."
+              placeholder={t('myListings.searchPlaceholder')}
               placeholderTextColor="#9CA3AF"
             />
           </View>
@@ -207,10 +210,10 @@ export default function MyListingsScreen() {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="home-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-                <Text style={styles.emptyTitle}>No listings found</Text>
-                <Text style={styles.emptySub}>You haven't added any properties yet.</Text>
+                <Text style={styles.emptyTitle}>{t('myListings.noListingsFound')}</Text>
+                <Text style={styles.emptySub}>{t('myListings.noPropertiesYet')}</Text>
                 <Pressable style={styles.emptyBtn} onPress={() => router.push('/(broker)/add-property')}>
-                  <Text style={styles.emptyBtnText}>Add your first property</Text>
+                  <Text style={styles.emptyBtnText}>{t('myListings.addFirstProperty')}</Text>
                 </Pressable>
               </View>
             }

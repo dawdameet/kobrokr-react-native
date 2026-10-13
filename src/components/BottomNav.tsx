@@ -3,10 +3,12 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
 
 export default function BottomNav() {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [role, setRole] = useState<string | null>(null);
@@ -22,18 +24,18 @@ export default function BottomNav() {
   }, []);
 
   const brokerNavItems = [
-    { to: '/dashboard',   label: 'Dashboard',   icon: 'grid-outline' as const, activeIcon: 'grid' as const },
-    { to: '/discover',    label: 'Discover',    icon: 'play-circle-outline' as const, activeIcon: 'play-circle' as const },
-    { to: '/my-listings', label: 'My Listings', icon: 'list-outline' as const, activeIcon: 'list' as const },
-    { to: '/search',      label: 'Search',      icon: 'search-outline' as const, activeIcon: 'search' as const },
-    { to: '/saved',       label: 'Saved',       icon: 'heart-outline' as const, activeIcon: 'heart' as const },
+    { to: '/dashboard',   labelKey: 'nav.dashboard',   icon: 'grid-outline' as const, activeIcon: 'grid' as const },
+    { to: '/discover',    labelKey: 'nav.discover',    icon: 'play-circle-outline' as const, activeIcon: 'play-circle' as const },
+    { to: '/my-listings', labelKey: 'nav.myProperties', icon: 'list-outline' as const, activeIcon: 'list' as const },
+    { to: '/search',      labelKey: 'nav.search',      icon: 'search-outline' as const, activeIcon: 'search' as const },
+    { to: '/saved',       labelKey: 'nav.saved',       icon: 'heart-outline' as const, activeIcon: 'heart' as const },
   ];
 
   const tenantNavItems = [
-    { to: '/dashboard',   label: 'Home',        icon: 'grid-outline' as const, activeIcon: 'grid' as const },
-    { to: '/discover',    label: 'Discover',    icon: 'play-circle-outline' as const, activeIcon: 'play-circle' as const },
-    { to: '/search',      label: 'Search',      icon: 'search-outline' as const, activeIcon: 'search' as const },
-    { to: '/saved',       label: 'Saved',       icon: 'heart-outline' as const, activeIcon: 'heart' as const },
+    { to: '/dashboard',   labelKey: 'nav.home',        icon: 'grid-outline' as const, activeIcon: 'grid' as const },
+    { to: '/discover',    labelKey: 'nav.discover',    icon: 'play-circle-outline' as const, activeIcon: 'play-circle' as const },
+    { to: '/search',      labelKey: 'nav.search',      icon: 'search-outline' as const, activeIcon: 'search' as const },
+    { to: '/saved',       labelKey: 'nav.saved',       icon: 'heart-outline' as const, activeIcon: 'heart' as const },
   ];
 
   const navItems = role === 'broker' ? brokerNavItems : tenantNavItems;
@@ -86,7 +88,7 @@ export default function BottomNav() {
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {item.label}
+              {t(item.labelKey)}
             </Text>
           </Pressable>
         );

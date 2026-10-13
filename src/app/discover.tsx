@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import DiscoverVideoCard from '../components/DiscoverVideoCard';
@@ -30,6 +31,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export default function DiscoverScreen() {
+  const { t } = useTranslation();
   const { height: windowHeight } = useWindowDimensions();
   const [containerHeight, setContainerHeight] = useState(windowHeight - 130);
   const [properties, setProperties] = useState<any[]>([]);
@@ -143,7 +145,7 @@ export default function DiscoverScreen() {
         <Pressable onPress={() => safeGoBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>Discover</Text>
+        <Text style={styles.headerTitle}>{t('nav.discover')}</Text>
         <Pressable onPress={() => router.push('/search')} style={styles.searchBtn}>
           <Ionicons name="search" size={20} color="#111827" />
         </Pressable>
@@ -154,21 +156,21 @@ export default function DiscoverScreen() {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#2563EB" />
-            <Text style={styles.loadingText}>Loading Walkthroughs...</Text>
+            <Text style={styles.loadingText}>{t('common.loading')}</Text>
           </View>
         ) : error && properties.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="videocam-off-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{error || t('discover.loadError')}</Text>
             <Pressable style={styles.retryBtn} onPress={fetchFeed}>
-              <Text style={styles.retryBtnText}>Retry</Text>
+              <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
             </Pressable>
           </View>
         ) : properties.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="videocam-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyTitle}>No Walkthroughs Yet</Text>
-            <Text style={styles.emptySubtitle}>Check back soon for new property video tours.</Text>
+            <Text style={styles.emptyTitle}>{t('discover.noWalkthroughs')}</Text>
+            <Text style={styles.emptySubtitle}>{t('discover.checkBackSoon')}</Text>
           </View>
         ) : (
           <FlatList

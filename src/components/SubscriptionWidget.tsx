@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
 
 export default function SubscriptionWidget() {
+  const { t } = useTranslation();
   const [limits, setLimits] = useState<any>(null);
   const [pricing, setPricing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -123,20 +125,20 @@ export default function SubscriptionWidget() {
       <View style={styles.planCard}>
         <View style={styles.planHeader}>
           <View>
-            <Text style={styles.planLabel}>Current Plan</Text>
+            <Text style={styles.planLabel}>{t('subscription.currentPlan')}</Text>
             <Text style={styles.planName}>{planName}</Text>
           </View>
           <View style={[styles.planBadge, isFree ? styles.badgeFree : styles.badgePro]}>
             <Ionicons name={isFree ? "leaf-outline" : "star"} size={14} color={isFree ? "#15803D" : "#B45309"} />
             <Text style={[styles.badgeText, isFree ? styles.badgeTextFree : styles.badgeTextPro]}>
-              {isFree ? 'Starter' : 'Premium'}
+              {isFree ? t('subscription.starter') : t('subscription.premium')}
             </Text>
           </View>
         </View>
 
         <View style={styles.usageSection}>
           <View style={styles.usageHeader}>
-            <Text style={styles.usageLabel}>Listing Usage</Text>
+            <Text style={styles.usageLabel}>{t('subscription.listingUsage')}</Text>
             <Text style={styles.usageCount}>{totalListings} / {listingLimit === -1 ? '∞' : listingLimit}</Text>
           </View>
 
@@ -148,33 +150,33 @@ export default function SubscriptionWidget() {
           
           {!limits?.can_create && (
             <Text style={styles.limitWarningText}>
-              You have reached your listing limit. Please upgrade to add more.
+              {t('subscription.limitWarning')}
             </Text>
           )}
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Plan Features</Text>
+        <Text style={styles.cardTitle}>{t('subscription.planFeatures')}</Text>
         
         <View style={styles.featureRow}>
           <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          <Text style={styles.featureText}>{listingLimit === -1 ? 'Unlimited' : listingLimit} Active Listings</Text>
+          <Text style={styles.featureText}>{listingLimit === -1 ? t('subscription.unlimitedListings') : `${listingLimit} ${t('subscription.activeListingsCount')}`}</Text>
         </View>
         
         <View style={styles.featureRow}>
           <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          <Text style={styles.featureText}>{pricing?.limits?.[`${currentPlan}_image_limit`] || 5} Images per listing</Text>
+          <Text style={styles.featureText}>{pricing?.limits?.[`${currentPlan}_image_limit`] || 5} {t('subscription.imagesPerListing')}</Text>
         </View>
 
         <View style={styles.featureRow}>
           <Ionicons name={isFree ? "close-circle" : "checkmark-circle"} size={20} color={isFree ? "#D1D5DB" : "#10B981"} />
-          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>Priority search placement</Text>
+          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>{t('subscription.prioritySearch')}</Text>
         </View>
         
         <View style={styles.featureRow}>
           <Ionicons name={isFree ? "close-circle" : "checkmark-circle"} size={20} color={isFree ? "#D1D5DB" : "#10B981"} />
-          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>Pro badge on profile</Text>
+          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>{t('subscription.proBadge')}</Text>
         </View>
       </View>
 
