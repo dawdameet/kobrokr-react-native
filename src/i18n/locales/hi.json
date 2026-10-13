@@ -254,5 +254,27 @@
     "noPropertiesFound": "कोई प्रॉपर्टी नहीं मिली",
     "noActiveProperties": "इस कलेक्शन में कोई सक्रिय प्रॉपर्टी नहीं है।",
     "independentBroker": "स्वतंत्र ब्रोकर"
+  },
+  "library": {
+    "title": "लाइब्रेरी",
+    "tabSaved": "सहेजे गए",
+    "tabCollections": "कलेक्शन्स",
+    "noSavedProperties": "कोई सहेजी गई प्रॉपर्टी नहीं है",
+    "noSavedPropertiesSub": "आपके द्वारा सहेजी गई प्रॉपर्टीज़ यहाँ दिखाई देंगी।",
+    "noSavedYet": "अभी कोई सहेजी गई प्रॉपर्टी नहीं है",
+    "searchAndSaveSub": "प्रॉपर्टीज़ खोजें और अपनी पसंद की प्रॉपर्टीज़ को सहेजें।",
+    "browseProperties": "प्रॉपर्टीज़ देखें",
+    "noCollectionsYet": "अभी कोई कलेक्शन नहीं है",
+    "noCollectionsSub": "आपके द्वारा बनाए गए कलेक्शन्स यहाँ दिखाई देंगे।",
+    "emptyCollection": "यह कलेक्शन खाली है।",
+    "propertiesCount": "प्रॉपर्टीज़",
+    "remove": "हटाएं",
+    "deleteCollection": "कलेक्शन हटाएं",
+    "deleteCollectionConfirm": "क्या आप वाकई हटाना चाहते हैं",
+    "failedLoadSaved": "सहेजी गई प्रॉपर्टीज़ लोड करने में विफल",
+    "failedLoadCollections": "कलेक्शन्स लोड करने में विफल",
+    "failedRemoveProperty": "प्रॉपर्टी हटाने में विफल",
+    "failedDeleteCollection": "कलेक्शन हटाने में विफल",
+    "failedRemoveFromCollection": "कलेक्शन से हटाने में विफल"
   }
 }

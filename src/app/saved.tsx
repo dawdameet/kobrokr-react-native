@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { clearSession } from '../lib/auth';
@@ -14,6 +15,7 @@ import { setPropertyPreview } from '../lib/propertyCache';
 import { statsStore } from '../lib/statsStore';
 
 export default function SavedScreen() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
   const [saved, setSaved] = useState<any[]>([]);
   const [collections, setCollections] = useState<any[]>([]);
@@ -59,7 +61,7 @@ export default function SavedScreen() {
         }
       }
     } catch (e) {
-      setError('Failed to load saved properties');
+      setError(t('library.failedLoadSaved'));
     } finally {
       setLoading(false);
     }
@@ -71,7 +73,7 @@ export default function SavedScreen() {
       const { data } = await api.get('/collections');
       setCollections(data);
     } catch (e) {
-      setError('Failed to load collections');
+      setError(t('library.failedLoadCollections'));
     } finally {
       setLoading(false);
     }
@@ -84,22 +86,22 @@ export default function SavedScreen() {
       setSaved(prev => prev.filter(s => s.properties?.id !== propertyId));
       statsStore.decrementSaved();
     } catch (e) {
-      Alert.alert('Error', 'Failed to remove property');
+      Alert.alert(t('common.error'), t('library.failedRemoveProperty'));
     }
   };
 
   const handleDeleteCollection = (collectionId: number, name: string) => {
-    Alert.alert('Delete Collection', `Are you sure you want to delete "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('library.deleteCollection'), `${t('library.deleteCollectionConfirm')} "${name}"?`, [
+      { text: t('common.cancel'), style: 'cancel' },
       { 
-        text: 'Delete', 
+        text: t('common.delete'), 
         style: 'destructive',
         onPress: async () => {
           try {
             await api.delete(`/collections/${collectionId}`);
             setCollections(prev => prev.filter(c => c.id !== collectionId));
           } catch (e) {
-            Alert.alert('Error', 'Failed to delete collection');
+            Alert.alert(t('common.error'), t('library.failedDeleteCollection'));
           }
         }
       }
@@ -116,7 +118,7 @@ export default function SavedScreen() {
         return c;
       }));
     } catch (e) {
-      Alert.alert('Error', 'Failed to remove from collection');
+      Alert.alert(t('common.error'), t('library.failedRemoveFromCollection'));
     }
   };
 
@@ -151,14 +153,14 @@ export default function SavedScreen() {
             <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
             <View style={styles.cardPriceRow}>
               <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
-              <Text style={styles.cardArea}>· {p.area} sq ft</Text>
+              <Text style={styles.cardArea}>· {p.area} {t('property.sqFt')}</Text>
             </View>
           </View>
         </Pressable>
         <View style={styles.actionsContainer}>
           <Pressable style={styles.actionRemoveBtn} onPress={() => handleRemoveSaved(p.id)}>
             <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            <Text style={styles.actionRemoveText}>Remove</Text>
+            <Text style={styles.actionRemoveText}>{t('library.remove')}</Text>
           </Pressable>
         </View>
       </View>
@@ -174,7 +176,7 @@ export default function SavedScreen() {
         <View style={styles.collectionHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.collectionTitle}>{col.name}</Text>
-            <Text style={styles.collectionMeta}>{col.property_ids?.length || 0} / 5 properties</Text>
+            <Text style={styles.collectionMeta}>{col.property_ids?.length || 0} / 5 {t('library.propertiesCount')}</Text>
           </View>
           <View style={styles.collectionHeaderActions}>
             {userRole === 'broker' && (
@@ -190,7 +192,7 @@ export default function SavedScreen() {
                 }}
               >
                 <Ionicons name="share-social-outline" size={14} color="#2563EB" />
-                <Text style={styles.shareColBtnText}>Share</Text>
+                <Text style={styles.shareColBtnText}>{t('common.share')}</Text>
               </Pressable>
             )}
             <Pressable onPress={() => handleDeleteCollection(col.id, col.name)} style={styles.deleteColBtn}>
@@ -201,7 +203,7 @@ export default function SavedScreen() {
 
         {(!col.property_ids || col.property_ids.length === 0) ? (
           <View style={styles.emptyColContainer}>
-            <Text style={styles.emptyColText}>This collection is empty.</Text>
+            <Text style={styles.emptyColText}>{t('library.emptyCollection')}</Text>
           </View>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colScroll}>
@@ -250,7 +252,7 @@ export default function SavedScreen() {
         <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>Library</Text>
+        <Text style={styles.headerTitle}>{t('library.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -260,7 +262,7 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('saved')}
         >
           <Text style={[styles.tabText, activeTab === 'saved' && styles.tabTextActive]}>
-            Saved ({activeTab === 'saved' && !loading ? saved.length : '-'})
+            {t('library.tabSaved')} ({activeTab === 'saved' && !loading ? saved.length : '-'})
           </Text>
         </Pressable>
         <Pressable 
@@ -268,7 +270,7 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('collections')}
         >
           <Text style={[styles.tabText, activeTab === 'collections' && styles.tabTextActive]}>
-            Collections ({activeTab === 'collections' && !loading ? collections.length : '-'})
+            {t('library.tabCollections')} ({activeTab === 'collections' && !loading ? collections.length : '-'})
           </Text>
         </Pressable>
       </View>
@@ -294,10 +296,10 @@ export default function SavedScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="heart-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-              <Text style={styles.emptyTitle}>No saved properties</Text>
-              <Text style={styles.emptySub}>Properties you save will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('library.noSavedProperties')}</Text>
+              <Text style={styles.emptySub}>{t('library.noSavedPropertiesSub')}</Text>
               <Pressable style={styles.emptyBtn} onPress={() => router.push('/search')}>
-                <Text style={styles.emptyBtnText}>Browse Properties</Text>
+                <Text style={styles.emptyBtnText}>{t('library.browseProperties')}</Text>
               </Pressable>
             </View>
           }
@@ -315,8 +317,8 @@ export default function SavedScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="folder-open-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-              <Text style={styles.emptyTitle}>No collections yet</Text>
-              <Text style={styles.emptySub}>Collections you create will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('library.noCollectionsYet')}</Text>
+              <Text style={styles.emptySub}>{t('library.noCollectionsSub')}</Text>
             </View>
           }
         />

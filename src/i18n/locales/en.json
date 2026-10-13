@@ -254,5 +254,27 @@
     "noPropertiesFound": "No properties found",
     "noActiveProperties": "This collection contains no active properties.",
     "independentBroker": "Independent Broker"
+  },
+  "library": {
+    "title": "Library",
+    "tabSaved": "Saved",
+    "tabCollections": "Collections",
+    "noSavedProperties": "No saved properties",
+    "noSavedPropertiesSub": "Properties you save will appear here.",
+    "noSavedYet": "No saved properties yet",
+    "searchAndSaveSub": "Search for properties and save the ones you like.",
+    "browseProperties": "Browse Properties",
+    "noCollectionsYet": "No collections yet",
+    "noCollectionsSub": "Collections you create will appear here.",
+    "emptyCollection": "This collection is empty.",
+    "propertiesCount": "properties",
+    "remove": "Remove",
+    "deleteCollection": "Delete Collection",
+    "deleteCollectionConfirm": "Are you sure you want to delete",
+    "failedLoadSaved": "Failed to load saved properties",
+    "failedLoadCollections": "Failed to load collections",
+    "failedRemoveProperty": "Failed to remove property",
+    "failedDeleteCollection": "Failed to delete collection",
+    "failedRemoveFromCollection": "Failed to remove from collection"
   }
 }

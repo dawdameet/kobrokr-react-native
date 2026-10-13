@@ -172,10 +172,10 @@ export default function TenantDashboard() {
         {savedCount === 0 && (
           <View style={styles.emptyState}>
             <Ionicons name="heart-outline" size={48} color="#D1D5DB" style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyTitle}>No saved properties yet</Text>
-            <Text style={styles.emptySubtitle}>Search for properties and save the ones you like.</Text>
-            <Pressable style={styles.emptyButton}>
-              <Text style={styles.emptyButtonText}>Browse properties</Text>
+            <Text style={styles.emptyTitle}>{t('library.noSavedYet')}</Text>
+            <Text style={styles.emptySubtitle}>{t('library.searchAndSaveSub')}</Text>
+            <Pressable style={styles.emptyButton} onPress={() => router.push('/search')}>
+              <Text style={styles.emptyButtonText}>{t('library.browseProperties')}</Text>
             </Pressable>
           </View>
         )}

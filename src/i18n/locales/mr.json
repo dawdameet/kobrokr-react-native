@@ -254,5 +254,27 @@
     "noPropertiesFound": "कोणतीही प्रॉपर्टी आढळली नाही",
     "noActiveProperties": "या संग्रहात कोणतीही सक्रिय प्रॉपर्टी नाही.",
     "independentBroker": "स्वतंत्र ब्रोकर"
+  },
+  "library": {
+    "title": "लायब्ररी",
+    "tabSaved": "जतन केलेले",
+    "tabCollections": "संग्रह",
+    "noSavedProperties": "कोणतीही जतन केलेली प्रॉपर्टी नाही",
+    "noSavedPropertiesSub": "तुम्ही जतन केलेल्या प्रॉपर्टीज येथे दिसतील.",
+    "noSavedYet": "अद्याप कोणतीही जतन केलेली प्रॉपर्टी नाही",
+    "searchAndSaveSub": "प्रॉपर्टीज शोधा आणि तुम्हाला आवडणाऱ्या जतन करा.",
+    "browseProperties": "प्रॉपर्टीज पहा",
+    "noCollectionsYet": "अद्याप कोणताही संग्रह नाही",
+    "noCollectionsSub": "तुम्ही तयार केलेले संग्रह येथे दिसतील.",
+    "emptyCollection": "हा संग्रह रिकामा आहे.",
+    "propertiesCount": "प्रॉपर्टीज",
+    "remove": "हटवा",
+    "deleteCollection": "संग्रह हटवा",
+    "deleteCollectionConfirm": "तुम्हाला नक्की हटवायचे आहे का",
+    "failedLoadSaved": "जतन केलेल्या प्रॉपर्टीज लोड करण्यात अयशस्वी",
+    "failedLoadCollections": "संग्रह लोड करण्यात अयशस्वी",
+    "failedRemoveProperty": "प्रॉपर्टी हटवण्यात अयशस्वी",
+    "failedDeleteCollection": "संग्रह हटवण्यात अयशस्वी",
+    "failedRemoveFromCollection": "संग्रहातून हटवण्यात अयशस्वी"
   }
 }
