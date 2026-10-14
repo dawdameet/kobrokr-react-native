@@ -7,13 +7,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import BottomNav from '../components/BottomNav';
 import AuthGate from '../components/AuthGate';
 import '../i18n';
+import { initNotifications } from '../lib/notifications';
 
 // Keep the splash screen visible while fonts are loading
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const pathname = usePathname();
-  const hideNavOn = ['/login', '/signup', '/onboarding', '/add-property', '/client-share'];
+  const hideNavOn = ['/login', '/signup', '/onboarding', '/add-property', '/client-share', '/debug-notifications'];
   const isDetailsRoute = pathname.startsWith('/properties/');
   const isHidden = hideNavOn.includes(pathname) || isDetailsRoute || pathname === '/';
 
@@ -35,6 +36,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    initNotifications().catch(() => {});
+  }, []);
 
   if (!fontsLoaded && !fontError) {
     return null;

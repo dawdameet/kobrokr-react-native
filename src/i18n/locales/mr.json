@@ -276,5 +276,13 @@
     "failedRemoveProperty": "प्रॉपर्टी हटवण्यात अयशस्वी",
     "failedDeleteCollection": "संग्रह हटवण्यात अयशस्वी",
     "failedRemoveFromCollection": "संग्रहातून हटवण्यात अयशस्वी"
+  },
+  "debugNotifications": {
+    "badge": "डेव्हलपर लॅब",
+    "cardTitle": "सूचना डिबगर",
+    "cardSubtitle": "सानुकूल पुश आणि स्थानिक सूचना तयार करा, शेड्यूल करा आणि पाठवा.",
+    "quickSend": "त्वरित सूचना",
+    "openStudio": "डिबगर उघडा",
+    "sent": "पाठवले!"
   }
 }

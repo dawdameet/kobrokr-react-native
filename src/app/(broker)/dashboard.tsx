@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
+import NotificationDebugCard from '../../components/NotificationDebugCard';
 
 export default function BrokerDashboard() {
   const { t } = useTranslation();
@@ -198,6 +199,9 @@ export default function BrokerDashboard() {
             </View>
           </View>
         )}
+        
+        {/* Debug: Notifications Studio */}
+        <NotificationDebugCard />
 
       </ScrollView>
 
