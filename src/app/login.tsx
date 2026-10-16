@@ -421,7 +421,11 @@ export default function LoginScreen() {
   // ── Navigation after successful login ──
 
   const navigateAfterLogin = (user: any) => {
-    if (!user?.mobile || !user?.city || (user?.role === 'broker' && (!user?.areas_served?.length))) {
+    const hasIdentifier = Boolean(user?.mobile || user?.email);
+    const hasCity = Boolean(user?.city);
+    const brokerReady = user?.role !== 'broker' || (user?.areas_served && user?.areas_served.length > 0);
+
+    if (!hasIdentifier || !hasCity || !brokerReady) {
       router.replace('/(app)/onboarding');
       return;
     }
@@ -491,6 +495,24 @@ export default function LoginScreen() {
               {roleTab === 'broker' ? 'Login as Broker' : 'Login as Tenant'}
             </Text>
             <Text style={styles.subtitle}>Sign in to your kobrokr account</Text>
+
+            {/* Login Method Toggle: Phone vs Email */}
+            <View style={styles.methodToggle}>
+              <Pressable
+                style={[styles.methodButton, loginMethod === 'phone' && styles.methodButtonActive]}
+                onPress={() => { setLoginMethod('phone'); setError(''); }}
+              >
+                <Ionicons name="phone-portrait-outline" size={16} color={loginMethod === 'phone' ? '#2563EB' : '#6B7280'} />
+                <Text style={[styles.methodText, loginMethod === 'phone' && styles.methodTextActive]}>Phone (OTP)</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.methodButton, loginMethod === 'email' && styles.methodButtonActive]}
+                onPress={() => { setLoginMethod('email'); setError(''); }}
+              >
+                <Ionicons name="mail-outline" size={16} color={loginMethod === 'email' ? '#2563EB' : '#6B7280'} />
+                <Text style={[styles.methodText, loginMethod === 'email' && styles.methodTextActive]}>Email & Password</Text>
+              </Pressable>
+            </View>
 
             {/* Forgot Password Modal */}
             {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
@@ -777,6 +799,39 @@ const styles = StyleSheet.create({
   roleTextActive: {
     fontFamily: Fonts.sansSemiBold,
     color: '#111827',
+  },
+  methodToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2F6',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 20,
+  },
+  methodButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  methodButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  methodText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  methodTextActive: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#2563EB',
   },
   title: {
     fontFamily: Fonts.displaySemiBold,

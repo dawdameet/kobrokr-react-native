@@ -20,6 +20,7 @@ export default function SignupScreen() {
     redirect?: string;
   }>();
   const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
+  const [signupMethod, setSignupMethod] = useState<'phone' | 'email'>('phone');
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -42,6 +43,8 @@ export default function SignupScreen() {
   // OTP verification state
   const [signupStep, setSignupStep] = useState<'form' | 'otp'>('form');
   const [signupOtp, setSignupOtp] = useState(['', '', '', '', '', '']);
+
+
 
   useEffect(() => {
     async function resolveReferral() {
@@ -68,26 +71,64 @@ export default function SignupScreen() {
   const otpFull = signupOtp.every(d => d !== '');
 
   const passOk = password.length >= 8;
-  const formReady = name && email && password && confirmPassword && phoneValid && city && passOk && (password === confirmPassword) && (roleTab !== 'broker' || areasServed);
 
-  // Step 1: Validate form and send OTP
-  const handleSendOtp = async () => {
+  // Phone signup readiness
+  const phoneFormReady = Boolean(
+    name.trim() &&
+    phoneValid &&
+    city.trim() &&
+    (roleTab !== 'broker' || areasServed.trim())
+  );
+
+  // Email signup readiness
+  const emailFormReady = Boolean(
+    name.trim() &&
+    email.trim() &&
+    email.includes('@') &&
+    passOk &&
+    password === confirmPassword &&
+    city.trim() &&
+    (roleTab !== 'broker' || areasServed.trim())
+  );
+
+  const navigateAfterSignup = (user: any) => {
+    const hasIdentifier = Boolean(user?.mobile || user?.email);
+    const hasCity = Boolean(user?.city);
+    const brokerReady = user?.role !== 'broker' || (user?.areas_served && user?.areas_served.length > 0);
+
+    if (!hasIdentifier || !hasCity || !brokerReady) {
+      router.replace('/(app)/onboarding');
+      return;
+    }
+    if (redirect) {
+      router.replace(redirect as any);
+      return;
+    }
+    if (user?.role === 'tenant') {
+      router.replace('/(tenant)/dashboard');
+    } else {
+      router.replace('/(broker)/dashboard');
+    }
+  };
+
+  // Step 1: Validate phone form and dispatch real SMS OTP
+  const handleSendPhoneOtp = async () => {
     Keyboard.dismiss();
 
-    if (!name || !email || !password || !confirmPassword || !phoneValid || !city) {
-      setError('Please fill all required fields.');
+    if (!name.trim()) {
+      setError('Please enter your full name.');
       return;
     }
-    if (roleTab === 'broker' && !areasServed) {
+    if (!phoneValid) {
+      setError('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    if (!city.trim()) {
+      setError('Please enter your city.');
+      return;
+    }
+    if (roleTab === 'broker' && !areasServed.trim()) {
       setError('Please provide the areas you serve.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (!passOk) {
-      setError('Password must be at least 8 characters long.');
       return;
     }
 
@@ -103,7 +144,7 @@ export default function SignupScreen() {
     }
   };
 
-  // Step 2: Verify OTP and create account
+  // Step 2: Verify OTP and create phone-only account (email left unset in DB)
   const handleVerifyAndCreate = async () => {
     Keyboard.dismiss();
     setLoading(true);
@@ -113,11 +154,9 @@ export default function SignupScreen() {
       const payload: any = {
         phone: cleanMobile,
         otp: signupOtp.join(''),
-        full_name: name,
-        email,
-        password,
+        full_name: name.trim(),
         mobile: cleanMobile,
-        city,
+        city: city.trim(),
         role: roleTab,
       };
 
@@ -127,38 +166,21 @@ export default function SignupScreen() {
       }
 
       if (roleTab === 'broker') {
-        payload.agency_name = agencyName;
-        payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(a => a);
+        if (agencyName.trim()) payload.agency_name = agencyName.trim();
+        payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
       }
 
       const { data } = await otpService.signup(payload);
 
       if (data.access_token) {
-        // Direct login after OTP-verified signup
         await setSession(data.access_token, data.refresh_token, data.user);
-
-        if (!data.user?.mobile || !data.user?.city || (data.user?.role === 'broker' && (!data.user?.areas_served?.length))) {
-          router.replace('/(app)/onboarding');
-          return;
-        }
-
-        if (redirect) {
-          router.replace(redirect as any);
-          return;
-        }
-        if (data.user?.role === 'tenant') {
-          router.replace('/(tenant)/dashboard');
-        } else {
-          router.replace('/(broker)/dashboard');
-        }
+        navigateAfterSignup(data.user);
       } else {
-        // Fallback: redirect to login (backend may not support direct login on OTP signup yet)
         router.replace({
           pathname: '/login',
-          params: { role: roleTab, email, ...(redirect ? { redirect } : {}) }
+          params: { role: roleTab, ...(redirect ? { redirect } : {}) }
         });
       }
-
     } catch (err: any) {
       const payload = err.response?.data || {};
       setError(payload.detail || payload.error || 'Signup failed. Please try again.');
@@ -168,38 +190,45 @@ export default function SignupScreen() {
     }
   };
 
-  // Legacy signup (fallback if OTP backend isn't ready)
-  const handleLegacySignup = async () => {
+  // Email signup handler (mobile left unset in DB)
+  const handleEmailSignup = async () => {
     Keyboard.dismiss();
-    
-    if (!name || !email || !password || !confirmPassword || !mobile || !city) {
-      setError('Please fill all required fields.');
+
+    if (!name.trim()) {
+      setError('Please enter your full name.');
       return;
     }
-    if (roleTab === 'broker' && !areasServed) {
-      setError('Please provide the areas you serve.');
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    if (!passOk) {
+      setError('Password must be at least 8 characters long.');
       return;
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (!city.trim()) {
+      setError('Please enter your city.');
+      return;
+    }
+    if (roleTab === 'broker' && !areasServed.trim()) {
+      setError('Please provide the areas you serve.');
       return;
     }
 
     setError('');
     setLoading(true);
-    
+
     try {
       const cleanRef = referralCode.trim().toUpperCase();
       const payload: any = {
-        full_name: name,
-        email,
+        full_name: name.trim(),
+        email: email.trim().toLowerCase(),
         password,
-        mobile,
-        city,
+        city: city.trim(),
         role: roleTab,
       };
 
@@ -209,20 +238,19 @@ export default function SignupScreen() {
       }
 
       if (roleTab === 'broker') {
-        payload.agency_name = agencyName;
-        payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(a => a);
+        if (agencyName.trim()) payload.agency_name = agencyName.trim();
+        payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
       }
 
-      const { data } = await api.post('/auth/register', payload);
+      await api.post('/auth/register', payload);
 
       router.replace({
         pathname: '/login',
-        params: { role: roleTab, email, confirm: '1', ...(redirect ? { redirect } : {}) }
+        params: { role: roleTab, email: email.trim().toLowerCase(), confirm: '1', ...(redirect ? { redirect } : {}) }
       });
-
     } catch (err: any) {
       const payload = err.response?.data || {};
-      setError(payload.error || payload.detail || 'Signup failed');
+      setError(payload.error || payload.detail || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -263,7 +291,7 @@ export default function SignupScreen() {
                 <OtpInput value={signupOtp} onChange={setSignupOtp} />
               </View>
 
-              <Pressable onPress={() => { setSignupOtp(['', '', '', '', '', '']); handleSendOtp(); }}>
+              <Pressable onPress={() => { setSignupOtp(['', '', '', '', '', '']); handleSendPhoneOtp(); }}>
                 <Text style={styles.resendText}>
                   Didn't receive the code?{' '}
                   <Text style={styles.resendLink}>Resend</Text>
@@ -327,6 +355,24 @@ export default function SignupScreen() {
           </Text>
           <Text style={styles.subtitle}>Create your kobrokr account</Text>
 
+          {/* Signup Method Toggle: Phone vs Email */}
+          <View style={styles.methodToggle}>
+            <Pressable
+              style={[styles.methodButton, signupMethod === 'phone' && styles.methodButtonActive]}
+              onPress={() => { setSignupMethod('phone'); setError(''); }}
+            >
+              <Ionicons name="phone-portrait-outline" size={16} color={signupMethod === 'phone' ? '#2563EB' : '#6B7280'} />
+              <Text style={[styles.methodText, signupMethod === 'phone' && styles.methodTextActive]}>Phone (SMS OTP)</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.methodButton, signupMethod === 'email' && styles.methodButtonActive]}
+              onPress={() => { setSignupMethod('email'); setError(''); }}
+            >
+              <Ionicons name="mail-outline" size={16} color={signupMethod === 'email' ? '#2563EB' : '#6B7280'} />
+              <Text style={[styles.methodText, signupMethod === 'email' && styles.methodTextActive]}>Email & Password</Text>
+            </Pressable>
+          </View>
+
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -334,6 +380,7 @@ export default function SignupScreen() {
           ) : null}
 
           <View style={styles.form}>
+            {/* Full Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name *</Text>
               <TextInput 
@@ -344,38 +391,79 @@ export default function SignupScreen() {
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email *</Text>
-              <TextInput 
-                style={inputClass}
-                value={email}
-                onChangeText={setEmail}
-                placeholder={roleTab === 'broker' ? 'broker@example.com' : 'tenant@example.com'}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Mobile *</Text>
-              <View style={styles.phoneRow}>
-                <View style={styles.phonePrefix}>
-                  <Text style={styles.phonePrefixText}>+91</Text>
+            {/* ═══ PHONE METHOD FIELDS ═══ */}
+            {signupMethod === 'phone' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Mobile Number *</Text>
+                <View style={styles.phoneRow}>
+                  <View style={styles.phonePrefix}>
+                    <Text style={styles.phonePrefixText}>+91</Text>
+                  </View>
+                  <TextInput 
+                    style={[inputClass, { flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeftWidth: 0 }]}
+                    value={mobile}
+                    onChangeText={t => setMobile(t.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="98765 43210"
+                    keyboardType="phone-pad"
+                  />
                 </View>
-                <TextInput 
-                  style={[inputClass, { flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeftWidth: 0 }]}
-                  value={mobile}
-                  onChangeText={t => setMobile(t.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="98765 43210"
-                  keyboardType="phone-pad"
-                />
+                {mobile.length > 0 && !phoneValid && (
+                  <Text style={styles.helperTextError}>Enter a valid 10-digit mobile number</Text>
+                )}
               </View>
-              {mobile.length > 0 && !phoneValid && (
-                <Text style={styles.helperTextError}>Enter a valid 10-digit mobile number</Text>
-              )}
-            </View>
-            
+            )}
+
+            {/* ═══ EMAIL METHOD FIELDS ═══ */}
+            {signupMethod === 'email' && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Email *</Text>
+                  <TextInput 
+                    style={inputClass}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder={roleTab === 'broker' ? 'broker@example.com' : 'tenant@example.com'}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Password *</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
+                    <TextInput 
+                      style={[inputClass, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Min. 8 characters"
+                      secureTextEntry={!showPassword}
+                    />
+                    <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 12 }}>
+                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                    </Pressable>
+                  </View>
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Confirm Password *</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
+                    <TextInput 
+                      style={[inputClass, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="Repeat password"
+                      secureTextEntry={!showConfirmPassword}
+                    />
+                    <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={{ padding: 12 }}>
+                      <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
+                    </Pressable>
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* City */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>City *</Text>
               <TextInput 
@@ -386,6 +474,7 @@ export default function SignupScreen() {
               />
             </View>
 
+            {/* Broker-specific fields */}
             {roleTab === 'broker' && (
               <>
                 <View style={styles.inputGroup}>
@@ -410,38 +499,7 @@ export default function SignupScreen() {
               </>
             )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password *</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
-                <TextInput 
-                  style={[inputClass, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  secureTextEntry={!showPassword}
-                />
-                <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 12 }}>
-                  <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
-                </Pressable>
-              </View>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password *</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, backgroundColor: '#F8FAFC' }}>
-                <TextInput 
-                  style={[inputClass, { flex: 1, borderWidth: 0, marginBottom: 0 }]}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="••••••••"
-                  secureTextEntry={!showConfirmPassword}
-                />
-                <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={{ padding: 12 }}>
-                  <Ionicons name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#64748B" />
-                </Pressable>
-              </View>
-            </View>
-
+            {/* Referral Code */}
             <View style={styles.inputGroup}>
               <View style={styles.referralLabelRow}>
                 <Text style={styles.label}>Referral Code (Optional)</Text>
@@ -470,20 +528,43 @@ export default function SignupScreen() {
               </Text>
             </View>
 
-            <Pressable 
-              style={[styles.button, (!formReady || loading) && styles.buttonDisabled]} 
-              onPress={handleSendOtp}
-              disabled={!formReady || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.buttonText}>Verify Phone & Sign up</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#fff" />
-                </View>
-              )}
-            </Pressable>
+            {/* Submit Button for Phone Signup */}
+            {signupMethod === 'phone' && (
+              <Pressable 
+                style={[styles.button, (!phoneFormReady || loading) && styles.buttonDisabled]} 
+                onPress={handleSendPhoneOtp}
+                disabled={!phoneFormReady || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.buttonText}>Verify Phone & Sign up</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+            )}
+
+            {/* Submit Button for Email Signup */}
+            {signupMethod === 'email' && (
+              <Pressable 
+                style={[styles.button, (!emailFormReady || loading) && styles.buttonDisabled]} 
+                onPress={handleEmailSignup}
+                disabled={!emailFormReady || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.buttonText}>Create Account</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </View>
+                )}
+              </Pressable>
+            )}
+
+
           </View>
 
           <Pressable onPress={() => router.push(`/login?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}` as any)} style={styles.footerLink}>
@@ -491,6 +572,8 @@ export default function SignupScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+
     </SafeAreaView>
   );
 }
@@ -545,6 +628,39 @@ const styles = StyleSheet.create({
   roleTextActive: {
     fontFamily: Fonts.sansSemiBold,
     color: '#111827',
+  },
+  methodToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2F6',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 20,
+  },
+  methodButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  methodButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  methodText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  methodTextActive: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#2563EB',
   },
   title: {
     fontFamily: Fonts.displaySemiBold,
@@ -708,4 +824,5 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     marginTop: 2,
   },
+
 });
