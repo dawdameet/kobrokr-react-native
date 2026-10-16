@@ -375,23 +375,10 @@ export default function AddPropertyScreen() {
           </View>
         </View>
 
-        {/* Details & Amenities */}
+        {/* Amenities */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Details & Amenities</Text>
-          
-          <Text style={styles.label}>Description</Text>
-          <TextInput 
-            style={[styles.input, styles.textArea]} 
-            value={form.description} 
-            onChangeText={(t) => handleChange('description', t)} 
-            placeholder="Detail outstanding features, proximity to key locations..." 
-            placeholderTextColor="#9CA3AF"
-            multiline 
-            numberOfLines={4} 
-            textAlignVertical="top"
-          />
+          <Text style={styles.cardTitle}>Amenities</Text>
 
-          <Text style={styles.label}>Amenities</Text>
           <View style={styles.amenityGrid}>
             {PREDEFINED_AMENITIES.map(a => {
               const isSelected = form.amenities.includes(a);
