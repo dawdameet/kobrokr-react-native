@@ -51,12 +51,14 @@ api.interceptors.response.use(
     const isAuthRoute =
       originalRequest.url?.includes('/auth/login') ||
       originalRequest.url?.includes('/auth/signup') ||
+      originalRequest.url?.includes('/auth/register') ||
       originalRequest.url?.includes('/auth/google') ||
       originalRequest.url?.includes('/auth/refresh') ||
       originalRequest.url?.includes('/auth/resend-verification') ||
       originalRequest.url?.includes('/auth/forgot-password') ||
       originalRequest.url?.includes('/auth/reset-password') ||
-      originalRequest.url?.includes('/auth/otp/');
+      originalRequest.url?.includes('/auth/otp/') ||
+      originalRequest.url?.includes('/auth/email-otp/');
 
     // Do not attempt token refresh or force-logout for auth endpoints
     if (isAuthRoute) {
@@ -122,6 +124,10 @@ export const otpService = {
   /** Send signup OTP to phone. */
   sendSignup: (phone) => api.post('/auth/otp/send-signup', { phone }),
 
+  /** Verify phone OTP without consuming (pre-verification). */
+  verify: (phone, otp, purpose = 'signup') =>
+    api.post('/auth/otp/verify', { phone, otp, purpose, consume: false }),
+
   /** Verify OTP and log in. Returns { access_token, refresh_token, user }. */
   login: (phone, otp, role) => api.post('/auth/otp/login', { phone, otp, role }),
 
@@ -134,6 +140,15 @@ export const otpService = {
   /** Verify OTP and set new password in one step. */
   resetConfirm: (phone, otp, new_password) =>
     api.post('/auth/otp/reset-confirm', { phone, otp, new_password }),
+};
+
+export const emailOtpService = {
+  /** Send signup OTP to email. */
+  sendSignup: (email) => api.post('/auth/email-otp/send', { email }),
+
+  /** Verify email OTP without consuming (pre-verification). */
+  verify: (email, otp, purpose = 'signup') =>
+    api.post('/auth/email-otp/verify', { email, otp, purpose, consume: false }),
 };
 
 export default api;

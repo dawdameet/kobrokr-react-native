@@ -187,23 +187,32 @@ export default function SubscriptionWidget() {
             <View style={styles.referralAppliedRow}>
               <View style={styles.referralAppliedBadge}>
                 <Ionicons name="pricetag" size={16} color="#15803D" />
-                <Text style={styles.referralAppliedText}>Code Applied: <Text style={styles.referralCodeHighlight}>{appliedCode}</Text></Text>
+                <Text style={styles.referralAppliedText}>
+                  Code Applied: <Text style={styles.referralCodeHighlight}>{appliedCode}</Text>
+                  {referralDiscountPct > 0 ? ` (${referralDiscountPct}% OFF)` : ''}
+                </Text>
               </View>
               <Pressable onPress={handleRemoveCode} style={styles.referralRemoveBtn}>
                 <Text style={styles.referralRemoveText}>Remove</Text>
               </Pressable>
             </View>
             <Text style={styles.referralAppliedSub}>
-              Partner referral attached. Your upgrade will auto-attribute to this partner.
+              Partner referral attached. Your upgrade discount will automatically apply at checkout.
             </Text>
           </View>
         ) : (
           <View>
-            <Text style={styles.referralTitle}>Have a Partner / Referral Code?</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Ionicons name="pricetag-outline" size={16} color="#2563EB" />
+              <Text style={styles.referralTitle}>Have a Referral Code?</Text>
+              <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                <Text style={{ fontFamily: Fonts.sansBold, fontSize: 10, color: '#15803D' }}>10% OFF</Text>
+              </View>
+            </View>
             <View style={styles.referralInputRow}>
               <TextInput
                 style={styles.referralTextInput}
-                placeholder="e.g. KB-94X2A"
+                placeholder="Enter referral code (e.g. KB-94X2A)"
                 placeholderTextColor="#9CA3AF"
                 value={referralInput}
                 onChangeText={(text) => {
@@ -213,13 +222,21 @@ export default function SubscriptionWidget() {
                 autoCapitalize="characters"
                 autoCorrect={false}
               />
-              <Pressable style={styles.referralApplyBtn} onPress={handleApplyCode}>
-                <Text style={styles.referralApplyBtnText}>Apply</Text>
+              <Pressable
+                style={[styles.referralApplyBtn, (!referralInput.trim() || referralApplying) && { opacity: 0.5 }]}
+                onPress={handleApplyCode}
+                disabled={!referralInput.trim() || referralApplying}
+              >
+                {referralApplying ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.referralApplyBtnText}>Apply</Text>
+                )}
               </Pressable>
             </View>
             {referralError ? <Text style={styles.referralErrorText}>{referralError}</Text> : null}
             <Text style={styles.referralHelpText}>
-              Got a link or code from a partner? Type it here before upgrading.
+              Enter a partner code here to unlock a 10% discount when upgrading your plan.
             </Text>
           </View>
         )}
@@ -234,7 +251,9 @@ export default function SubscriptionWidget() {
           Linking.openURL(url);
         }}
       >
-        <Text style={styles.ctaButtonText}>Upgrade</Text>
+        <Text style={styles.ctaButtonText}>
+          {appliedCode ? `Upgrade Now (10% Discount Applied)` : `Upgrade Plan`}
+        </Text>
         <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
       </Pressable>
     </View>
