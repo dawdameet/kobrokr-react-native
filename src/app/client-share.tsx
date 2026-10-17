@@ -32,12 +32,7 @@ export default function ClientShareScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Authentication gate state
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authModalReason, setAuthModalReason] = useState<'contact' | 'view_property' | 'general'>('general');
-
-  const redirectUrl = `/client-share?b=${brokerId || ''}&p=${propertyIds || ''}`;
 
   useEffect(() => {
     async function checkAuth() {
@@ -52,8 +47,8 @@ export default function ClientShareScreen() {
   }, []);
 
   useEffect(() => {
-    if (!brokerId || !propertyIds) {
-      setError('Invalid share link. Please verify the collection URL.');
+    if (!propertyIds) {
+      setError('Invalid share link: No property IDs specified.');
       setLoading(false);
       return;
     }
@@ -61,12 +56,17 @@ export default function ClientShareScreen() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [brokerRes, propsRes] = await Promise.all([
-          api.get(`/broker/${brokerId}/public`),
-          api.get(`/properties/shared?ids=${propertyIds}`),
-        ]);
-        setBroker(brokerRes.data);
+        const propsRes = await api.get(`/properties/shared?ids=${propertyIds}`);
         setProperties(propsRes.data || []);
+
+        if (brokerId) {
+          try {
+            const brokerRes = await api.get(`/broker/${brokerId}/public`);
+            setBroker(brokerRes.data);
+          } catch (e) {
+            console.log('Optional broker profile not found:', e);
+          }
+        }
       } catch (err) {
         setError('Failed to load collection. The link may have expired or is invalid.');
       } finally {
@@ -78,20 +78,10 @@ export default function ClientShareScreen() {
   }, [brokerId, propertyIds]);
 
   const handleCall = (phone: string) => {
-    if (!currentUser) {
-      setAuthModalReason('contact');
-      setShowAuthModal(true);
-      return;
-    }
     if (phone) Linking.openURL(`tel:${phone}`);
   };
 
   const handleWhatsAppProperty = (p: any) => {
-    if (!currentUser) {
-      setAuthModalReason('contact');
-      setShowAuthModal(true);
-      return;
-    }
     if (!broker?.mobile) return;
     const cleanPhone = broker.mobile.replace(/\D/g, '');
     const phoneFormatted = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
@@ -101,22 +91,7 @@ export default function ClientShareScreen() {
   };
 
   const handlePropertyCardPress = (p: any) => {
-    if (!currentUser) {
-      setAuthModalReason('view_property');
-      setShowAuthModal(true);
-      return;
-    }
-    router.push(`/properties/${p.id}?b=${brokerId}` as any);
-  };
-
-  const navigateToLogin = () => {
-    setShowAuthModal(false);
-    router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}` as any);
-  };
-
-  const navigateToSignup = () => {
-    setShowAuthModal(false);
-    router.push(`/signup?redirect=${encodeURIComponent(redirectUrl)}` as any);
+    router.push(`/properties/${p.id}?b=${brokerId || ''}` as any);
   };
 
   if (loading) {
@@ -128,14 +103,14 @@ export default function ClientShareScreen() {
     );
   }
 
-  if (error || !broker) {
+  if (error) {
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={[styles.container, styles.center]}>
         <View style={styles.errorIconBox}>
           <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
         </View>
         <Text style={styles.errorTitle}>Collection Unavailable</Text>
-        <Text style={styles.errorSubtitle}>{error || 'Unable to display properties'}</Text>
+        <Text style={styles.errorSubtitle}>{error}</Text>
         <Pressable style={styles.errorBtn} onPress={() => safeGoBack('/')}>
           <Text style={styles.errorBtnText}>Go Back</Text>
         </Pressable>
@@ -249,7 +224,7 @@ export default function ClientShareScreen() {
       {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.brokerHeaderInfo}>
-          {broker.profile_photo ? (
+          {broker?.profile_photo ? (
             <Image
               source={{ uri: broker.profile_photo }}
               style={styles.brokerAvatar}
@@ -257,25 +232,29 @@ export default function ClientShareScreen() {
               cachePolicy="memory-disk"
               transition={150}
             />
-          ) : (
+          ) : broker ? (
             <View style={styles.brokerAvatarPlaceholder}>
               <Text style={styles.brokerAvatarInitials}>
                 {broker.full_name?.[0]?.toUpperCase() || 'B'}
               </Text>
             </View>
+          ) : (
+            <View style={[styles.brokerAvatarPlaceholder, { backgroundColor: '#2563EB', borderColor: '#1D4ED8' }]}>
+              <Text style={[styles.brokerAvatarInitials, { color: '#FFFFFF' }]}>K</Text>
+            </View>
           )}
           <View style={{ flex: 1 }}>
             <Text style={styles.brokerName} numberOfLines={1}>
-              {broker.full_name}
+              {broker?.full_name || 'kobrokr'}
             </Text>
             <Text style={styles.brokerAgency} numberOfLines={1}>
-              {broker.agency_name || t('clientShare.independentBroker')}
+              {broker?.agency_name || (broker ? t('clientShare.independentBroker') : 'Curated Properties')}
             </Text>
           </View>
         </View>
 
         <View style={styles.headerRightActions}>
-          {currentUser ? (
+          {currentUser && (
             <Pressable
               style={styles.homeBtn}
               onPress={() => {
@@ -291,17 +270,9 @@ export default function ClientShareScreen() {
               <Ionicons name="home" size={15} color="#2563EB" />
               <Text style={styles.homeBtnText}>{t('nav.home')}</Text>
             </Pressable>
-          ) : (
-            <Pressable
-              style={styles.loginHeaderBtn}
-              onPress={navigateToLogin}
-            >
-              <Ionicons name="log-in-outline" size={15} color="#FFFFFF" />
-              <Text style={styles.loginHeaderBtnText}>{t('clientShare.logIn')}</Text>
-            </Pressable>
           )}
 
-          {broker.mobile && (
+          {broker?.mobile && (
             <Pressable style={styles.callBrokerBtn} onPress={() => handleCall(broker.mobile)}>
               <Ionicons name="call" size={14} color="#FFFFFF" />
               <Text style={styles.callBrokerBtnText}>{t('common.call')}</Text>
@@ -319,38 +290,20 @@ export default function ClientShareScreen() {
         maxToRenderPerBatch={5}
         windowSize={5}
         removeClippedSubviews={Platform.OS === 'android'}
-        contentContainerStyle={[
-          styles.listContent,
-          !currentUser && { paddingBottom: 110 }
-        ]}
+        contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.collectionIntro}>
             <Text style={styles.collectionTitle}>{t('clientShare.collectionTitle')}</Text>
             <Text style={styles.collectionSubtitle}>
-              Handpicked properties selected exclusively for you by{' '}
-              <Text style={{ fontWeight: '600', color: '#1E293B' }}>{broker.full_name}</Text>.
+              {broker ? (
+                <>
+                  Handpicked properties selected exclusively for you by{' '}
+                  <Text style={{ fontWeight: '600', color: '#1E293B' }}>{broker.full_name}</Text>.
+                </>
+              ) : (
+                'Curated property collection shortlisted for you on Kobrokr.'
+              )}
             </Text>
-
-            {/* Guest Banner when not logged in */}
-            {!currentUser && (
-              <View style={styles.guestBanner}>
-                <View style={styles.guestBannerHeader}>
-                  <Ionicons name="person-circle-outline" size={20} color="#2563EB" />
-                  <Text style={styles.guestBannerTitle}>{t('clientShare.viewingAsGuest')}</Text>
-                </View>
-                <Text style={styles.guestBannerText}>
-                  Sign in or create a free account to unlock full details, inspect layouts, and chat with {broker.full_name?.split(' ')[0]}.
-                </Text>
-                <View style={styles.guestBannerActions}>
-                  <Pressable style={styles.guestBannerLoginBtn} onPress={navigateToLogin}>
-                    <Text style={styles.guestBannerLoginText}>{t('clientShare.logIn')}</Text>
-                  </Pressable>
-                  <Pressable style={styles.guestBannerSignupBtn} onPress={navigateToSignup}>
-                    <Text style={styles.guestBannerSignupText}>{t('clientShare.signUp')}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
           </View>
         }
         ListEmptyComponent={
@@ -361,78 +314,6 @@ export default function ClientShareScreen() {
           </View>
         }
       />
-
-      {/* Persistent Bottom Bar for Guest Users */}
-      {!currentUser && (
-        <View style={styles.floatingBottomAuth}>
-          <View style={styles.floatingBottomAuthContent}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.floatingAuthTitle}>{t('clientShare.wantToConnect')}</Text>
-              <Text style={styles.floatingAuthSubtitle} numberOfLines={1}>
-                Sign in to contact {broker.full_name?.split(' ')[0]}
-              </Text>
-            </View>
-            <Pressable
-              style={styles.floatingAuthBtn}
-              onPress={() => {
-                setAuthModalReason('contact');
-                setShowAuthModal(true);
-              }}
-            >
-              <Text style={styles.floatingAuthBtnText}>{t('clientShare.logIn')} / {t('clientShare.signUp')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {/* Auth Modal / Bottom Sheet */}
-      <Modal
-        visible={showAuthModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAuthModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <Pressable style={styles.modalBackdropPressable} onPress={() => setShowAuthModal(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalDragHandle} />
-
-            <View style={styles.modalIconCircle}>
-              <Ionicons
-                name={authModalReason === 'contact' ? 'chatbubble-ellipses-outline' : 'lock-closed-outline'}
-                size={30}
-                color="#2563EB"
-              />
-            </View>
-
-            <Text style={styles.modalTitle}>
-              {authModalReason === 'contact'
-                ? `Connect with ${broker.full_name?.split(' ')[0] || 'Broker'}`
-                : 'Sign In to View Property'}
-            </Text>
-
-            <Text style={styles.modalSubtitle}>
-              {authModalReason === 'contact'
-                ? `Please sign in or create a free account to message ${broker.full_name}, make calls, or schedule viewings.`
-                : `Create a free account or log in to view full property specifications, photo galleries, and broker contact options.`}
-            </Text>
-
-            <View style={styles.modalActions}>
-              <Pressable style={styles.modalPrimaryBtn} onPress={navigateToLogin}>
-                <Text style={styles.modalPrimaryBtnText}>Log In to Continue</Text>
-              </Pressable>
-
-              <Pressable style={styles.modalSecondaryBtn} onPress={navigateToSignup}>
-                <Text style={styles.modalSecondaryBtnText}>Create Free Account</Text>
-              </Pressable>
-
-              <Pressable style={styles.modalDismissBtn} onPress={() => setShowAuthModal(false)}>
-                <Text style={styles.modalDismissBtnText}>Continue Previewing</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

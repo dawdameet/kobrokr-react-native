@@ -153,11 +153,9 @@ function DiscoverVideoCardComponent({
 
   const handleShare = async () => {
     try {
-      const isDev = __DEV__;
-      const devWebUrl = process.env.EXPO_PUBLIC_WEB_URL || (process.env.EXPO_PUBLIC_API_URL ? process.env.EXPO_PUBLIC_API_URL.replace(/:\d+$/, ':5173') : 'http://localhost:5173');
-      const baseUrl = isDev ? devWebUrl : 'https://kobrokr.com';
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://www.kobrokr.com';
       const brokerId = property.broker_id || broker?.id || '';
-      const shareLink = `${baseUrl}/client-share?b=${brokerId}&p=${property.id}${isDev ? '&dev=1' : ''}`;
+      const shareLink = `${baseUrl}/client-share?${brokerId ? `b=${brokerId}&` : ''}p=${property.id}`;
 
       const shareMessage = `Check out this property walkthrough on Kobrokr:\n${property.title} in ${property.locality ? property.locality + ', ' : ''}${property.city} - ${formatPrice(property.price)}\n\nWatch walkthrough video & open in app:\n${shareLink}`;
 

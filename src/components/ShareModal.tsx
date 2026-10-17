@@ -36,10 +36,8 @@ export default function ShareModal({
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const isDev = __DEV__;
-  const devWebUrl = process.env.EXPO_PUBLIC_WEB_URL || (process.env.EXPO_PUBLIC_API_URL ? process.env.EXPO_PUBLIC_API_URL.replace(/:\d+$/, ':5173') : 'http://localhost:5173');
-  const baseUrl = isDev ? devWebUrl : 'https://kobrokr.com';
-  const shareLink = `${baseUrl}/client-share?b=${userId || ''}&p=${selectedIds.join(',')}${isDev ? '&dev=1' : ''}`;
+  const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://www.kobrokr.com';
+  const shareLink = `${baseUrl}/client-share?${userId ? `b=${userId}&` : ''}p=${selectedIds.join(',')}`;
 
   useEffect(() => {
     if (visible && selectedIds.length > 0) {

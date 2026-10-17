@@ -18,7 +18,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   const checkAuth = async () => {
-    const isPublic = PUBLIC_ROUTES.includes(pathname);
+    const isPublic =
+      PUBLIC_ROUTES.includes(pathname) ||
+      pathname.startsWith('/properties') ||
+      pathname.startsWith('/client-share');
 
     // Public routes don't need auth
     if (isPublic) {
