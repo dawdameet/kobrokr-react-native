@@ -36,15 +36,19 @@ function shuffleArray<T>(array: T[]): T[] {
 
 type FilterChip = 'all' | 'videos_only' | 'rent' | 'sale' | '2_bhk' | '3_bhk';
 
+let memoryDiscoverProps: any[] | null = null;
+let memoryDiscoverSavedIds: Set<number> | null = null;
+let memoryDiscoverGrid: any[] | null = null;
+
 export default function DiscoverScreen() {
   const { t } = useTranslation();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [containerHeight, setContainerHeight] = useState(windowHeight - 130);
 
   // Reel mode state
-  const [properties, setProperties] = useState<any[]>([]);
-  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState<any[]>(memoryDiscoverProps || []);
+  const [savedIds, setSavedIds] = useState<Set<number>>(memoryDiscoverSavedIds || new Set());
+  const [loading, setLoading] = useState(!memoryDiscoverProps);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -55,7 +59,7 @@ export default function DiscoverScreen() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedChip, setSelectedChip] = useState<FilterChip>('all');
   const [viewMode, setViewMode] = useState<'reels' | 'grid'>('reels');
-  const [gridItems, setGridItems] = useState<any[]>([]);
+  const [gridItems, setGridItems] = useState<any[]>(memoryDiscoverGrid || []);
   const [gridLoading, setGridLoading] = useState(false);
 
   // Debounce search query
@@ -76,6 +80,7 @@ export default function DiscoverScreen() {
   // Load initial discover reel feed
   const fetchFeed = useCallback(async () => {
     try {
+      if (!memoryDiscoverProps) setLoading(true);
       setError('');
       const [searchRes, savedData] = await Promise.all([
         api.get('/search', { params: { limit: 50, sort: 'newest' } }),
@@ -107,12 +112,17 @@ export default function DiscoverScreen() {
         (p) => p.property_videos && p.property_videos.length > 0 && p.property_videos.some((v: any) => Boolean(v?.url))
       );
 
-      setProperties(shuffleArray(withVideo));
+      const shuffled = shuffleArray(withVideo);
+      memoryDiscoverProps = shuffled;
+      memoryDiscoverGrid = items;
+      memoryDiscoverSavedIds = ids;
+
+      setProperties(shuffled);
       setGridItems(items);
       setActiveIndex(0);
     } catch (err: any) {
       console.log('Discover feed error:', err);
-      setError('Unable to load Discover feed.');
+      if (!memoryDiscoverProps) setError('Unable to load Discover feed.');
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import api from '../lib/api';
 import { Fonts } from '../constants/theme';
+import { libraryStore } from '../lib/libraryStore';
 
 interface CollectionModalProps {
   visible: boolean;
@@ -90,6 +91,7 @@ export default function CollectionModal({
         t('common.success', { defaultValue: 'Success' }),
         t('library.addedToCollection', { defaultValue: 'Properties added to collection!' })
       );
+      libraryStore.invalidate();
       onSuccess();
     } catch (err: any) {
       const msg = err.response?.data?.error || t('library.failedCollection', { defaultValue: 'Failed to add to collection' });
@@ -138,6 +140,7 @@ export default function CollectionModal({
       );
       setNewCollectionName('');
       setIsCreating(false);
+      libraryStore.invalidate();
       onSuccess();
     } catch (err: any) {
       const msg = err.response?.data?.error || t('library.failedCollection', { defaultValue: 'Failed to create collection' });

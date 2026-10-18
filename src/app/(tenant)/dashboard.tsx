@@ -11,12 +11,14 @@ import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
+let memoryRecentSaved: any[] | null = null;
+
 export default function TenantDashboard() {
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const cachedSaved = statsStore.getStats()?.tenant?.saved;
   const [savedCount, setSavedCount] = useState<number | null>(cachedSaved ?? null);
-  const [recentSaved, setRecentSaved] = useState<any[]>([]);
+  const [recentSaved, setRecentSaved] = useState<any[]>(memoryRecentSaved || []);
   const [nlQuery, setNlQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -44,7 +46,11 @@ export default function TenantDashboard() {
       } else {
         // Quietly fetch recent saved for preview
         api.get('/saved/tenant')
-          .then((res) => setRecentSaved(res.data.slice(0, 3)))
+          .then((res) => {
+            const slice = res.data.slice(0, 3);
+            memoryRecentSaved = slice;
+            setRecentSaved(slice);
+          })
           .catch(() => {});
       }
     });
@@ -58,7 +64,9 @@ export default function TenantDashboard() {
       const { data } = await api.get('/saved/tenant');
       statsStore.setTenantStats({ saved: data.length });
       setSavedCount(data.length);
-      setRecentSaved(data.slice(0, 3));
+      const slice = data.slice(0, 3);
+      memoryRecentSaved = slice;
+      setRecentSaved(slice);
     } catch (e) {
       console.log('Failed to fetch saved properties', e);
       if (statsStore.getStats()?.tenant?.saved === undefined) {

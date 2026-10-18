@@ -11,6 +11,8 @@ import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
+let memoryRecentListings: any[] | null = null;
+
 export default function BrokerDashboard() {
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
@@ -18,7 +20,7 @@ export default function BrokerDashboard() {
   const [stats, setStats] = useState(
     cachedBrokerStats || { listings: null as null | number, active: null as null | number, saved: null as null | number }
   );
-  const [recentListings, setRecentListings] = useState<any[]>([]);
+  const [recentListings, setRecentListings] = useState<any[]>(memoryRecentListings || []);
   const [nlQuery, setNlQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,7 +48,11 @@ export default function BrokerDashboard() {
       } else {
         // Quietly fetch recent listings for preview
         api.get('/properties/my')
-          .then((res) => setRecentListings(res.data.slice(0, 3)))
+          .then((res) => {
+            const slice = res.data.slice(0, 3);
+            memoryRecentListings = slice;
+            setRecentListings(slice);
+          })
           .catch(() => {});
       }
     });
@@ -68,7 +74,9 @@ export default function BrokerDashboard() {
       };
       statsStore.setBrokerStats(newStats);
       setStats(newStats);
-      setRecentListings(listings.slice(0, 3));
+      const slice = listings.slice(0, 3);
+      memoryRecentListings = slice;
+      setRecentListings(slice);
     } catch (e) {
       console.log('Failed to fetch broker stats', e);
       if (!statsStore.getStats()?.broker) {

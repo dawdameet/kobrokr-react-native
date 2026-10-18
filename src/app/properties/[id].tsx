@@ -14,6 +14,7 @@ import ShareModal from '../../components/ShareModal';
 import CollectionModal from '../../components/CollectionModal';
 import { getPropertyPreview } from '../../lib/propertyCache';
 import { statsStore } from '../../lib/statsStore';
+import { libraryStore } from '../../lib/libraryStore';
 
 export default function PropertyDetailScreen() {
   const { t } = useTranslation();
@@ -95,6 +96,7 @@ export default function PropertyDetailScreen() {
       await api.post(endpoint, { property_id: id });
       setSaved(true);
       statsStore.incrementSaved();
+      libraryStore.invalidate();
     } catch (e) {
       // Mark as saved anyway if it fails (might already be saved)
       setSaved(true);

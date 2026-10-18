@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, ScrollView, Platform, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,85 +7,138 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
-import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import ShareModal from '../components/ShareModal';
 import { setPropertyPreview } from '../lib/propertyCache';
 import { statsStore } from '../lib/statsStore';
+import { libraryStore } from '../lib/libraryStore';
 
 export default function SavedScreen() {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
-  const [saved, setSaved] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Initialize immediately from synchronous in-memory cache if available
+  const initialCache = libraryStore.getState();
+  const [saved, setSaved] = useState<any[]>(initialCache?.saved || []);
+  const [collections, setCollections] = useState<any[]>(initialCache?.collections || []);
+  const [loading, setLoading] = useState<boolean>(!initialCache);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sharePropertyIds, setSharePropertyIds] = useState<(string | number)[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
 
+  // Fetch both saved and collections in parallel without blocking active tab
+  const fetchLibraryData = useCallback(async (role: string, isPullRefresh = false) => {
+    if (!isPullRefresh && !libraryStore.getState()) {
+      setLoading(true);
+    }
+    try {
+      const savedEndpoint = role === 'tenant' ? '/saved/tenant' : '/saved';
+      const [savedRes, colRes] = await Promise.allSettled([
+        api.get(savedEndpoint),
+        api.get('/collections'),
+      ]);
+
+      let newSaved = libraryStore.getState()?.saved || [];
+      if (savedRes.status === 'fulfilled' && Array.isArray(savedRes.value.data)) {
+        newSaved = savedRes.value.data;
+        setSaved(newSaved);
+        if (role === 'tenant') {
+          statsStore.setTenantStats({ saved: newSaved.length });
+        } else {
+          const broker = statsStore.getStats()?.broker;
+          if (broker) {
+            statsStore.setBrokerStats({ ...broker, saved: newSaved.length });
+          }
+        }
+      }
+
+      let newCols = libraryStore.getState()?.collections || [];
+      if (colRes.status === 'fulfilled' && Array.isArray(colRes.value.data)) {
+        newCols = colRes.value.data;
+        setCollections(newCols);
+      }
+
+      libraryStore.setLibraryData({ saved: newSaved, collections: newCols });
+      setError('');
+    } catch (e) {
+      if (!libraryStore.getState()) {
+        setError(t('library.failedLoadSaved'));
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [t]);
+
   useEffect(() => {
+    let isMounted = true;
+
     async function init() {
+      // 1. If memory state is empty, check AsyncStorage
+      if (!libraryStore.getState()) {
+        const stored = await libraryStore.init();
+        if (stored && isMounted) {
+          setSaved(stored.saved || []);
+          setCollections(stored.collections || []);
+          setLoading(false);
+        }
+      }
+
+      // 2. Fetch fresh user & data
       const uStr = await storage.get('user');
-      if (uStr) {
+      if (uStr && isMounted) {
         const u = JSON.parse(uStr);
         setCurrentUser(u);
         setUserRole(u.role);
-        if (activeTab === 'saved') {
-          fetchSaved(u.role);
-        } else {
-          fetchCollections();
-        }
-      } else {
+        fetchLibraryData(u.role);
+      } else if (!uStr && isMounted) {
         setError('Not logged in');
         setLoading(false);
       }
     }
+
     init();
-  }, [activeTab]);
 
-  const fetchSaved = async (role: string) => {
-    setLoading(true);
-    try {
-      const endpoint = role === 'tenant' ? '/saved/tenant' : '/saved';
-      const { data } = await api.get(endpoint);
-      setSaved(data);
-      if (role === 'tenant') {
-        statsStore.setTenantStats({ saved: data.length });
-      } else {
-        const broker = statsStore.getStats()?.broker;
-        if (broker) {
-          statsStore.setBrokerStats({ ...broker, saved: data.length });
-        }
+    const unsubscribe = libraryStore.subscribe((state) => {
+      if (state && isMounted) {
+        setSaved(state.saved || []);
+        setCollections(state.collections || []);
       }
-    } catch (e) {
-      setError(t('library.failedLoadSaved'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
 
-  const fetchCollections = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/collections');
-      setCollections(data);
-    } catch (e) {
-      setError(t('library.failedLoadCollections'));
-    } finally {
-      setLoading(false);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [fetchLibraryData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (currentUser?.role) {
+      fetchLibraryData(currentUser.role, true);
+    } else {
+      setRefreshing(false);
     }
-  };
+  }, [currentUser?.role, fetchLibraryData]);
 
   const handleRemoveSaved = async (propertyId: number) => {
+    const prevSaved = saved;
+    const nextSaved = prevSaved.filter((s) => (s.properties?.id ?? s.property_id) !== propertyId);
+    setSaved(nextSaved);
+    libraryStore.removeSaved(propertyId);
+    statsStore.decrementSaved();
+
     try {
       const endpoint = userRole === 'tenant' ? `/saved/tenant/${propertyId}` : `/saved/${propertyId}`;
       await api.delete(endpoint);
-      setSaved(prev => prev.filter(s => s.properties?.id !== propertyId));
-      statsStore.decrementSaved();
     } catch (e) {
+      setSaved(prevSaved);
+      libraryStore.setLibraryData({ saved: prevSaved });
+      statsStore.incrementSaved();
       Alert.alert(t('common.error'), t('library.failedRemoveProperty'));
     }
   };
@@ -97,10 +150,15 @@ export default function SavedScreen() {
         text: t('common.delete'), 
         style: 'destructive',
         onPress: async () => {
+          const prevCols = collections;
+          const nextCols = prevCols.filter((c) => c.id !== collectionId);
+          setCollections(nextCols);
+          libraryStore.removeCollection(collectionId);
           try {
             await api.delete(`/collections/${collectionId}`);
-            setCollections(prev => prev.filter(c => c.id !== collectionId));
           } catch (e) {
+            setCollections(prevCols);
+            libraryStore.setLibraryData({ collections: prevCols });
             Alert.alert(t('common.error'), t('library.failedDeleteCollection'));
           }
         }
@@ -109,15 +167,24 @@ export default function SavedScreen() {
   };
 
   const handleRemoveFromCollection = async (collectionId: number, propertyId: number) => {
+    const prevCols = collections;
+    const nextCols = prevCols.map((c) => {
+      if (c.id === collectionId) {
+        return {
+          ...c,
+          property_ids: (c.property_ids || []).filter((id: number) => id !== propertyId),
+        };
+      }
+      return c;
+    });
+    setCollections(nextCols);
+    libraryStore.removePropertyFromCollection(collectionId, propertyId);
+
     try {
       await api.delete(`/collections/${collectionId}/properties/${propertyId}`);
-      setCollections(prev => prev.map(c => {
-        if (c.id === collectionId) {
-          return { ...c, property_ids: c.property_ids.filter((id: number) => id !== propertyId) };
-        }
-        return c;
-      }));
     } catch (e) {
+      setCollections(prevCols);
+      libraryStore.setLibraryData({ collections: prevCols });
       Alert.alert(t('common.error'), t('library.failedRemoveFromCollection'));
     }
   };
@@ -262,7 +329,7 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('saved')}
         >
           <Text style={[styles.tabText, activeTab === 'saved' && styles.tabTextActive]}>
-            {t('library.tabSaved')} ({activeTab === 'saved' && !loading ? saved.length : '-'})
+            {t('library.tabSaved')} ({saved.length})
           </Text>
         </Pressable>
         <Pressable 
@@ -270,29 +337,37 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('collections')}
         >
           <Text style={[styles.tabText, activeTab === 'collections' && styles.tabTextActive]}>
-            {t('library.tabCollections')} ({activeTab === 'collections' && !loading ? collections.length : '-'})
+            {t('library.tabCollections')} ({collections.length})
           </Text>
         </Pressable>
       </View>
 
-      {error ? (
+      {error && !saved.length && !collections.length ? (
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
-      ) : loading ? (
+      ) : loading && !saved.length && !collections.length ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : activeTab === 'saved' ? (
         <FlatList
           data={saved}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item.id || item.property_id || Math.random()).toString()}
           renderItem={renderSavedItem}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2563EB']}
+              tintColor="#2563EB"
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="heart-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
@@ -307,13 +382,21 @@ export default function SavedScreen() {
       ) : (
         <FlatList
           data={collections}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item.id || Math.random()).toString()}
           renderItem={renderCollection}
           initialNumToRender={6}
           maxToRenderPerBatch={6}
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2563EB']}
+              tintColor="#2563EB"
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="folder-open-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />

@@ -47,6 +47,7 @@ export default function BottomNav() {
   };
 
   const handlePress = (to: string) => {
+    if (isActive(to)) return;
     // We map the display paths to the actual expo-router paths
     if (to === '/dashboard') {
       router.replace(role === 'broker' ? '/(broker)/dashboard' : '/(tenant)/dashboard');

@@ -86,10 +86,12 @@ const ListingCard = React.memo(function ListingCard({
   );
 });
 
+let memoryMyListings: any[] | null = null;
+
 export default function MyListingsScreen() {
   const { t } = useTranslation();
-  const [listings, setListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [listings, setListings] = useState<any[]>(memoryMyListings || []);
+  const [loading, setLoading] = useState(!memoryMyListings);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
@@ -98,8 +100,10 @@ export default function MyListingsScreen() {
   }, []);
 
   const fetchListings = async () => {
+    if (!memoryMyListings) setLoading(true);
     try {
       const { data } = await api.get('/properties/my');
+      memoryMyListings = data;
       setListings(data);
       const activeCount = data.filter((p: any) => p.status === 'active').length;
       statsStore.setBrokerStats({
@@ -108,7 +112,7 @@ export default function MyListingsScreen() {
         saved: statsStore.getStats()?.broker?.saved ?? 0,
       });
     } catch (e) {
-      setError('Failed to load listings');
+      if (!memoryMyListings) setError('Failed to load listings');
     } finally {
       setLoading(false);
     }
@@ -118,9 +122,11 @@ export default function MyListingsScreen() {
     const newStatus = property.status === 'active' ? 'inactive' : 'active';
     try {
       await api.put(`/properties/${property.id}`, { status: newStatus });
-      setListings(prev =>
-        prev.map(p => (p.id === property.id ? { ...p, status: newStatus } : p))
-      );
+      setListings(prev => {
+        const next = prev.map(p => (p.id === property.id ? { ...p, status: newStatus } : p));
+        memoryMyListings = next;
+        return next;
+      });
       statsStore.updateListingStatus(property.status, newStatus);
     } catch (e) {
       Alert.alert(t('common.error'), t('myListings.updateFailed'));
@@ -139,7 +145,11 @@ export default function MyListingsScreen() {
           onPress: async () => {
             try {
               await api.delete(`/properties/${property.id}`);
-              setListings(prev => prev.filter(p => p.id !== property.id));
+              setListings(prev => {
+                const next = prev.filter(p => p.id !== property.id);
+                memoryMyListings = next;
+                return next;
+              });
               statsStore.decrementListings(property.status === 'active');
             } catch (e) {
               Alert.alert(t('common.error'), t('myListings.deleteFailed'));
