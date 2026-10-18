@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kobrokr",
     "slug": "kobrokr-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kobrokr",
@@ -23,7 +23,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "package": "com.kobrokr.mobile",
-      "versionCode": 2,
+      "versionCode": 3,
       "intentFilters": [
         {
           "action": "VIEW",
