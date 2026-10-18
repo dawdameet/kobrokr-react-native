@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 import ShareModal from '../../components/ShareModal';
+import CollectionModal from '../../components/CollectionModal';
 import { getPropertyPreview } from '../../lib/propertyCache';
 import { statsStore } from '../../lib/statsStore';
 
@@ -38,10 +39,6 @@ export default function PropertyDetailScreen() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [showColModal, setShowColModal] = useState(false);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [colLoading, setColLoading] = useState(false);
-  const [isCreatingCol, setIsCreatingCol] = useState(false);
-  const [newColName, setNewColName] = useState('');
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   const [sharingBroker, setSharingBroker] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -103,41 +100,6 @@ export default function PropertyDetailScreen() {
       setSaved(true);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const openColModal = async () => {
-    setShowColModal(true);
-    setColLoading(true);
-    try {
-      const { data } = await api.get('/collections');
-      setCollections(data);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setColLoading(false);
-    }
-  };
-
-  const handleCreateCollection = async () => {
-    if (!newColName.trim()) return;
-    try {
-      const { data } = await api.post('/collections', { name: newColName });
-      setCollections(prev => [...prev, data]);
-      setNewColName('');
-      setIsCreatingCol(false);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to create collection');
-    }
-  };
-
-  const handleAddToCollection = async (colId: number) => {
-    try {
-      await api.post(`/collections/${colId}/properties`, { property_ids: [id] });
-      setShowColModal(false);
-      Alert.alert('Success', 'Property added to collection!');
-    } catch (e) {
-      Alert.alert('Error', 'Failed to add to collection');
     }
   };
 
@@ -288,13 +250,6 @@ export default function PropertyDetailScreen() {
             </View>
           </View>
 
-          {/* Description */}
-          {property.description && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('property.propertyDescription')}</Text>
-              <Text style={styles.description}>{property.description}</Text>
-            </View>
-          )}
 
           {/* Amenities */}
           {property.amenities && property.amenities.length > 0 && (
@@ -336,31 +291,33 @@ export default function PropertyDetailScreen() {
           
           {/* Actions */}
           {!shareBrokerId && (
-            <View style={[styles.section, styles.actionsRow]}>
+            <View style={[styles.section, styles.actionsCol]}>
               <Pressable 
-                style={[styles.saveButton, saved && styles.saveButtonActive, { flex: 1 }]} 
+                style={[styles.saveButton, saved && styles.saveButtonActive]} 
                 onPress={handleSave} 
                 disabled={saving || saved}
               >
                 <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
                 <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
-                  {saved ? t('property.saved') : saving ? t('property.saving') : t('property.saveProperty')}
+                  {saved ? t('property.saved', { defaultValue: 'Saved' }) : saving ? t('property.saving', { defaultValue: 'Saving...' }) : t('property.saveProperty', { defaultValue: 'Save Property' })}
                 </Text>
               </Pressable>
+
               <Pressable 
-                style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
-                onPress={openColModal} 
+                style={styles.collectionButton} 
+                onPress={() => setShowColModal(true)} 
               >
-                <Ionicons name="folder-open-outline" size={20} color="#1D4ED8" />
-                <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>{t('property.collect')}</Text>
+                <Ionicons name="albums-outline" size={20} color="#2563EB" />
+                <Text style={styles.collectionButtonText}>Add to Collection</Text>
               </Pressable>
+
               {userRole === 'broker' && (
                 <Pressable 
-                  style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
+                  style={styles.shareButton} 
                   onPress={() => setShowShareModal(true)} 
                 >
-                  <Ionicons name="share-social-outline" size={20} color="#1D4ED8" />
-                  <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>{t('common.share')}</Text>
+                  <Ionicons name="share-social-outline" size={20} color="#2563EB" />
+                  <Text style={styles.shareButtonText}>{t('share.shareWithClient', { defaultValue: 'Share with Client' })}</Text>
                 </Pressable>
               )}
             </View>
@@ -420,74 +377,12 @@ export default function PropertyDetailScreen() {
       </ScrollView>
 
       {/* Collection Modal */}
-      <Modal visible={showColModal} transparent animationType="slide" onRequestClose={() => setShowColModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('property.addToCollection')}</Text>
-              <Pressable onPress={() => setShowColModal(false)} style={{ padding: 4 }}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </Pressable>
-            </View>
-
-            {colLoading ? (
-              <ActivityIndicator size="large" color="#2563EB" style={{ marginVertical: 32 }} />
-            ) : (
-              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                {collections.length > 0 ? (
-                  collections.map(col => {
-                    const isFull = col.property_ids?.length >= 5;
-                    return (
-                      <View key={col.id} style={styles.colListItem}>
-                        <View>
-                          <Text style={styles.colListTitle}>{col.name}</Text>
-                          <Text style={styles.colListMeta}>{col.property_ids?.length || 0} / 5 properties</Text>
-                        </View>
-                        <Pressable 
-                          style={[styles.colAddBtn, isFull && styles.colAddBtnDisabled]} 
-                          disabled={isFull}
-                          onPress={() => handleAddToCollection(col.id)}
-                        >
-                          <Text style={[styles.colAddBtnText, isFull && styles.colAddBtnTextDisabled]}>
-                            {isFull ? 'Full' : 'Add'}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.emptyColText}>No collections yet.</Text>
-                )}
-
-                {isCreatingCol ? (
-                  <View style={styles.createColBox}>
-                    <Text style={styles.createColLabel}>Collection Name</Text>
-                    <TextInput 
-                      style={styles.createColInput}
-                      value={newColName}
-                      onChangeText={setNewColName}
-                      placeholder="e.g. Luxury Finds"
-                      autoFocus
-                    />
-                    <View style={styles.createColActions}>
-                      <Pressable style={styles.createColCancelBtn} onPress={() => setIsCreatingCol(false)}>
-                        <Text style={styles.createColCancelText}>Cancel</Text>
-                      </Pressable>
-                      <Pressable style={styles.createColSaveBtn} onPress={handleCreateCollection} disabled={!newColName.trim()}>
-                        <Text style={styles.createColSaveText}>Create</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <Pressable style={styles.newColBtn} onPress={() => setIsCreatingCol(true)}>
-                    <Text style={styles.newColBtnText}>+ Create New Collection</Text>
-                  </Pressable>
-                )}
-              </ScrollView>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <CollectionModal
+        visible={showColModal}
+        propertyIds={[id as string]}
+        onClose={() => setShowColModal(false)}
+        onSuccess={() => setShowColModal(false)}
+      />
 
       <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
@@ -762,7 +657,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#2563EB',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
+    width: '100%',
   },
   saveButtonActive: {
     backgroundColor: '#DCFCE7',
@@ -770,10 +666,10 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   saveButtonText: {
-    fontFamily: Fonts.sansSemiBold,
+    fontFamily: Fonts.sansBold,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   saveButtonTextActive: {
     color: '#15803D',
@@ -879,149 +775,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  actionsRow: {
+  actionsCol: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  collectionButton: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  modalScroll: {
-    maxHeight: 400,
-  },
-  colListItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  colListTitle: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  colListMeta: {
-    fontFamily: Fonts.sans,
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  colAddBtn: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  colAddBtnDisabled: {
-    backgroundColor: '#F3F4F6',
-  },
-  colAddBtnText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#1D4ED8',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  colAddBtnTextDisabled: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#9CA3AF',
-  },
-  emptyColText: {
-    fontFamily: Fonts.sans,
-    textAlign: 'center',
-    color: '#6B7280',
-    paddingVertical: 24,
-  },
-  newColBtn: {
-    marginTop: 16,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  newColBtnText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#4B5563',
-    fontWeight: 'bold',
-  },
-  createColBox: {
-    marginTop: 16,
-    backgroundColor: '#EFF6FF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  createColLabel: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  createColInput: {
-    fontFamily: Fonts.sans,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  createColActions: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-  },
-  createColCancelBtn: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+  },
+  collectionButtonText: {
+    fontFamily: Fonts.sansBold,
+    color: '#2563EB',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shareButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
   },
-  createColCancelText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#374151',
-    fontWeight: 'bold',
+  shareButtonText: {
+    fontFamily: Fonts.sansBold,
+    color: '#2563EB',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  createColSaveBtn: {
-    flex: 1,
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  createColSaveText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  }
 });

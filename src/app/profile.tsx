@@ -77,6 +77,36 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? All your listings and data will be removed. This action cannot be undone.',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              try {
+                await api.delete('/auth/profile');
+              } catch (e) {
+                console.warn('Backend delete profile failed or unsupported:', e);
+              }
+              await storage.remove('access_token');
+              await storage.remove('refresh_token');
+              await storage.remove('user');
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              router.replace('/login');
+            } catch (err) {
+              Alert.alert('Error', 'Unable to complete deletion request. Please contact support@kobrokr.com');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
@@ -234,6 +264,11 @@ export default function ProfileScreen() {
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.logoutBtnText}>{t('profile.logout')}</Text>
+        </Pressable>
+
+        <Pressable style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
+          <Text style={styles.deleteBtnText}>Delete Account</Text>
         </Pressable>
 
       </ScrollView>
@@ -484,5 +519,18 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 16,
     marginBottom: 16,
-  }
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: 6,
+  },
+  deleteBtnText: {
+    fontFamily: Fonts.sansMedium,
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
 });

@@ -20,7 +20,7 @@ export default function AddPropertyScreen() {
   const [form, setForm] = useState({
     title: '', project_name: '', listing_type: 'sale', type: 'apartment', custom_property_type: '',
     city: 'Mumbai', locality: '', price: '', area: '', unit_type: 'BHK', bhk: '', washrooms: '',
-    floor: '', description: '', amenities: [] as string[]
+    floor: '', amenities: [] as string[]
   });
   
   const [images, setImages] = useState<any[]>([]);
@@ -147,7 +147,6 @@ export default function AddPropertyScreen() {
         bhk: form.bhk ? parseInt(form.bhk, 10) : null,
         washrooms: form.washrooms ? parseInt(form.washrooms, 10) : null,
         floor: form.floor ? parseInt(form.floor, 10) : null,
-        description: form.description,
         unit_type: form.unit_type,
         amenities: form.amenities,
       };

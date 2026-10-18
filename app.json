@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "kobrokr-mobile",
+    "name": "Kobrokr",
     "slug": "kobrokr-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kobrokrmobile",
+    "scheme": "kobrokr",
     "userInterfaceStyle": "automatic",
     "ios": {
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -89,6 +89,13 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#2563EB"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Kobrokr to access your photos so you can upload property listings and profile images.",
+          "cameraPermission": "Allow Kobrokr to access your camera so you can take photos for property listings."
         }
       ]
     ],

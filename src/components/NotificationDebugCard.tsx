@@ -11,6 +11,9 @@ interface NotificationDebugCardProps {
 }
 
 export default function NotificationDebugCard({ style }: NotificationDebugCardProps) {
+  if (!__DEV__) {
+    return null;
+  }
   const { t } = useTranslation();
   const [quickSending, setQuickSending] = useState(false);
   const [quickSuccess, setQuickSuccess] = useState(false);

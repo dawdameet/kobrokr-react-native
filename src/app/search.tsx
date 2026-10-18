@@ -12,6 +12,7 @@ import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import ShareModal from '../components/ShareModal';
+import CollectionModal from '../components/CollectionModal';
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -152,6 +153,7 @@ export default function SearchScreen() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
@@ -374,7 +376,7 @@ export default function SearchScreen() {
           maxToRenderPerBatch={6}
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
-          contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 88 }]}
+          contentContainerStyle={[styles.listContent, selectedIds.length > 0 && { paddingBottom: 180 }]}
           onScroll={(e) => {
             scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
           }}
@@ -409,31 +411,37 @@ export default function SearchScreen() {
           }
         />
       )}
-      {/* Floating Bottom Dock for Selected Items */}
+      {/* Floating Action Card for Selected Items */}
       {selectedIds.length > 0 && (
-        <View style={styles.floatingDock}>
-          <View style={styles.dockInfo}>
-            <View style={styles.dockCountBadge}>
-              <Text style={styles.dockCountText}>{selectedIds.length}</Text>
-            </View>
-            <Text style={styles.dockLabel} numberOfLines={1}>Selected</Text>
+        <View style={styles.floatingActionCard}>
+          <View style={styles.dockHeaderRow}>
+            <Text style={styles.dockCountLabel}>
+              {selectedIds.length} {selectedIds.length === 1 ? 'selected' : 'selected'}
+            </Text>
+            <Pressable
+              style={styles.dockCloseBtn}
+              onPress={() => setSelectedIds([])}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={18} color="#64748B" />
+            </Pressable>
           </View>
 
-          <View style={styles.dockActions}>
+          <View style={styles.dockButtonsCol}>
             <Pressable
               style={styles.dockShareBtn}
               onPress={() => setShowShareModal(true)}
             >
-              <Ionicons name="share-social" size={15} color="#FFFFFF" />
-              <Text style={styles.dockShareBtnText} numberOfLines={1}>Share with Client</Text>
+              <Ionicons name="share-social" size={16} color="#FFFFFF" />
+              <Text style={styles.dockShareBtnText}>Share with Client</Text>
             </Pressable>
 
             <Pressable
-              style={styles.dockClearBtn}
-              onPress={() => setSelectedIds([])}
-              hitSlop={8}
+              style={styles.dockCollectionBtn}
+              onPress={() => setShowCollectionModal(true)}
             >
-              <Ionicons name="close" size={16} color="#94A3B8" />
+              <Ionicons name="albums-outline" size={16} color="#2563EB" />
+              <Text style={styles.dockCollectionBtnText}>Add to Collection</Text>
             </Pressable>
           </View>
         </View>
@@ -446,6 +454,17 @@ export default function SearchScreen() {
         userId={currentUser?.id}
         onClose={() => {
           setShowShareModal(false);
+          setSelectedIds([]);
+        }}
+      />
+
+      {/* Add to Collection Modal */}
+      <CollectionModal
+        visible={showCollectionModal}
+        propertyIds={selectedIds}
+        onClose={() => setShowCollectionModal(false)}
+        onSuccess={() => {
+          setShowCollectionModal(false);
           setSelectedIds([]);
         }}
       />
@@ -705,83 +724,77 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '700',
   },
-  floatingDock: {
+  floatingActionCard: {
     position: 'absolute',
-    bottom: 16,
-    left: 14,
-    right: 14,
-    backgroundColor: '#0F172A',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    bottom: 14,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 10,
+    zIndex: 99,
+  },
+  dockHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 99,
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
-  dockInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 0,
+  dockCountLabel: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
   },
-  dockCountBadge: {
-    backgroundColor: '#2563EB',
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 5,
+  dockCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dockCountText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  dockLabel: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 13,
-    color: '#E2E8F0',
-  },
-  dockActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  dockButtonsCol: {
     gap: 8,
-    flexShrink: 1,
-    justifyContent: 'flex-end',
   },
   dockShareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    flexShrink: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   dockShareBtnText: {
     fontFamily: Fonts.sansBold,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  dockClearBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#1E293B',
+  dockCollectionBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  dockCollectionBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2563EB',
   },
 });

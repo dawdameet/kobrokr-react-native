@@ -194,12 +194,6 @@ export default function ClientShareScreen() {
             )}
           </View>
 
-          {/* Description snippet */}
-          {p.description ? (
-            <Text style={styles.cardDesc} numberOfLines={2}>
-              {p.description}
-            </Text>
-          ) : null}
 
           {/* WhatsApp CTA */}
           <Pressable
