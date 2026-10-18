@@ -14,6 +14,8 @@ export default function SubscriptionWidget() {
   const [error, setError] = useState('');
 
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [extraUsers, setExtraUsers] = useState(0);
+
   const [referralInput, setReferralInput] = useState('');
   const [appliedCode, setAppliedCode] = useState('');
   const [referralError, setReferralError] = useState('');
@@ -97,6 +99,10 @@ export default function SubscriptionWidget() {
       from: 'mobile',
     });
 
+    if (planKey === 'enterprise' && extraUsers > 0) {
+      params.set('users', extraUsers.toString());
+    }
+
     if (token) params.set('token', token);
     if (refreshToken) params.set('refresh_token', refreshToken);
     if (appliedCode) params.set('ref', appliedCode);
@@ -120,23 +126,35 @@ export default function SubscriptionWidget() {
   }
   if (progressPct > 100) progressPct = 100;
 
-  // Pricing values
-  const proMonthly = pricing?.plans?.pro?.monthly?.launch ?? 299;
-  const proMonthlyOriginal = pricing?.plans?.pro?.monthly?.original ?? 499;
-  const proAnnual = pricing?.plans?.pro?.annual?.launch ?? 2999;
-  const proAnnualOriginal = pricing?.plans?.pro?.annual?.original ?? 4999;
+  // Pricing & Display mappings
+  const isAnnual = billingCycle === 'annual';
+  const periodLabel = isAnnual ? 'yr' : 'mo';
 
-  const agencyMonthly = pricing?.plans?.agency?.monthly?.launch ?? 1099;
-  const agencyMonthlyOriginal = pricing?.plans?.agency?.monthly?.original ?? 1999;
-  const agencyAnnual = pricing?.plans?.agency?.annual?.launch ?? 10999;
-  const agencyAnnualOriginal = pricing?.plans?.agency?.annual?.original ?? 19999;
+  const indDisplay = pricing?.display?.individual?.[billingCycle];
+  const entDisplay = pricing?.display?.enterprise?.[billingCycle];
 
-  // Dynamic limits
-  const proListings = pricing?.limits?.individual_listing_limit ?? 100;
-  const proImages = pricing?.limits?.individual_image_limit ?? 10;
-  const agencyListings = pricing?.limits?.enterprise_listing_limit === -1 || !pricing?.limits?.enterprise_listing_limit ? 'Unlimited' : pricing?.limits?.enterprise_listing_limit;
-  const agencyImages = pricing?.limits?.enterprise_image_limit ?? 25;
-  const agencyTeamMembers = pricing?.limits?.included_users ?? 5;
+  // Pro Pricing (Matches screenshot: ₹499/mo [₹799 strike] or ₹5,499/yr [₹8,999 strike])
+  const proPrice = indDisplay?.display_price ?? (isAnnual ? (pricing?.plans?.pro?.annual?.launch ?? 5499) : (pricing?.plans?.pro?.monthly?.launch ?? 499));
+  const proOriginal = indDisplay?.strike_price ?? (isAnnual ? (pricing?.plans?.pro?.annual?.original ?? 8999) : (pricing?.plans?.pro?.monthly?.original ?? 799));
+  const proBadge = indDisplay?.badge ?? '⭐ FOUNDING OFFER';
+  const proSavings = indDisplay?.savings ?? (isAnnual ? 'SAVE 39%' : 'SAVE 38%');
+
+  // Agency Pricing (Matches screenshot: ₹1,999/mo [₹3,199 strike] or ₹21,999/yr [₹34,999 strike])
+  const agencyBasePrice = entDisplay?.display_price ?? (isAnnual ? (pricing?.plans?.agency?.annual?.launch ?? 21999) : (pricing?.plans?.agency?.monthly?.launch ?? 1999));
+  const agencyOriginal = entDisplay?.strike_price ?? (isAnnual ? (pricing?.plans?.agency?.annual?.original ?? 34999) : (pricing?.plans?.agency?.monthly?.original ?? 3199));
+  const agencyBadge = entDisplay?.badge ?? '🚀 LAUNCH OFFER';
+  const agencySavings = entDisplay?.savings ?? (isAnnual ? 'SAVE 37%' : 'SAVE 38%');
+
+  // Dynamic limits from API
+  const freeListingLimit = pricing?.limits?.free_listing_limit ?? 3;
+  const proListings = pricing?.limits?.individual_listing_limit ?? 30;
+  const agencyIncludedUsers = pricing?.limits?.included_users ?? 4;
+  const agencyListingsPerUser = pricing?.limits?.enterprise_listing_limit ?? 40;
+  const agencyImagesPerProperty = pricing?.limits?.enterprise_image_limit ?? 8;
+  const extraUserFee = isAnnual ? (pricing?.limits?.extra_user_annual ?? 7999) : (pricing?.limits?.extra_user_monthly ?? 699);
+
+  const totalAgencyUsers = agencyIncludedUsers + extraUsers;
+  const agencyTotalPrice = agencyBasePrice + extraUsers * extraUserFee;
 
   const getDiscounted = (price: number) => {
     if (referralDiscountPct > 0) {
@@ -260,222 +278,286 @@ export default function SubscriptionWidget() {
         )}
       </View>
 
-      {/* Available Plans Section */}
+      {/* Available Plans Section Header & Pill Switcher */}
       <View style={styles.plansSectionHeader}>
         <Text style={styles.plansSectionTitle}>Choose a Plan</Text>
-        <Text style={styles.plansSectionSubtitle}>Select a plan below to upgrade and proceed on web</Text>
+        <Text style={styles.plansSectionSubtitle}>Select a plan below to proceed to checkout</Text>
 
-        {/* Monthly / Annual Cycle Toggle */}
-        <View style={styles.cycleToggleContainer}>
-          <Pressable
-            style={[styles.cycleBtn, billingCycle === 'monthly' && styles.cycleBtnActive]}
-            onPress={() => setBillingCycle('monthly')}
-          >
-            <Text style={[styles.cycleBtnText, billingCycle === 'monthly' && styles.cycleBtnTextActive]}>
-              Monthly
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.cycleBtn, billingCycle === 'annual' && styles.cycleBtnActive]}
-            onPress={() => setBillingCycle('annual')}
-          >
-            <Text style={[styles.cycleBtnText, billingCycle === 'annual' && styles.cycleBtnTextActive]}>
-              Annual
-            </Text>
-            <View style={styles.savingsPill}>
-              <Text style={styles.savingsPillText}>Save 20%</Text>
-            </View>
-          </Pressable>
+        {/* Centered Pill Toggle (Matches screenshot design) */}
+        <View style={styles.pillToggleWrapper}>
+          <View style={styles.pillToggleContainer}>
+            <Pressable
+              style={[styles.pillBtn, billingCycle === 'monthly' && styles.pillBtnActive]}
+              onPress={() => setBillingCycle('monthly')}
+            >
+              <Text style={[styles.pillBtnText, billingCycle === 'monthly' && styles.pillBtnTextActive]}>
+                Monthly
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.pillBtn, billingCycle === 'annual' && styles.pillBtnActive]}
+              onPress={() => setBillingCycle('annual')}
+            >
+              <Text style={[styles.pillBtnText, billingCycle === 'annual' && styles.pillBtnTextActive]}>
+                Annual
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
-      {/* Plan Card 1: Pro Broker */}
+      {/* PLAN 1: FREE */}
+      <View style={[styles.planCardLight, isFree && styles.planCardActiveOutline]}>
+        <Text style={styles.planTitleLight}>Free</Text>
+        <Text style={styles.planSubtitleLight}>Perfect for getting started.</Text>
+
+        <View style={styles.priceContainerLight}>
+          <Text style={styles.priceSymbolLight}>₹</Text>
+          <Text style={styles.priceAmountLight}>0</Text>
+          <Text style={styles.pricePeriodLight}>/mo</Text>
+        </View>
+
+        <View style={styles.featuresListLight}>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Up to {freeListingLimit} active listings</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Basic search visibility</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Broker profile page</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Save properties</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="close" size={17} color="#94A3B8" style={styles.featureIcon} />
+            <Text style={[styles.featureTextLight, styles.featureTextDisabled]}>Unlimited listings</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="close" size={17} color="#94A3B8" style={styles.featureIcon} />
+            <Text style={[styles.featureTextLight, styles.featureTextDisabled]}>Pro badge on profile</Text>
+          </View>
+        </View>
+
+        <View style={[styles.planBtnSecondary, isFree && styles.planBtnDisabled]}>
+          <Text style={styles.planBtnSecondaryText}>
+            {isFree ? 'Current Plan' : 'Get started'}
+          </Text>
+        </View>
+      </View>
+
+      {/* PLAN 2: PRO (DARK NAVY CARD - MATCHES SCREENSHOT) */}
       <Pressable
         style={({ pressed }) => [
-          styles.planChoiceCard,
-          styles.planChoiceCardPro,
-          isIndividual && styles.planChoiceCardCurrent,
-          pressed && !isIndividual && styles.planChoiceCardPressed,
+          styles.proCardDark,
+          isIndividual && styles.proCardCurrentOutline,
+          pressed && !isIndividual && styles.planCardPressed,
         ]}
         onPress={() => !isIndividual && handleUpgrade('individual')}
         disabled={isIndividual}
       >
-        <View style={styles.planCardHeaderRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={styles.planIconWrapperPro}>
-              <Ionicons name="star" size={18} color="#2563EB" />
-            </View>
-            <View>
-              <Text style={styles.planChoiceTitle}>Pro Broker</Text>
-              <Text style={styles.planChoiceSubtitle}>For independent real estate brokers</Text>
-            </View>
-          </View>
-
-          {isIndividual ? (
-            <View style={styles.currentPlanBadge}>
-              <Text style={styles.currentPlanBadgeText}>Active Plan</Text>
-            </View>
-          ) : (
-            <View style={styles.popularBadge}>
-              <Text style={styles.popularBadgeText}>POPULAR</Text>
-            </View>
-          )}
+        {/* Most Popular Floating Tag */}
+        <View style={styles.mostPopularTag}>
+          <Text style={styles.mostPopularTagText}>MOST POPULAR</Text>
         </View>
 
-        {/* Price Row */}
-        <View style={styles.pricingRow}>
-          <Text style={styles.priceCurrency}>₹</Text>
-          <Text style={styles.priceAmount}>
-            {billingCycle === 'monthly'
-              ? getDiscounted(proMonthly).toLocaleString('en-IN')
-              : getDiscounted(proAnnual).toLocaleString('en-IN')}
-          </Text>
-          <Text style={styles.priceCycle}>
-            {billingCycle === 'monthly' ? '/ month' : '/ year'}
-          </Text>
+        <Text style={styles.proTitleDark}>Pro</Text>
+        <Text style={styles.proSubtitleDark}>For serious brokers.</Text>
 
-          <Text style={styles.priceOriginal}>
-            ₹{billingCycle === 'monthly' ? proMonthlyOriginal : proAnnualOriginal}
+        <View style={styles.priceRowDark}>
+          {proOriginal ? (
+            <Text style={styles.strikePriceDark}>₹{proOriginal.toLocaleString('en-IN')}</Text>
+          ) : null}
+          <Text style={styles.priceCurrencyDark}>₹</Text>
+          <Text style={styles.priceAmountDark}>
+            {getDiscounted(proPrice).toLocaleString('en-IN')}
           </Text>
+          <Text style={styles.pricePeriodDark}>/{periodLabel}</Text>
+        </View>
+        <Text style={styles.gstTextDark}>(+ GST)</Text>
+
+        {/* Offer Badges */}
+        <View style={styles.badgesRowDark}>
+          <View style={styles.foundingOfferBadge}>
+            <Text style={styles.foundingOfferBadgeText}>{proBadge.toUpperCase()}</Text>
+          </View>
+          {proSavings ? (
+            <View style={styles.savingsBadgeDark}>
+              <Text style={styles.savingsBadgeDarkText}>{proSavings.toUpperCase()}</Text>
+            </View>
+          ) : null}
         </View>
 
         {appliedCode && referralDiscountPct > 0 ? (
-          <View style={styles.codeAppliedNote}>
-            <Ionicons name="checkmark-circle" size={14} color="#15803D" />
-            <Text style={styles.codeAppliedNoteText}>
+          <View style={styles.referralDarkNote}>
+            <Ionicons name="checkmark-circle" size={13} color="#34D399" />
+            <Text style={styles.referralDarkNoteText}>
               {referralDiscountPct}% referral discount applied
             </Text>
           </View>
         ) : null}
 
-        {/* Features Checklist */}
-        <View style={styles.planFeaturesList}>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>{proListings} Active Listings</Text>
+        {/* Pro Features */}
+        <View style={styles.featuresListDark}>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#34D399" style={styles.featureIcon} />
+            <Text style={styles.featureTextDark}>Up to {proListings} active listings</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>{proImages} HD Photos per listing</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#34D399" style={styles.featureIcon} />
+            <Text style={styles.featureTextDark}>Pro badge on profile</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>Priority placement in search</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#34D399" style={styles.featureIcon} />
+            <Text style={styles.featureTextDark}>Save properties</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>Verified Pro Badge on Profile</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#34D399" style={styles.featureIcon} />
+            <Text style={styles.featureTextDark}>Priority visibility</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>Unlimited Client Collections</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#34D399" style={styles.featureIcon} />
+            <Text style={styles.featureTextDark}>All future Pro features</Text>
           </View>
         </View>
 
-        {/* Action Button */}
-        <View
-          style={[styles.selectPlanBtn, isIndividual && styles.selectPlanBtnDisabled]}
-        >
-          <Text style={styles.selectPlanBtnText}>
-            {isIndividual ? 'Your Current Plan' : 'Choose Pro Plan'}
+        {/* Subscribe Button */}
+        <View style={[styles.proCtaBtn, isIndividual && styles.proCtaBtnDisabled]}>
+          <Text style={styles.proCtaBtnText}>
+            {isIndividual ? 'Your Current Plan' : 'Subscribe to Pro'}
           </Text>
           {!isIndividual && (
-            <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+            <Ionicons name="open-outline" size={16} color="#0B132B" style={{ marginLeft: 6 }} />
           )}
         </View>
       </Pressable>
 
-      {/* Plan Card 2: Agency / Enterprise */}
+      {/* PLAN 3: AGENCY (MATCHES SCREENSHOT) */}
       <Pressable
         style={({ pressed }) => [
-          styles.planChoiceCard,
-          styles.planChoiceCardAgency,
-          isEnterprise && styles.planChoiceCardCurrent,
-          pressed && !isEnterprise && styles.planChoiceCardPressed,
+          styles.planCardLight,
+          isEnterprise && styles.planCardActiveOutline,
+          pressed && !isEnterprise && styles.planCardPressed,
         ]}
         onPress={() => !isEnterprise && handleUpgrade('enterprise')}
         disabled={isEnterprise}
       >
-        <View style={styles.planCardHeaderRow}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={styles.planIconWrapperAgency}>
-              <Ionicons name="business" size={18} color="#7E22CE" />
-            </View>
-            <View>
-              <Text style={styles.planChoiceTitle}>Agency / Enterprise</Text>
-              <Text style={styles.planChoiceSubtitle}>For agencies and growing teams</Text>
-            </View>
-          </View>
+        <Text style={styles.planTitleLight}>Agency</Text>
+        <Text style={styles.planSubtitleLight}>For teams of brokers.</Text>
 
-          {isEnterprise ? (
-            <View style={styles.currentPlanBadge}>
-              <Text style={styles.currentPlanBadgeText}>Active Plan</Text>
+        <View style={styles.priceRowLight}>
+          {agencyOriginal ? (
+            <Text style={styles.strikePriceLight}>₹{agencyOriginal.toLocaleString('en-IN')}</Text>
+          ) : null}
+          <Text style={styles.priceSymbolLight}>₹</Text>
+          <Text style={styles.priceAmountLight}>
+            {getDiscounted(agencyBasePrice).toLocaleString('en-IN')}
+          </Text>
+          <Text style={styles.pricePeriodLight}>/{periodLabel}</Text>
+        </View>
+        <Text style={styles.gstTextLight}>(+ GST)</Text>
+
+        {/* Offer Badges */}
+        <View style={styles.badgesRowLight}>
+          <View style={styles.launchOfferBadge}>
+            <Text style={styles.launchOfferBadgeText}>{agencyBadge.toUpperCase()}</Text>
+          </View>
+          {agencySavings ? (
+            <View style={styles.savingsBadgeLight}>
+              <Text style={styles.savingsBadgeLightText}>{agencySavings.toUpperCase()}</Text>
             </View>
-          ) : (
-            <View style={styles.teamsBadge}>
-              <Text style={styles.teamsBadgeText}>FOR TEAMS</Text>
-            </View>
-          )}
+          ) : null}
         </View>
 
-        {/* Price Row */}
-        <View style={styles.pricingRow}>
-          <Text style={styles.priceCurrency}>₹</Text>
-          <Text style={styles.priceAmount}>
-            {billingCycle === 'monthly'
-              ? getDiscounted(agencyMonthly).toLocaleString('en-IN')
-              : getDiscounted(agencyAnnual).toLocaleString('en-IN')}
-          </Text>
-          <Text style={styles.priceCycle}>
-            {billingCycle === 'monthly' ? '/ month' : '/ year'}
-          </Text>
+        <Text style={styles.agencyUserNote}>
+          Includes {agencyIncludedUsers} users • + ₹{extraUserFee.toLocaleString('en-IN')}/{periodLabel} per additional user
+        </Text>
 
-          <Text style={styles.priceOriginal}>
-            ₹{billingCycle === 'monthly' ? agencyMonthlyOriginal : agencyAnnualOriginal}
-          </Text>
+        {/* User Calculator controls */}
+        <View style={styles.userCalculatorBox}>
+          <View style={styles.userCalcHeader}>
+            <Text style={styles.userCalcLabel}>Additional users</Text>
+            <View style={styles.counterRow}>
+              <Pressable
+                onPress={() => setExtraUsers(prev => Math.max(0, prev - 1))}
+                style={styles.counterBtn}
+              >
+                <Text style={styles.counterBtnText}>−</Text>
+              </Pressable>
+              <Text style={styles.counterValueText}>{extraUsers}</Text>
+              <Pressable
+                onPress={() => setExtraUsers(prev => Math.min(20, prev + 1))}
+                style={styles.counterBtn}
+              >
+                <Text style={styles.counterBtnText}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+          <Text style={styles.totalUsersSubtext}>{totalAgencyUsers} users total</Text>
+        </View>
+
+        {/* Total Price Row */}
+        <View style={styles.agencyTotalRow}>
+          <Text style={styles.agencyTotalLabel}>Total</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.agencyTotalAmount}>
+              ₹{getDiscounted(agencyTotalPrice).toLocaleString('en-IN')}
+              <Text style={styles.agencyTotalPeriod}>/{periodLabel}</Text>
+            </Text>
+            <Text style={styles.gstTextLight}>(+ GST)</Text>
+          </View>
         </View>
 
         {appliedCode && referralDiscountPct > 0 ? (
-          <View style={styles.codeAppliedNote}>
-            <Ionicons name="checkmark-circle" size={14} color="#15803D" />
-            <Text style={styles.codeAppliedNoteText}>
+          <View style={[styles.referralDarkNote, { marginTop: 6, marginBottom: 12 }]}>
+            <Ionicons name="checkmark-circle" size={13} color="#15803D" />
+            <Text style={[styles.referralDarkNoteText, { color: '#15803D' }]}>
               {referralDiscountPct}% referral discount applied
             </Text>
           </View>
         ) : null}
 
-        {/* Features Checklist */}
-        <View style={styles.planFeaturesList}>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>
-              {agencyListings === -1 || agencyListings === 'Unlimited' ? 'Unlimited Active Listings' : `${agencyListings} Active Listings`}
-            </Text>
+        {/* Agency Features Checklist */}
+        <View style={styles.featuresListLight}>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Up to {totalAgencyUsers} Team Members</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>{agencyImages} HD Photos per listing</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>{agencyListingsPerUser} Listings per User</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>{agencyTeamMembers} Team Member accounts included</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>{agencyImagesPerProperty} Images per Property</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>Agency branding & team management</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Multiple team member logins</Text>
           </View>
-          <View style={styles.planFeatureItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.planFeatureItemText}>Top search placement & direct WhatsApp leads</Text>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Centralized listings across team</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Agency profile page</Text>
+          </View>
+          <View style={styles.featureItemRow}>
+            <Ionicons name="checkmark" size={17} color="#2563EB" style={styles.featureIcon} />
+            <Text style={styles.featureTextLight}>Priority support</Text>
           </View>
         </View>
 
-        {/* Action Button */}
-        <View
-          style={[styles.selectPlanBtn, styles.selectPlanBtnAgency, isEnterprise && styles.selectPlanBtnDisabled]}
-        >
-          <Text style={styles.selectPlanBtnText}>
-            {isEnterprise ? 'Your Current Plan' : 'Choose Agency Plan'}
+        {/* Agency Action Button */}
+        <View style={[styles.agencyCtaBtn, isEnterprise && styles.agencyCtaBtnDisabled]}>
+          <Text style={styles.agencyCtaBtnText}>
+            {isEnterprise ? 'Your Current Plan' : 'Subscribe to Agency'}
           </Text>
           {!isEnterprise && (
             <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
@@ -508,30 +590,27 @@ const styles = StyleSheet.create({
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 16,
   },
   planLabel: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 12,
+    fontFamily: Fonts.sans,
     color: '#9CA3AF',
+    fontSize: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
   },
   planName: {
     fontFamily: Fonts.display,
-    fontSize: 28,
-    fontWeight: '700',
     color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
   },
   planBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 20,
   },
   badgeFree: {
     backgroundColor: '#DCFCE7',
@@ -540,9 +619,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
   },
   badgeText: {
-    fontFamily: Fonts.sansBold,
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   badgeTextFree: {
     color: '#15803D',
@@ -551,9 +631,7 @@ const styles = StyleSheet.create({
     color: '#B45309',
   },
   usageSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    paddingTop: 16,
+    marginTop: 8,
   },
   usageHeader: {
     flexDirection: 'row',
@@ -561,25 +639,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   usageLabel: {
-    fontFamily: Fonts.sansMedium,
+    fontFamily: Fonts.sans,
+    color: '#9CA3AF',
     fontSize: 14,
-    color: '#D1D5DB',
   },
   usageCount: {
-    fontFamily: Fonts.monoMedium,
-    fontSize: 14,
-    fontWeight: '600',
+    fontFamily: Fonts.sansMedium,
     color: '#FFFFFF',
+    fontSize: 14,
   },
   progressBarBg: {
-    height: 8,
+    height: 6,
     backgroundColor: '#374151',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   limitWarningText: {
     fontFamily: Fonts.sans,
@@ -601,24 +678,23 @@ const styles = StyleSheet.create({
   },
   referralAppliedRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'space-between',
   },
   referralAppliedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
   },
   referralAppliedText: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 14,
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
     color: '#15803D',
   },
   referralCodeHighlight: {
-    fontFamily: Fonts.monoSemiBold,
+    fontFamily: Fonts.sansBold,
     fontWeight: '700',
-    letterSpacing: 0.5,
   },
   referralRemoveBtn: {
     paddingHorizontal: 8,
@@ -626,13 +702,14 @@ const styles = StyleSheet.create({
   },
   referralRemoveText: {
     fontFamily: Fonts.sansMedium,
-    fontSize: 13,
+    fontSize: 12,
     color: '#EF4444',
   },
   referralAppliedSub: {
     fontFamily: Fonts.sans,
     fontSize: 12,
     color: '#166534',
+    marginTop: 4,
   },
   referralTitle: {
     fontFamily: Fonts.sansSemiBold,
@@ -646,21 +723,21 @@ const styles = StyleSheet.create({
   },
   referralTextInput: {
     flex: 1,
-    height: 44,
-    backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
-    fontFamily: Fonts.mono,
+    paddingVertical: 8,
     fontSize: 14,
+    backgroundColor: '#F9FAFB',
     color: '#111827',
+    fontFamily: Fonts.mono || 'monospace',
   },
   referralApplyBtn: {
     backgroundColor: '#2563EB',
-    paddingHorizontal: 18,
-    height: 44,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -671,8 +748,8 @@ const styles = StyleSheet.create({
   },
   referralErrorText: {
     fontFamily: Fonts.sans,
-    fontSize: 12,
     color: '#EF4444',
+    fontSize: 12,
     marginTop: 4,
   },
   referralHelpText: {
@@ -682,246 +759,467 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   plansSectionHeader: {
-    marginBottom: 16,
+    marginBottom: 20,
+    alignItems: 'center',
   },
   plansSectionTitle: {
     fontFamily: Fonts.displaySemiBold,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#0F172A',
     marginBottom: 2,
+    textAlign: 'center',
   },
   plansSectionSubtitle: {
     fontFamily: Fonts.sans,
     fontSize: 13,
     color: '#64748B',
-    marginBottom: 12,
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  cycleToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    padding: 3,
-    gap: 4,
-  },
-  cycleBtn: {
-    flex: 1,
-    flexDirection: 'row',
+  pillToggleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 9,
-    gap: 6,
   },
-  cycleBtnActive: {
+  pillToggleContainer: {
+    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 30,
+    padding: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  cycleBtnText: {
+  pillBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    borderRadius: 24,
+  },
+  pillBtnActive: {
+    backgroundColor: '#2563EB',
+  },
+  pillBtnText: {
     fontFamily: Fonts.sansMedium,
     fontSize: 13,
     color: '#64748B',
   },
-  cycleBtnTextActive: {
+  pillBtnTextActive: {
     fontFamily: Fonts.sansBold,
-    color: '#0F172A',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
-  savingsPill: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
+  planCardPressed: {
+    opacity: 0.94,
+    transform: [{ scale: 0.99 }],
   },
-  savingsPillText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 10,
-    color: '#15803D',
-    fontWeight: '700',
-  },
-  planChoiceCard: {
+
+  /* Light Card (Free & Agency) */
+  planCardLight: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    borderWidth: 1.5,
-    padding: 18,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 22,
+    marginBottom: 20,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  planChoiceCardPro: {
-    borderColor: '#3B82F6',
+  planCardActiveOutline: {
+    borderColor: '#93C5FD',
   },
-  planChoiceCardAgency: {
-    borderColor: '#A855F7',
-  },
-  planChoiceCardCurrent: {
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-  },
-  planChoiceCardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
-  },
-  planCardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  planIconWrapperPro: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planIconWrapperAgency: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FAF5FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  planChoiceTitle: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 17,
+  planTitleLight: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 22,
     fontWeight: '700',
     color: '#0F172A',
   },
-  planChoiceSubtitle: {
+  planSubtitleLight: {
     fontFamily: Fonts.sans,
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748B',
-    marginTop: 1,
+    marginTop: 2,
+    marginBottom: 16,
   },
-  popularBadge: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  popularBadgeText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 10,
-    color: '#2563EB',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  teamsBadge: {
-    backgroundColor: '#FAF5FF',
-    borderWidth: 1,
-    borderColor: '#E9D5FF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  teamsBadgeText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 10,
-    color: '#7E22CE',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  currentPlanBadge: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  currentPlanBadgeText: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 11,
-    color: '#64748B',
-  },
-  pricingRow: {
+  priceContainerLight: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  priceCurrency: {
+  priceRowLight: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  strikePriceLight: {
+    fontFamily: Fonts.sans,
+    fontSize: 16,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+    marginRight: 8,
+  },
+  priceSymbolLight: {
     fontFamily: Fonts.sansBold,
-    fontSize: 18,
+    fontSize: 20,
     color: '#0F172A',
     fontWeight: '700',
     marginRight: 2,
   },
-  priceAmount: {
+  priceAmountLight: {
     fontFamily: Fonts.display,
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '800',
     color: '#0F172A',
     letterSpacing: -0.5,
   },
-  priceCycle: {
+  pricePeriodLight: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 14,
+    color: '#64748B',
+    marginLeft: 4,
+  },
+  gstTextLight: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#94A3B8',
+    marginBottom: 12,
+  },
+  badgesRowLight: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  launchOfferBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  launchOfferBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 11,
+    color: '#15803D',
+    fontWeight: '700',
+  },
+  savingsBadgeLight: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  savingsBadgeLightText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 11,
+    color: '#334155',
+    fontWeight: '700',
+  },
+  agencyUserNote: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 12,
+    lineHeight: 17,
+  },
+  userCalculatorBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  userCalcHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  userCalcLabel: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    color: '#334155',
+  },
+  counterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  counterBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#334155',
+    lineHeight: 18,
+  },
+  counterValueText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '700',
+    minWidth: 18,
+    textAlign: 'center',
+  },
+  totalUsersSubtext: {
+    fontFamily: Fonts.sans,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  agencyTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginBottom: 12,
+  },
+  agencyTotalLabel: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  agencyTotalAmount: {
+    fontFamily: Fonts.display,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  agencyTotalPeriod: {
     fontFamily: Fonts.sansMedium,
     fontSize: 13,
     color: '#64748B',
-    marginLeft: 4,
-    marginRight: 8,
   },
-  priceOriginal: {
-    fontFamily: Fonts.sans,
-    fontSize: 14,
-    color: '#94A3B8',
-    textDecorationLine: 'line-through',
-  },
-  codeAppliedNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 10,
-  },
-  codeAppliedNoteText: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 12,
-    color: '#15803D',
-  },
-  planFeaturesList: {
-    gap: 8,
-    paddingVertical: 12,
+  featuresListLight: {
+    gap: 10,
+    paddingVertical: 14,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
     marginBottom: 16,
   },
-  planFeatureItem: {
+  featureItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
-  planFeatureItemText: {
+  featureIcon: {
+    width: 18,
+  },
+  featureTextLight: {
     fontFamily: Fonts.sansMedium,
     fontSize: 13,
     color: '#334155',
   },
-  selectPlanBtn: {
-    flexDirection: 'row',
+  featureTextDisabled: {
+    color: '#94A3B8',
+  },
+  planBtnSecondary: {
+    backgroundColor: '#F1F5F9',
+    paddingVertical: 13,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  planBtnDisabled: {
+    opacity: 0.6,
+  },
+  planBtnSecondaryText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#334155',
+    fontWeight: '700',
+  },
+  agencyCtaBtn: {
+    flexDirection: 'row',
     backgroundColor: '#2563EB',
     paddingVertical: 13,
     borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  selectPlanBtnAgency: {
-    backgroundColor: '#7E22CE',
+  agencyCtaBtnDisabled: {
+    backgroundColor: '#94A3B8',
   },
-  selectPlanBtnDisabled: {
-    backgroundColor: '#E2E8F0',
-  },
-  selectPlanBtnText: {
+  agencyCtaBtnText: {
     fontFamily: Fonts.sansBold,
     fontSize: 14,
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  /* Pro Dark Card (Matches screenshot dark navy style) */
+  proCardDark: {
+    backgroundColor: '#0F172A',
+    borderRadius: 22,
+    padding: 24,
+    paddingTop: 28,
+    marginBottom: 20,
+    position: 'relative',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+  },
+  proCardCurrentOutline: {
+    borderColor: '#34D399',
+  },
+  mostPopularTag: {
+    position: 'absolute',
+    top: -12,
+    left: 20,
+    backgroundColor: '#34D399',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  mostPopularTagText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#064E3B',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  proTitleDark: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  proSubtitleDark: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  priceRowDark: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  strikePriceDark: {
+    fontFamily: Fonts.sans,
+    fontSize: 16,
+    color: '#64748B',
+    textDecorationLine: 'line-through',
+    marginRight: 8,
+  },
+  priceCurrencyDark: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    marginRight: 2,
+  },
+  priceAmountDark: {
+    fontFamily: Fonts.display,
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  pricePeriodDark: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 14,
+    color: '#94A3B8',
+    marginLeft: 4,
+  },
+  gstTextDark: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  badgesRowDark: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 14,
+    flexWrap: 'wrap',
+  },
+  foundingOfferBadge: {
+    backgroundColor: '#A7F3D0',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  foundingOfferBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#064E3B',
+    fontWeight: '800',
+  },
+  savingsBadgeDark: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  savingsBadgeDarkText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  referralDarkNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 12,
+  },
+  referralDarkNoteText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#34D399',
+  },
+  featuresListDark: {
+    gap: 10,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#1E293B',
+    marginBottom: 16,
+  },
+  featureTextDark: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  proCtaBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proCtaBtnDisabled: {
+    backgroundColor: '#475569',
+  },
+  proCtaBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#0B132B',
     fontWeight: '700',
   },
 });
