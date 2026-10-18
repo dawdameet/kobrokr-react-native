@@ -276,13 +276,5 @@
     "failedRemoveProperty": "Failed to remove property",
     "failedDeleteCollection": "Failed to delete collection",
     "failedRemoveFromCollection": "Failed to remove from collection"
-  },
-  "debugNotifications": {
-    "badge": "DEVELOPER LAB",
-    "cardTitle": "Notification Debugger",
-    "cardSubtitle": "Create, schedule & dispatch custom push and local notifications.",
-    "quickSend": "Quick Alert",
-    "openStudio": "Open Debugger",
-    "sent": "Sent!"
   }
 }

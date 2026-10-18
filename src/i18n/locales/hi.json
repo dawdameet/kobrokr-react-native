@@ -276,13 +276,5 @@
     "failedRemoveProperty": "प्रॉपर्टी हटाने में विफल",
     "failedDeleteCollection": "कलेक्शन हटाने में विफल",
     "failedRemoveFromCollection": "कलेक्शन से हटाने में विफल"
-  },
-  "debugNotifications": {
-    "badge": "डेवलपर लैब",
-    "cardTitle": "नोटिफिकेशन डीबगर",
-    "cardSubtitle": "कस्टम पुश और लोकल नोटिफिकेशन बनाएं, शेड्यूल करें और भेजें।",
-    "quickSend": "त्वरित अलर्ट",
-    "openStudio": "डीबगर खोलें",
-    "sent": "भेजा गया!"
   }
 }
