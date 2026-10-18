@@ -13,6 +13,7 @@ export default function SubscriptionWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [referralInput, setReferralInput] = useState('');
   const [appliedCode, setAppliedCode] = useState('');
   const [referralError, setReferralError] = useState('');
@@ -31,6 +32,7 @@ export default function SubscriptionWidget() {
         const clean = saved.trim().toUpperCase();
         setAppliedCode(clean);
         setReferralInput(clean);
+        setReferralDiscountPct(10);
       }
     } catch (e) {
       console.error('Error loading referral code', e);
@@ -84,18 +86,64 @@ export default function SubscriptionWidget() {
     }
   };
 
+  const handleUpgrade = async (planKey: 'individual' | 'enterprise') => {
+    const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://www.kobrokr.com';
+    const token = await storage.get('access_token');
+    const refreshToken = await storage.get('refresh_token');
+
+    const params = new URLSearchParams({
+      plan: planKey,
+      cycle: billingCycle,
+      from: 'mobile',
+    });
+
+    if (token) params.set('token', token);
+    if (refreshToken) params.set('refresh_token', refreshToken);
+    if (appliedCode) params.set('ref', appliedCode);
+
+    const checkoutUrl = `${baseUrl}/payment?${params.toString()}`;
+    Linking.openURL(checkoutUrl);
+  };
+
   const currentPlan = limits?.plan || 'free';
   const planName = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
   const isFree = currentPlan === 'free';
-  
+  const isIndividual = currentPlan === 'individual' || currentPlan === 'pro';
+  const isEnterprise = currentPlan === 'enterprise' || currentPlan === 'agency';
+
   const totalListings = limits?.current_count || 0;
   const listingLimit = limits?.max_allowed || 0;
-  
+
   let progressPct = 0;
   if (listingLimit > 0) {
     progressPct = (totalListings / listingLimit) * 100;
   }
   if (progressPct > 100) progressPct = 100;
+
+  // Pricing values
+  const proMonthly = pricing?.plans?.pro?.monthly?.launch ?? 299;
+  const proMonthlyOriginal = pricing?.plans?.pro?.monthly?.original ?? 499;
+  const proAnnual = pricing?.plans?.pro?.annual?.launch ?? 2999;
+  const proAnnualOriginal = pricing?.plans?.pro?.annual?.original ?? 4999;
+
+  const agencyMonthly = pricing?.plans?.agency?.monthly?.launch ?? 1099;
+  const agencyMonthlyOriginal = pricing?.plans?.agency?.monthly?.original ?? 1999;
+  const agencyAnnual = pricing?.plans?.agency?.annual?.launch ?? 10999;
+  const agencyAnnualOriginal = pricing?.plans?.agency?.annual?.original ?? 19999;
+
+  // Dynamic limits
+  const proListings = pricing?.limits?.individual_listing_limit ?? 100;
+  const proImages = pricing?.limits?.individual_image_limit ?? 10;
+  const agencyListings = pricing?.limits?.enterprise_listing_limit === -1 || !pricing?.limits?.enterprise_listing_limit ? 'Unlimited' : pricing?.limits?.enterprise_listing_limit;
+  const agencyImages = pricing?.limits?.enterprise_image_limit ?? 25;
+  const agencyTeamMembers = pricing?.limits?.included_users ?? 5;
+
+  const getDiscounted = (price: number) => {
+    if (referralDiscountPct > 0) {
+      return Math.round(price * (1 - referralDiscountPct / 100));
+    }
+    return price;
+  };
 
   if (loading) {
     return (
@@ -115,13 +163,7 @@ export default function SubscriptionWidget() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.infoBanner}>
-        <Ionicons name="information-circle" size={20} color="#1E40AF" style={{ marginRight: 8 }} />
-        <Text style={styles.infoBannerText}>
-          Payments and plan upgrades are currently managed on our Web platform. Log in from your computer to change plans.
-        </Text>
-      </View>
-
+      {/* Current Plan Summary Card */}
       <View style={styles.planCard}>
         <View style={styles.planHeader}>
           <View>
@@ -147,36 +189,12 @@ export default function SubscriptionWidget() {
               <View style={[styles.progressBarFill, { width: `${progressPct}%`, backgroundColor: progressPct >= 100 ? '#EF4444' : '#2563EB' }]} />
             </View>
           )}
-          
+
           {!limits?.can_create && (
             <Text style={styles.limitWarningText}>
               {t('subscription.limitWarning')}
             </Text>
           )}
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t('subscription.planFeatures')}</Text>
-        
-        <View style={styles.featureRow}>
-          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          <Text style={styles.featureText}>{listingLimit === -1 ? t('subscription.unlimitedListings') : `${listingLimit} ${t('subscription.activeListingsCount')}`}</Text>
-        </View>
-        
-        <View style={styles.featureRow}>
-          <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-          <Text style={styles.featureText}>{pricing?.limits?.[`${currentPlan}_image_limit`] || 5} {t('subscription.imagesPerListing')}</Text>
-        </View>
-
-        <View style={styles.featureRow}>
-          <Ionicons name={isFree ? "close-circle" : "checkmark-circle"} size={20} color={isFree ? "#D1D5DB" : "#10B981"} />
-          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>{t('subscription.prioritySearch')}</Text>
-        </View>
-        
-        <View style={styles.featureRow}>
-          <Ionicons name={isFree ? "close-circle" : "checkmark-circle"} size={20} color={isFree ? "#D1D5DB" : "#10B981"} />
-          <Text style={[styles.featureText, isFree && styles.featureTextDisabled]}>{t('subscription.proBadge')}</Text>
         </View>
       </View>
 
@@ -197,7 +215,7 @@ export default function SubscriptionWidget() {
               </Pressable>
             </View>
             <Text style={styles.referralAppliedSub}>
-              Partner referral attached. Your upgrade discount will automatically apply at checkout.
+              Partner discount attached. Prices below reflect your {referralDiscountPct}% savings.
             </Text>
           </View>
         ) : (
@@ -236,25 +254,233 @@ export default function SubscriptionWidget() {
             </View>
             {referralError ? <Text style={styles.referralErrorText}>{referralError}</Text> : null}
             <Text style={styles.referralHelpText}>
-              Enter a partner code here to unlock a 10% discount when upgrading your plan.
+              Enter a partner code to unlock an instant 10% discount on any plan.
             </Text>
           </View>
         )}
       </View>
 
-      <Pressable 
-        style={styles.ctaButton} 
-        onPress={() => {
-          const url = appliedCode 
-            ? `https://kobrokr.com/payment?ref=${encodeURIComponent(appliedCode)}`
-            : 'https://kobrokr.com/payment';
-          Linking.openURL(url);
-        }}
+      {/* Available Plans Section */}
+      <View style={styles.plansSectionHeader}>
+        <Text style={styles.plansSectionTitle}>Choose a Plan</Text>
+        <Text style={styles.plansSectionSubtitle}>Select a plan below to upgrade and proceed on web</Text>
+
+        {/* Monthly / Annual Cycle Toggle */}
+        <View style={styles.cycleToggleContainer}>
+          <Pressable
+            style={[styles.cycleBtn, billingCycle === 'monthly' && styles.cycleBtnActive]}
+            onPress={() => setBillingCycle('monthly')}
+          >
+            <Text style={[styles.cycleBtnText, billingCycle === 'monthly' && styles.cycleBtnTextActive]}>
+              Monthly
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.cycleBtn, billingCycle === 'annual' && styles.cycleBtnActive]}
+            onPress={() => setBillingCycle('annual')}
+          >
+            <Text style={[styles.cycleBtnText, billingCycle === 'annual' && styles.cycleBtnTextActive]}>
+              Annual
+            </Text>
+            <View style={styles.savingsPill}>
+              <Text style={styles.savingsPillText}>Save 20%</Text>
+            </View>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Plan Card 1: Pro Broker */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.planChoiceCard,
+          styles.planChoiceCardPro,
+          isIndividual && styles.planChoiceCardCurrent,
+          pressed && !isIndividual && styles.planChoiceCardPressed,
+        ]}
+        onPress={() => !isIndividual && handleUpgrade('individual')}
+        disabled={isIndividual}
       >
-        <Text style={styles.ctaButtonText}>
-          {appliedCode ? `Upgrade Now (10% Discount Applied)` : `Upgrade Plan`}
-        </Text>
-        <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+        <View style={styles.planCardHeaderRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={styles.planIconWrapperPro}>
+              <Ionicons name="star" size={18} color="#2563EB" />
+            </View>
+            <View>
+              <Text style={styles.planChoiceTitle}>Pro Broker</Text>
+              <Text style={styles.planChoiceSubtitle}>For independent real estate brokers</Text>
+            </View>
+          </View>
+
+          {isIndividual ? (
+            <View style={styles.currentPlanBadge}>
+              <Text style={styles.currentPlanBadgeText}>Active Plan</Text>
+            </View>
+          ) : (
+            <View style={styles.popularBadge}>
+              <Text style={styles.popularBadgeText}>POPULAR</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Price Row */}
+        <View style={styles.pricingRow}>
+          <Text style={styles.priceCurrency}>₹</Text>
+          <Text style={styles.priceAmount}>
+            {billingCycle === 'monthly'
+              ? getDiscounted(proMonthly).toLocaleString('en-IN')
+              : getDiscounted(proAnnual).toLocaleString('en-IN')}
+          </Text>
+          <Text style={styles.priceCycle}>
+            {billingCycle === 'monthly' ? '/ month' : '/ year'}
+          </Text>
+
+          <Text style={styles.priceOriginal}>
+            ₹{billingCycle === 'monthly' ? proMonthlyOriginal : proAnnualOriginal}
+          </Text>
+        </View>
+
+        {appliedCode && referralDiscountPct > 0 ? (
+          <View style={styles.codeAppliedNote}>
+            <Ionicons name="checkmark-circle" size={14} color="#15803D" />
+            <Text style={styles.codeAppliedNoteText}>
+              {referralDiscountPct}% referral discount applied
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Features Checklist */}
+        <View style={styles.planFeaturesList}>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>{proListings} Active Listings</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>{proImages} HD Photos per listing</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>Priority placement in search</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>Verified Pro Badge on Profile</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>Unlimited Client Collections</Text>
+          </View>
+        </View>
+
+        {/* Action Button */}
+        <View
+          style={[styles.selectPlanBtn, isIndividual && styles.selectPlanBtnDisabled]}
+        >
+          <Text style={styles.selectPlanBtnText}>
+            {isIndividual ? 'Your Current Plan' : 'Choose Pro Plan'}
+          </Text>
+          {!isIndividual && (
+            <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+          )}
+        </View>
+      </Pressable>
+
+      {/* Plan Card 2: Agency / Enterprise */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.planChoiceCard,
+          styles.planChoiceCardAgency,
+          isEnterprise && styles.planChoiceCardCurrent,
+          pressed && !isEnterprise && styles.planChoiceCardPressed,
+        ]}
+        onPress={() => !isEnterprise && handleUpgrade('enterprise')}
+        disabled={isEnterprise}
+      >
+        <View style={styles.planCardHeaderRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={styles.planIconWrapperAgency}>
+              <Ionicons name="business" size={18} color="#7E22CE" />
+            </View>
+            <View>
+              <Text style={styles.planChoiceTitle}>Agency / Enterprise</Text>
+              <Text style={styles.planChoiceSubtitle}>For agencies and growing teams</Text>
+            </View>
+          </View>
+
+          {isEnterprise ? (
+            <View style={styles.currentPlanBadge}>
+              <Text style={styles.currentPlanBadgeText}>Active Plan</Text>
+            </View>
+          ) : (
+            <View style={styles.teamsBadge}>
+              <Text style={styles.teamsBadgeText}>FOR TEAMS</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Price Row */}
+        <View style={styles.pricingRow}>
+          <Text style={styles.priceCurrency}>₹</Text>
+          <Text style={styles.priceAmount}>
+            {billingCycle === 'monthly'
+              ? getDiscounted(agencyMonthly).toLocaleString('en-IN')
+              : getDiscounted(agencyAnnual).toLocaleString('en-IN')}
+          </Text>
+          <Text style={styles.priceCycle}>
+            {billingCycle === 'monthly' ? '/ month' : '/ year'}
+          </Text>
+
+          <Text style={styles.priceOriginal}>
+            ₹{billingCycle === 'monthly' ? agencyMonthlyOriginal : agencyAnnualOriginal}
+          </Text>
+        </View>
+
+        {appliedCode && referralDiscountPct > 0 ? (
+          <View style={styles.codeAppliedNote}>
+            <Ionicons name="checkmark-circle" size={14} color="#15803D" />
+            <Text style={styles.codeAppliedNoteText}>
+              {referralDiscountPct}% referral discount applied
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Features Checklist */}
+        <View style={styles.planFeaturesList}>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>
+              {agencyListings === -1 || agencyListings === 'Unlimited' ? 'Unlimited Active Listings' : `${agencyListings} Active Listings`}
+            </Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>{agencyImages} HD Photos per listing</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>{agencyTeamMembers} Team Member accounts included</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>Agency branding & team management</Text>
+          </View>
+          <View style={styles.planFeatureItem}>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.planFeatureItemText}>Top search placement & direct WhatsApp leads</Text>
+          </View>
+        </View>
+
+        {/* Action Button */}
+        <View
+          style={[styles.selectPlanBtn, styles.selectPlanBtnAgency, isEnterprise && styles.selectPlanBtnDisabled]}
+        >
+          <Text style={styles.selectPlanBtnText}>
+            {isEnterprise ? 'Your Current Plan' : 'Choose Agency Plan'}
+          </Text>
+          {!isEnterprise && (
+            <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+          )}
+        </View>
       </Pressable>
     </View>
   );
@@ -272,22 +498,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sans,
     color: '#EF4444',
     fontSize: 14,
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-  },
-  infoBannerText: {
-    fontFamily: Fonts.sans,
-    flex: 1,
-    fontSize: 13,
-    color: '#1E40AF',
-    lineHeight: 18,
   },
   planCard: {
     backgroundColor: '#111827',
@@ -377,57 +587,13 @@ const styles = StyleSheet.create({
     color: '#FCA5A5',
     marginTop: 8,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 20,
-  },
-  cardTitle: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureText: {
-    fontFamily: Fonts.sansMedium,
-    fontSize: 14,
-    color: '#374151',
-    marginLeft: 12,
-  },
-  featureTextDisabled: {
-    color: '#9CA3AF',
-    textDecorationLine: 'line-through',
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2563EB',
-    paddingVertical: 14,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  ctaButtonText: {
-    fontFamily: Fonts.sansBold,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
   referralCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     padding: 16,
-    marginTop: 16,
+    marginBottom: 20,
   },
   referralCardApplied: {
     backgroundColor: '#F0FDF4',
@@ -472,11 +638,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
     fontSize: 14,
     color: '#374151',
-    marginBottom: 10,
   },
   referralInputRow: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 6,
   },
   referralTextInput: {
     flex: 1,
@@ -514,5 +680,248 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 6,
-  }
+  },
+  plansSectionHeader: {
+    marginBottom: 16,
+  },
+  plansSectionTitle: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  plansSectionSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 12,
+  },
+  cycleToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 3,
+    gap: 4,
+  },
+  cycleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 9,
+    gap: 6,
+  },
+  cycleBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cycleBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#64748B',
+  },
+  cycleBtnTextActive: {
+    fontFamily: Fonts.sansBold,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  savingsPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  savingsPillText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#15803D',
+    fontWeight: '700',
+  },
+  planChoiceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  planChoiceCardPro: {
+    borderColor: '#3B82F6',
+  },
+  planChoiceCardAgency: {
+    borderColor: '#A855F7',
+  },
+  planChoiceCardCurrent: {
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+  },
+  planChoiceCardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
+  },
+  planCardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  planIconWrapperPro: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planIconWrapperAgency: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FAF5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planChoiceTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  planChoiceSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  popularBadge: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  popularBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#2563EB',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  teamsBadge: {
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  teamsBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#7E22CE',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  currentPlanBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  currentPlanBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  pricingRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  priceCurrency: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 18,
+    color: '#0F172A',
+    fontWeight: '700',
+    marginRight: 2,
+  },
+  priceAmount: {
+    fontFamily: Fonts.display,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0F172A',
+    letterSpacing: -0.5,
+  },
+  priceCycle: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#64748B',
+    marginLeft: 4,
+    marginRight: 8,
+  },
+  priceOriginal: {
+    fontFamily: Fonts.sans,
+    fontSize: 14,
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  codeAppliedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  codeAppliedNoteText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#15803D',
+  },
+  planFeaturesList: {
+    gap: 8,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    marginBottom: 16,
+  },
+  planFeatureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  planFeatureItemText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#334155',
+  },
+  selectPlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  selectPlanBtnAgency: {
+    backgroundColor: '#7E22CE',
+  },
+  selectPlanBtnDisabled: {
+    backgroundColor: '#E2E8F0',
+  },
+  selectPlanBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
 });
