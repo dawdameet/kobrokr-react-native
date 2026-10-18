@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
+import FeedbackModal from '../components/FeedbackModal';
 import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import { SUPPORTED_LANGUAGES, setAppLanguage } from '../i18n';
@@ -18,6 +19,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
   const [affiliateStats, setAffiliateStats] = useState<any>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -261,6 +263,73 @@ export default function ProfileScreen() {
 
         {userRole === 'broker' && <SubscriptionWidget />}
 
+        {/* Help & Support Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="help-buoy-outline" size={18} color="#2563EB" />
+            <Text style={styles.cardTitle}>Help & Support</Text>
+          </View>
+          <Text style={styles.cardSubtitle}>Need assistance, have queries, or want to share feedback?</Text>
+
+          <View style={styles.supportOptionsContainer}>
+            {/* Email Support */}
+            <Pressable
+              style={styles.supportOptionRow}
+              onPress={() => Linking.openURL('mailto:support@kobrokr.com?subject=KoBrokr%20Support%20Request')}
+            >
+              <View style={[styles.supportIconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="mail" size={18} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportOptionTitle}>Email Support</Text>
+                <Text style={styles.supportOptionSub}>support@kobrokr.com • 24hr response</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </Pressable>
+
+            {/* WhatsApp Support */}
+            <Pressable
+              style={styles.supportOptionRow}
+              onPress={() => Linking.openURL('https://wa.me/919820000000?text=Hi%20KoBrokr%20Support%2C%20I%20need%20assistance%20with...')}
+            >
+              <View style={[styles.supportIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportOptionTitle}>WhatsApp Support</Text>
+                <Text style={styles.supportOptionSub}>Chat with our Mumbai broker helpdesk</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </Pressable>
+
+            {/* In-app Feedback Modal */}
+            <Pressable
+              style={[styles.supportOptionRow, { borderBottomWidth: 0 }]}
+              onPress={() => setShowFeedbackModal(true)}
+            >
+              <View style={[styles.supportIconWrapper, { backgroundColor: '#FAF5FF' }]}>
+                <Ionicons name="chatbox-ellipses" size={18} color="#7E22CE" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportOptionTitle}>Send Feedback</Text>
+                <Text style={styles.supportOptionSub}>Rate experience & suggest new features</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </Pressable>
+          </View>
+
+          {/* Legal Links */}
+          <View style={styles.supportLegalRow}>
+            <Pressable onPress={() => Linking.openURL('https://www.kobrokr.com/privacy')}>
+              <Text style={styles.supportLegalLink}>Privacy Policy</Text>
+            </Pressable>
+            <Text style={styles.supportLegalDot}>•</Text>
+            <Pressable onPress={() => Linking.openURL('https://www.kobrokr.com/terms')}>
+              <Text style={styles.supportLegalLink}>Terms of Service</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.logoutBtnText}>{t('profile.logout')}</Text>
@@ -270,6 +339,13 @@ export default function ProfileScreen() {
           <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
           <Text style={styles.deleteBtnText}>Delete Account</Text>
         </Pressable>
+
+        <FeedbackModal
+          visible={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          userEmail={profile?.email}
+          userName={profile?.full_name}
+        />
 
       </ScrollView>
     </SafeAreaView>
@@ -532,5 +608,58 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansMedium,
     color: '#9CA3AF',
     fontSize: 13,
+  },
+  supportOptionsContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  supportOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 12,
+  },
+  supportIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supportOptionTitle: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  supportOptionSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  supportLegalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 4,
+  },
+  supportLegalLink: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  supportLegalDot: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#CBD5E1',
+    marginHorizontal: 8,
   },
 });
