@@ -287,21 +287,6 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
             </Pressable>
 
-            {/* WhatsApp Support */}
-            <Pressable
-              style={styles.supportOptionRow}
-              onPress={() => Linking.openURL('https://wa.me/919820000000?text=Hi%20KoBrokr%20Support%2C%20I%20need%20assistance%20with...')}
-            >
-              <View style={[styles.supportIconWrapper, { backgroundColor: '#F0FDF4' }]}>
-                <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.supportOptionTitle}>WhatsApp Support</Text>
-                <Text style={styles.supportOptionSub}>Chat with our Mumbai broker helpdesk</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-            </Pressable>
-
             {/* In-app Feedback Modal */}
             <Pressable
               style={[styles.supportOptionRow, { borderBottomWidth: 0 }]}

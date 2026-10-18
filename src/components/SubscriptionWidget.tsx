@@ -564,6 +564,20 @@ export default function SubscriptionWidget() {
           )}
         </View>
       </Pressable>
+
+      {/* Support note */}
+      <View style={styles.supportFooter}>
+        <Ionicons name="mail-outline" size={15} color="#64748B" />
+        <Text style={styles.supportFooterText}>
+          Need help or enterprise invoicing? Email{' '}
+          <Text
+            style={styles.supportFooterEmail}
+            onPress={() => Linking.openURL('mailto:support@kobrokr.com?subject=KoBrokr%20Subscription%20Inquiry')}
+          >
+            support@kobrokr.com
+          </Text>
+        </Text>
+      </View>
     </View>
   );
 }
@@ -1221,5 +1235,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0B132B',
     fontWeight: '700',
+  },
+  supportFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  supportFooterText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  supportFooterEmail: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#2563EB',
+    textDecorationLine: 'underline',
   },
 });

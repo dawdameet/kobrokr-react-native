@@ -123,7 +123,7 @@ export default function PartnerScreen() {
     const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0;
     
     if (attempts >= 5) {
-      Alert.alert('Limit Exceeded', 'You have exceeded the maximum number of UPI registration attempts (5). Please contact support.');
+      Alert.alert('Limit Exceeded', 'You have exceeded the maximum number of UPI registration attempts (5). Please contact support@kobrokr.com.');
       return false;
     }
 

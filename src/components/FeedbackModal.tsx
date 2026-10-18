@@ -77,28 +77,11 @@ export default function FeedbackModal({ visible, onClose, userEmail, userName }:
         await Linking.openURL(mailtoUrl);
         handleClose();
       } else {
-        await Linking.openURL(`mailto:support@kobrokr.com`);
+        await Linking.openURL('mailto:support@kobrokr.com');
         handleClose();
       }
     } catch (e) {
       Alert.alert('Feedback Not Sent', 'Could not open your email client. You can email us directly at support@kobrokr.com');
-    }
-  };
-
-  const handleSendWhatsApp = async () => {
-    if (!comment.trim()) {
-      Alert.alert('Please add a comment', 'Tell us what you would like to share or report.');
-      return;
-    }
-
-    const text = encodeURIComponent(`*KoBrokr App Feedback*\n\n${formatMessage()}`);
-    const waUrl = `https://wa.me/919820000000?text=${text}`;
-
-    try {
-      await Linking.openURL(waUrl);
-      handleClose();
-    } catch (e) {
-      Alert.alert('WhatsApp Error', 'Could not open WhatsApp. You can email us at support@kobrokr.com');
     }
   };
 
@@ -121,7 +104,7 @@ export default function FeedbackModal({ visible, onClose, userEmail, userName }:
             <View style={styles.header}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.title}>Send Feedback</Text>
-                <Text style={styles.subtitle}>Help us make KoBrokr better for you</Text>
+                <Text style={styles.subtitle}>Sent directly to support@kobrokr.com</Text>
               </View>
               <Pressable style={styles.closeBtn} onPress={handleClose}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -191,24 +174,14 @@ export default function FeedbackModal({ visible, onClose, userEmail, userName }:
               textAlignVertical="top"
             />
 
-            {/* Action Buttons */}
-            <View style={styles.actionRow}>
-              <Pressable
-                style={styles.whatsappBtn}
-                onPress={handleSendWhatsApp}
-              >
-                <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.whatsappBtnText}>WhatsApp</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.emailBtn}
-                onPress={handleSendEmail}
-              >
-                <Ionicons name="mail" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.emailBtnText}>Send via Email</Text>
-              </Pressable>
-            </View>
+            {/* Single Email Action Button */}
+            <Pressable
+              style={styles.emailBtn}
+              onPress={handleSendEmail}
+            >
+              <Ionicons name="mail" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.emailBtnText}>Send to support@kobrokr.com</Text>
+            </Pressable>
 
             <Text style={styles.footerNote}>
               Our team reviews every piece of feedback to improve your experience.
@@ -352,38 +325,18 @@ const styles = StyleSheet.create({
     minHeight: 100,
     marginBottom: 20,
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  whatsappBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#16A34A',
-    paddingVertical: 13,
-    borderRadius: 14,
-  },
-  whatsappBtnText: {
-    fontFamily: Fonts.sansBold,
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
   emailBtn: {
-    flex: 1.3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#2563EB',
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: 14,
+    marginBottom: 12,
   },
   emailBtnText: {
     fontFamily: Fonts.sansBold,
-    fontSize: 14,
+    fontSize: 15,
     color: '#FFFFFF',
     fontWeight: '700',
   },
