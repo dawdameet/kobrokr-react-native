@@ -81,6 +81,29 @@ export default function CollectionModal({
   };
 
   const handleAddToCollection = async (collectionId: number) => {
+    // Check if collection has reached the free property limit
+    const targetCol = collections.find((c) => c.id === collectionId);
+    const currentCount = targetCol?.property_ids?.length || 0;
+    const maxProp = limits.collection_property_limit;
+
+    if (maxProp >= 0 && currentCount + propertyIds.length > maxProp) {
+      Alert.alert(
+        'Collection Limit Reached',
+        `This collection has reached the free limit of ${maxProp} properties. Upgrade to Pro to add unlimited properties to collections.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Upgrade Plan',
+            onPress: () => {
+              onClose();
+              router.push('/profile');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     setSavingId(collectionId);
     setError('');
     try {
@@ -94,9 +117,27 @@ export default function CollectionModal({
       libraryStore.invalidate();
       onSuccess();
     } catch (err: any) {
+      const status = err.response?.status;
       const msg = err.response?.data?.error || t('library.failedCollection', { defaultValue: 'Failed to add to collection' });
-      setError(msg);
-      Alert.alert(t('common.error', { defaultValue: 'Error' }), msg);
+      if (status === 403 || msg.toLowerCase().includes('limit') || msg.toLowerCase().includes('exceeds')) {
+        Alert.alert(
+          'Collection Limit Reached',
+          `You have reached the free limit of ${maxProp >= 0 ? maxProp : 5} properties per collection. Upgrade to Pro for unlimited properties.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Upgrade Plan',
+              onPress: () => {
+                onClose();
+                router.push('/profile');
+              },
+            },
+          ]
+        );
+      } else {
+        setError(msg);
+        Alert.alert(t('common.error', { defaultValue: 'Error' }), msg);
+      }
     } finally {
       setSavingId(null);
     }
@@ -114,7 +155,7 @@ export default function CollectionModal({
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'View Plans',
+            text: 'Upgrade Plan',
             onPress: () => {
               onClose();
               router.push('/profile');
@@ -235,20 +276,23 @@ export default function CollectionModal({
                             isFull && styles.colAddBtnFull,
                             isSaving && { opacity: 0.7 },
                           ]}
-                          disabled={isFull || isSaving}
+                          disabled={isSaving}
                           onPress={() => handleAddToCollection(col.id)}
                         >
                           {isSaving ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
-                            <Text
-                              style={[
-                                styles.colAddBtnText,
-                                isFull && styles.colAddBtnTextFull,
-                              ]}
-                            >
-                              {isFull ? 'Full' : '+ Add'}
-                            </Text>
+                            <View style={styles.colBtnInner}>
+                              {isFull && <Ionicons name="lock-closed" size={12} color="#B45309" style={{ marginRight: 4 }} />}
+                              <Text
+                                style={[
+                                  styles.colAddBtnText,
+                                  isFull && styles.colAddBtnTextFull,
+                                ]}
+                              >
+                                {isFull ? 'Add' : '+ Add'}
+                              </Text>
+                            </View>
                           )}
                         </Pressable>
                       </View>
@@ -282,7 +326,7 @@ export default function CollectionModal({
                           `You have reached the maximum of ${limits.collection_limit} collections. Upgrade to Pro for unlimited collections.`,
                           [
                             { text: 'Cancel', style: 'cancel' },
-                            { text: 'View Plans', onPress: () => { onClose(); router.push('/profile'); } },
+                            { text: 'Upgrade Plan', onPress: () => { onClose(); router.push('/profile'); } },
                           ]
                         );
                       } else {
@@ -503,9 +547,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   colAddBtnFull: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FEF3C7',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#FDE68A',
+  },
+  colBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   colAddBtnText: {
     fontFamily: Fonts.sansBold,
@@ -514,8 +563,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   colAddBtnTextFull: {
-    color: '#94A3B8',
-    fontFamily: Fonts.sansMedium,
+    color: '#B45309',
+    fontFamily: Fonts.sansBold,
   },
   emptyState: {
     alignItems: 'center',
