@@ -21,13 +21,32 @@ import { Fonts } from '../constants/theme';
 import OtpInput from '../components/OtpInput';
 
 export default function SignupScreen() {
-  const { role: initialRole, ref: referralParam, referral, referral_code, redirect } = useLocalSearchParams<{
+  const {
+    role: initialRole,
+    ref: referralParam,
+    referral,
+    referral_code,
+    redirect,
+    invite_token,
+    email: emailParam,
+  } = useLocalSearchParams<{
     role?: string;
     ref?: string;
     referral?: string;
     referral_code?: string;
     redirect?: string;
+    invite_token?: string;
+    email?: string;
   }>();
+
+  // ── Agency Invitation State ──
+  const [agencyInviteInfo, setAgencyInviteInfo] = useState<{
+    valid: boolean;
+    agency_name: string;
+    inviter_name?: string;
+    invited_email: string;
+    is_existing_broker?: boolean;
+  } | null>(null);
 
   // ── Two-Phase Workflow State ──
   // Step 1: 'verify' (user chooses phone or email and verifies with 6-digit OTP)
@@ -51,7 +70,7 @@ export default function SignupScreen() {
   } | null>(null);
 
   // Step 2 Details Form State
-  const [roleTab, setRoleTab] = useState<'tenant' | 'broker'>(initialRole === 'broker' ? 'broker' : 'tenant');
+  const [roleTab, setRoleTab] = useState<'tenant' | 'broker'>(initialRole === 'tenant' ? 'tenant' : 'broker');
   const [fullName, setFullName] = useState('');
   // When phone was verified in Step 1, user enters email in Step 2:
   const [detailEmail, setDetailEmail] = useState('');
@@ -67,6 +86,31 @@ export default function SignupScreen() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Validate Agency Invite Token if present
+  useEffect(() => {
+    async function checkAgencyInvite() {
+      if (!invite_token) return;
+      try {
+        const res = await api.get(`/agency/invites/validate?token=${encodeURIComponent(invite_token)}`);
+        if (res.data && res.data.valid) {
+          setAgencyInviteInfo(res.data);
+          setRoleTab('broker');
+          if (res.data.agency_name) {
+            setAgencyName(res.data.agency_name);
+          }
+          if (res.data.invited_email) {
+            setEmailInput(res.data.invited_email);
+            setDetailEmail(res.data.invited_email);
+            setMethod('email');
+          }
+        }
+      } catch (err: any) {
+        console.warn('Agency invite token validation failed:', err?.response?.data || err.message);
+      }
+    }
+    checkAgencyInvite();
+  }, [invite_token]);
 
   // Persist deep link referral code silently in storage without rendering in signup form
   useEffect(() => {
@@ -95,7 +139,11 @@ export default function SignupScreen() {
     const brokerReady = user?.role !== 'broker' || (user?.areas_served && user?.areas_served.length > 0);
 
     if (!hasIdentifier || !hasCity || !brokerReady) {
-      router.replace('/(app)/onboarding');
+      if (user?.role === 'tenant') {
+        router.replace('/(tenant)/dashboard');
+      } else {
+        router.replace('/(broker)/dashboard');
+      }
       return;
     }
     if (redirect) {
@@ -274,6 +322,10 @@ export default function SignupScreen() {
           payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
         }
 
+        if (invite_token) {
+          payload.invite_token = invite_token;
+        }
+
         const { data } = await otpService.signup(payload);
 
         if (data.access_token) {
@@ -324,6 +376,10 @@ export default function SignupScreen() {
           payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
         }
 
+        if (invite_token) {
+          payload.invite_token = invite_token;
+        }
+
         const { data } = await api.post('/auth/register', payload);
 
         if (data.access_token) {
@@ -372,6 +428,40 @@ export default function SignupScreen() {
             <View style={styles.header}>
               <Text style={styles.logo}>kobrokr</Text>
             </View>
+
+            {/* Agency Invite Banner if invited */}
+            {agencyInviteInfo && (
+              <View style={styles.agencyInviteBanner}>
+                <View style={styles.agencyInviteIconWrapper}>
+                  <Ionicons name="business" size={20} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.agencyInviteBannerTitle}>
+                    Joining {agencyInviteInfo.agency_name}
+                  </Text>
+                  <Text style={styles.agencyInviteBannerSub}>
+                    {agencyInviteInfo.inviter_name ? `${agencyInviteInfo.inviter_name} invited you. ` : ''}
+                    Complete verification with {agencyInviteInfo.invited_email} to activate your Enterprise agency perks.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {agencyInviteInfo?.is_existing_broker && (
+              <Pressable
+                style={styles.existingBrokerBanner}
+                onPress={() =>
+                  router.push(
+                    `/login?role=broker&email=${encodeURIComponent(agencyInviteInfo.invited_email)}` as any
+                  )
+                }
+              >
+                <Ionicons name="log-in-outline" size={18} color="#2563EB" />
+                <Text style={styles.existingBrokerText}>
+                  Already a KoBrokr broker? Tap to log in and join {agencyInviteInfo.agency_name}
+                </Text>
+              </Pressable>
+            )}
 
             {/* Title & Subtitle */}
             <Text style={styles.title}>Create your account</Text>
@@ -600,6 +690,23 @@ export default function SignupScreen() {
             <Text style={styles.logo}>kobrokr</Text>
           </View>
 
+          {/* Agency Invite Banner if invited */}
+          {agencyInviteInfo && (
+            <View style={styles.agencyInviteBanner}>
+              <View style={styles.agencyInviteIconWrapper}>
+                <Ionicons name="business" size={20} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.agencyInviteBannerTitle}>
+                  Joining {agencyInviteInfo.agency_name}
+                </Text>
+                <Text style={styles.agencyInviteBannerSub}>
+                  Your account will be linked to this agency under the Enterprise plan once registration is complete.
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Text style={styles.title}>Complete your profile</Text>
           <Text style={styles.subtitle}>
             Enter your details to finish setting up your account.
@@ -640,22 +747,22 @@ export default function SignupScreen() {
             </View>
           </View>
 
-          {/* Role Toggle: Tenant vs Broker */}
+          {/* Role Toggle: Broker vs Tenant */}
           <View style={styles.roleToggle}>
-            <Pressable
-              style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
-              onPress={() => setRoleTab('tenant')}
-            >
-              <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>
-                I'm a Tenant
-              </Text>
-            </Pressable>
             <Pressable
               style={[styles.roleButton, roleTab === 'broker' && styles.roleButtonActive]}
               onPress={() => setRoleTab('broker')}
             >
               <Text style={[styles.roleText, roleTab === 'broker' && styles.roleTextActive]}>
                 I'm a Broker
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
+              onPress={() => setRoleTab('tenant')}
+            >
+              <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>
+                I'm a Tenant
               </Text>
             </Pressable>
           </View>
@@ -808,13 +915,27 @@ export default function SignupScreen() {
             {roleTab === 'broker' && (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Agency Name (Optional)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={styles.label}>Agency Name {agencyInviteInfo ? '' : '(Optional)'}</Text>
+                    {agencyInviteInfo && (
+                      <View style={styles.agencyBadgePill}>
+                        <Ionicons name="lock-closed" size={10} color="#2563EB" />
+                        <Text style={styles.agencyBadgeText}>Invited</Text>
+                      </View>
+                    )}
+                  </View>
                   <TextInput
-                    style={inputClass}
-                    value={agencyName}
-                    onChangeText={setAgencyName}
+                    style={[inputClass, agencyInviteInfo && styles.inputDisabled]}
+                    value={agencyInviteInfo ? agencyInviteInfo.agency_name : agencyName}
+                    onChangeText={agencyInviteInfo ? undefined : setAgencyName}
+                    editable={!agencyInviteInfo}
                     placeholder="e.g. Sharma Properties"
                   />
+                  {agencyInviteInfo ? (
+                    <Text style={styles.agencyBadgeNote}>
+                      🔒 Assigned by {agencyInviteInfo.inviter_name || 'agency admin'} ({agencyInviteInfo.agency_name})
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Areas Served *</Text>
@@ -1162,5 +1283,78 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
     color: '#2563EB',
     fontWeight: '500',
+  },
+  agencyInviteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  agencyInviteIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agencyInviteBannerTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#1E40AF',
+    marginBottom: 2,
+  },
+  agencyInviteBannerSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#3B82F6',
+    lineHeight: 17,
+  },
+  existingBrokerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  existingBrokerText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#92400E',
+    flex: 1,
+  },
+  agencyBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  agencyBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#1D4ED8',
+  },
+  agencyBadgeNote: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#2563EB',
+    marginTop: 4,
+  },
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
+    color: '#6B7280',
+    borderColor: '#E5E7EB',
   },
 });

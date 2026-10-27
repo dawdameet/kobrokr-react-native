@@ -38,6 +38,16 @@
               "scheme": "https",
               "host": "www.kobrokr.com",
               "pathPrefix": "/client-share"
+            },
+            {
+              "scheme": "https",
+              "host": "kobrokr.com",
+              "pathPrefix": "/signup"
+            },
+            {
+              "scheme": "https",
+              "host": "www.kobrokr.com",
+              "pathPrefix": "/signup"
             }
           ],
           "category": [

@@ -19,7 +19,7 @@ export default function OtpInput({
   length = 6,
   autoFocus = true,
 }: OtpInputProps) {
-  const inputs = useRef<(TextInput | null)[]>([]);
+  const inputs = useRef<any[]>([]);
 
   useEffect(() => {
     if (autoFocus) {

@@ -398,7 +398,7 @@ export default function SearchScreen() {
                   <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 6 }}>Loading remaining properties...</Text>
                 )}
               </View>
-            ) : null
+            ) : undefined
           }
           ListEmptyComponent={
             searched ? (
@@ -407,7 +407,7 @@ export default function SearchScreen() {
                 <Text style={styles.emptyTitle}>No properties found</Text>
                 <Text style={styles.emptySub}>Try adjusting your search or filters.</Text>
               </View>
-            ) : null
+            ) : undefined
           }
         />
       )}

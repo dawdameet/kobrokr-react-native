@@ -315,7 +315,7 @@ export default function LoginScreen() {
   }>();
 
   const isConfirmRequired = confirm === '1';
-  const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
+  const [roleTab, setRoleTab] = useState(initialRole === 'tenant' ? 'tenant' : 'broker');
 
   // Login method: 'phone' (OTP) or 'email' (password)
   const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
@@ -426,7 +426,11 @@ export default function LoginScreen() {
     const brokerReady = user?.role !== 'broker' || (user?.areas_served && user?.areas_served.length > 0);
 
     if (!hasIdentifier || !hasCity || !brokerReady) {
-      router.replace('/(app)/onboarding');
+      if (user?.role === 'tenant') {
+        router.replace('/(tenant)/dashboard');
+      } else {
+        router.replace('/(broker)/dashboard');
+      }
       return;
     }
     if (redirect) {
@@ -478,16 +482,16 @@ export default function LoginScreen() {
             {/* Role toggle */}
             <View style={styles.roleToggle}>
               <Pressable
-                style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
-                onPress={() => setRoleTab('tenant')}
-              >
-                <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>Tenant</Text>
-              </Pressable>
-              <Pressable
                 style={[styles.roleButton, roleTab === 'broker' && styles.roleButtonActive]}
                 onPress={() => setRoleTab('broker')}
               >
                 <Text style={[styles.roleText, roleTab === 'broker' && styles.roleTextActive]}>Broker</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
+                onPress={() => setRoleTab('tenant')}
+              >
+                <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>Tenant</Text>
               </Pressable>
             </View>
 

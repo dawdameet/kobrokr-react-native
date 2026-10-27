@@ -4,7 +4,7 @@ import { usePathname, router } from 'expo-router';
 import { storage } from '../lib/storage';
 import api, { setCachedToken } from '../lib/api';
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/client-share'];
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/client-share', '/onboarding'];
 const PROFILE_VALIDATION_TTL = 5 * 60 * 1000; // 5 minutes
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {

@@ -130,6 +130,11 @@ export default function ProfileScreen() {
 
   const currentLangCode = i18n.language || 'en';
 
+  const isAgencyOwner =
+    userRole === 'broker' &&
+    Boolean(profile?.is_admin || profile?.is_agency_owner) &&
+    (profile?.plan === 'enterprise' || profile?.plan === 'agency');
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -236,6 +241,30 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
           </Pressable>
         </View>
+
+        {/* Agency Team Management Section (For Enterprise Admins) */}
+        {isAgencyOwner && (
+          <Pressable 
+            style={styles.agencyTeamCard}
+            onPress={() => router.push('/agency-team' as any)}
+          >
+            <View style={styles.agencyTeamIconContainer}>
+              <Ionicons name="people" size={22} color="#2563EB" />
+            </View>
+            <View style={styles.partnerCardTextContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.partnerCardTitle}>Manage Agency Team</Text>
+                <View style={styles.agencyPlanBadge}>
+                  <Text style={styles.agencyPlanBadgeText}>ENTERPRISE</Text>
+                </View>
+              </View>
+              <Text style={styles.partnerCardSubtitle}>
+                {profile.agency_name ? `${profile.agency_name} • ` : ''}Manage members & seats
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </Pressable>
+        )}
 
         {/* Partner Program Section */}
         <Pressable 
@@ -555,6 +584,45 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     color: '#2563EB',
+    letterSpacing: 0.5,
+  },
+  agencyTeamCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  agencyTeamIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  agencyPlanBadge: {
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  agencyPlanBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#7E22CE',
     letterSpacing: 0.5,
   },
   logoutBtn: {

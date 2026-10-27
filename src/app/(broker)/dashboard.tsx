@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { storage } from '../../lib/storage';
 import { statsStore } from '../../lib/statsStore';
@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { clearSession } from '../../lib/auth';
 import { formatPrice } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
+import { sendLocalNotification } from '../../lib/notifications';
 
 let memoryRecentListings: any[] | null = null;
 
@@ -23,6 +24,94 @@ export default function BrokerDashboard() {
   const [recentListings, setRecentListings] = useState<any[]>(memoryRecentListings || []);
   const [nlQuery, setNlQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState<any>(null);
+  const [actingOnInvite, setActingOnInvite] = useState(false);
+
+  const checkPendingAgencyInvite = async () => {
+    try {
+      const res = await api.get('/agency/invites/my-pending');
+      if (res.data && res.data.invite) {
+        const inv = res.data.invite;
+        setPendingInvite(inv);
+        // Fire local notification once per invite
+        const notifiedKey = `@notified_invite_${inv.id}`;
+        const alreadyNotified = await storage.get(notifiedKey);
+        if (!alreadyNotified) {
+          await storage.set(notifiedKey, 'true');
+          sendLocalNotification({
+            title: `🏢 Agency Invitation: ${inv.agency_name}`,
+            body: `${inv.inviter_name || 'An agency admin'} invited you to join ${inv.agency_name} under their Enterprise license. Tap to view.`,
+          }).catch(() => {});
+        }
+      } else {
+        setPendingInvite(null);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAcceptAgencyInvite = () => {
+    if (!pendingInvite) return;
+    Alert.alert(
+      `Join ${pendingInvite.agency_name}?`,
+      `You are accepting an invitation from ${pendingInvite.inviter_name || 'the agency admin'}.\n\nYour account will be linked to ${pendingInvite.agency_name} and upgraded to the Enterprise plan (40 listings, 8 photos/listing, verified agency badge).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Accept & Join',
+          style: 'default',
+          onPress: async () => {
+            setActingOnInvite(true);
+            try {
+              const res = await api.post('/agency/invites/accept', { token: pendingInvite.token });
+              if (res.data && res.data.user) {
+                await storage.set('user', JSON.stringify(res.data.user));
+                setUser(res.data.user);
+              }
+              setPendingInvite(null);
+              Alert.alert(
+                '🎉 Welcome to the Agency!',
+                `You have successfully joined ${pendingInvite.agency_name} on the Enterprise plan.`
+              );
+              fetchData();
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.error || 'Failed to accept invitation.');
+            } finally {
+              setActingOnInvite(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeclineAgencyInvite = () => {
+    if (!pendingInvite) return;
+    Alert.alert(
+      'Decline Invitation',
+      `Are you sure you want to decline the invitation to join ${pendingInvite.agency_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setActingOnInvite(true);
+            try {
+              await api.post('/agency/invites/decline', { token: pendingInvite.token });
+              setPendingInvite(null);
+              Alert.alert('Invitation Declined', 'The agency invitation has been declined.');
+            } catch (err: any) {
+              Alert.alert('Error', err?.response?.data?.error || 'Failed to decline invitation.');
+            } finally {
+              setActingOnInvite(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -30,6 +119,7 @@ export default function BrokerDashboard() {
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
+      checkPendingAgencyInvite();
     }
     loadData();
 
@@ -119,6 +209,47 @@ export default function BrokerDashboard() {
           <Text style={styles.subtitle}>{t('brokerDashboard.subtitle')}</Text>
         </View>
 
+        {/* Pending Agency Invitation Notice for this Broker */}
+        {pendingInvite && (
+          <View style={styles.inviteNoticeCard}>
+            <View style={styles.inviteNoticeHeader}>
+              <View style={styles.inviteNoticeIconCircle}>
+                <Ionicons name="business" size={20} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inviteNoticeTag}>AGENCY INVITATION</Text>
+                <Text style={styles.inviteNoticeTitle}>Join {pendingInvite.agency_name}</Text>
+              </View>
+            </View>
+            <Text style={styles.inviteNoticeBody}>
+              {pendingInvite.inviter_name ? `${pendingInvite.inviter_name} has invited you` : 'You have been invited'} to join <Text style={{ fontWeight: '700' }}>{pendingInvite.agency_name}</Text> under their Enterprise license. You'll get 40 active listings, 8 photos/listing, and the official agency badge on all your properties.
+            </Text>
+            <View style={styles.inviteNoticeActions}>
+              <Pressable 
+                style={styles.inviteAcceptBtn}
+                onPress={handleAcceptAgencyInvite}
+                disabled={actingOnInvite}
+              >
+                {actingOnInvite ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                    <Text style={styles.inviteAcceptBtnText}>Accept & Join</Text>
+                  </>
+                )}
+              </Pressable>
+              <Pressable 
+                style={styles.inviteDeclineBtn}
+                onPress={handleDeclineAgencyInvite}
+                disabled={actingOnInvite}
+              >
+                <Text style={styles.inviteDeclineBtnText}>Decline</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {/* Quick Search */}
         <View style={styles.searchContainer}>
           <TextInput
@@ -132,6 +263,30 @@ export default function BrokerDashboard() {
             <Text style={styles.searchButtonText}>{t('common.search')}</Text>
           </Pressable>
         </View>
+
+        {/* Agency Team Banner for Enterprise Admins */}
+        {user?.plan === 'enterprise' && Boolean(user?.is_admin || user?.is_agency_owner) && (
+          <Pressable
+            style={styles.agencyBanner}
+            onPress={() => router.push('/agency-team' as any)}
+          >
+            <View style={styles.agencyBannerIconCircle}>
+              <Ionicons name="people" size={20} color="#2563EB" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.agencyBannerTitle}>Agency Team</Text>
+                <View style={styles.agencyBannerBadge}>
+                  <Text style={styles.agencyBannerBadgeText}>ENTERPRISE</Text>
+                </View>
+              </View>
+              <Text style={styles.agencyBannerSub} numberOfLines={1}>
+                {user?.agency_name ? `${user.agency_name} • ` : ''}Manage seats & members
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          </Pressable>
+        )}
 
         {/* Stat Cards */}
         <View style={styles.statsContainer}>
@@ -420,5 +575,139 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
-  }
+  },
+  agencyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    gap: 12,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  agencyBannerIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agencyBannerTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  agencyBannerBadge: {
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  agencyBannerBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#7E22CE',
+    letterSpacing: 0.5,
+  },
+  agencyBannerSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 11.5,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  inviteNoticeCard: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#93C5FD',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  inviteNoticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  inviteNoticeIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteNoticeTag: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#2563EB',
+    letterSpacing: 0.8,
+  },
+  inviteNoticeTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E3A8A',
+  },
+  inviteNoticeBody: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: '#334155',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  inviteNoticeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  inviteAcceptBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  inviteAcceptBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  inviteDeclineBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inviteDeclineBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#64748B',
+  },
 });
