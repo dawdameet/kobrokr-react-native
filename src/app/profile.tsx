@@ -73,7 +73,7 @@ export default function ProfileScreen() {
           await storage.remove('access_token');
           await storage.remove('refresh_token');
           await storage.remove('user');
-          router.replace('/login');
+          router.replace('/');
         }
       }
     ]);
@@ -233,12 +233,21 @@ export default function ProfileScreen() {
         {/* Action Section */}
         <View style={styles.card}>
           <Pressable 
-            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
+            style={styles.menuItem} 
             onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileNotice'))}
           >
             <Ionicons name="create-outline" size={20} color="#374151" />
             <Text style={styles.menuItemText}>{t('profile.editProfile')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+          </Pressable>
+
+          <Pressable 
+            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
+            onPress={() => router.push('/(app)/onboarding' as any)}
+          >
+            <Ionicons name="sparkles-outline" size={20} color="#2563EB" />
+            <Text style={[styles.menuItemText, { color: '#2563EB', fontWeight: '600' }]}>View App Onboarding</Text>
+            <Ionicons name="chevron-forward" size={20} color="#93C5FD" />
           </Pressable>
         </View>
 

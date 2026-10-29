@@ -112,8 +112,8 @@ async function logout() {
   await storage.remove('refresh_token');
   await storage.remove('user');
 
-  // Navigate to login screen
-  router.replace('/login');
+  // Navigate to landing/onboarding screen
+  router.replace('/');
 }
 
 // ── OTP Services ──────────────────────────────────────────────────────────────

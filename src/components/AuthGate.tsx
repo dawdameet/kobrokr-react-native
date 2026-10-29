@@ -32,7 +32,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // Check if we have tokens at all
     const token = await storage.get('access_token');
     if (!token) {
-      router.replace('/login');
+      router.replace('/');
       return;
     }
     setCachedToken(token);
@@ -60,13 +60,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         await storage.remove('access_token');
         await storage.remove('refresh_token');
         await storage.remove('user');
-        router.replace('/login');
+        router.replace('/');
         return;
       }
       // Network error — allow through with cached data
       const user = await storage.get('user');
       if (!user) {
-        router.replace('/login');
+        router.replace('/');
         return;
       }
       isInitialCheckDone.current = true;

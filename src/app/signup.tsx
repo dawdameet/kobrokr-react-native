@@ -424,9 +424,17 @@ export default function SignupScreen() {
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Logo */}
+            {/* Header */}
             <View style={styles.header}>
+              <Pressable
+                onPress={() => router.replace('/')}
+                style={styles.backToHomeButton}
+                hitSlop={10}
+              >
+                <Ionicons name="arrow-back" size={20} color="#6B7280" />
+              </Pressable>
               <Text style={styles.logo}>kobrokr</Text>
+              <View style={{ width: 32 }} />
             </View>
 
             {/* Agency Invite Banner if invited */}
@@ -1015,8 +1023,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 24,
+  },
+  backToHomeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     fontFamily: Fonts.display,
