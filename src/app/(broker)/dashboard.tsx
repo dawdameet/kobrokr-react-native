@@ -26,6 +26,7 @@ export default function BrokerDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<any>(null);
   const [actingOnInvite, setActingOnInvite] = useState(false);
+  const [newTeamMemberAlert, setNewTeamMemberAlert] = useState<any>(null);
 
   const checkPendingAgencyInvite = async () => {
     try {
@@ -45,6 +46,34 @@ export default function BrokerDashboard() {
         }
       } else {
         setPendingInvite(null);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const checkAgencyOwnerNotifications = async () => {
+    try {
+      const userStr = await storage.get('user');
+      if (!userStr) return;
+      const u = JSON.parse(userStr);
+      if (u.plan !== 'enterprise' || !u.is_admin) return;
+
+      const res = await api.get('/agency/notifications/recent-joined');
+      const recentList = res.data?.recent_joined || [];
+      if (recentList.length > 0) {
+        const latest = recentList[0];
+        const storageKey = `@owner_notified_joined_${latest.id}`;
+        const alreadyNotified = await storage.get(storageKey);
+        if (!alreadyNotified) {
+          await storage.set(storageKey, 'true');
+          sendLocalNotification({
+            title: '🔔 New Team Member Joined',
+            body: `${latest.member_name} has accepted your invitation and joined ${latest.agency_name}.`,
+            route: '/agency-team',
+          }).catch(() => {});
+          setNewTeamMemberAlert(latest);
+        }
       }
     } catch {
       // ignore
@@ -120,6 +149,7 @@ export default function BrokerDashboard() {
         setUser(JSON.parse(userStr));
       }
       checkPendingAgencyInvite();
+      checkAgencyOwnerNotifications();
     }
     loadData();
 
@@ -181,6 +211,8 @@ export default function BrokerDashboard() {
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
+    checkPendingAgencyInvite();
+    checkAgencyOwnerNotifications();
     fetchData().finally(() => setRefreshing(false));
   }, []);
 
@@ -245,6 +277,48 @@ export default function BrokerDashboard() {
                 disabled={actingOnInvite}
               >
                 <Text style={styles.inviteDeclineBtnText}>Decline</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Success Alert Banner for Agency Owner when a team member joins */}
+        {newTeamMemberAlert && (
+          <View style={styles.memberJoinedCard}>
+            <View style={styles.memberJoinedHeader}>
+              <View style={styles.memberJoinedIconCircle}>
+                <Ionicons name="people" size={20} color="#16A34A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.memberJoinedTag}>NEW TEAM MEMBER JOINED</Text>
+                <Text style={styles.memberJoinedTitle}>{newTeamMemberAlert.member_name} joined your agency</Text>
+              </View>
+              <Pressable onPress={() => setNewTeamMemberAlert(null)} hitSlop={10}>
+                <Ionicons name="close" size={20} color="#9CA3AF" />
+              </Pressable>
+            </View>
+            <Text style={styles.memberJoinedBody}>
+              <Text style={{ fontWeight: '700' }}>{newTeamMemberAlert.member_name}</Text> ({newTeamMemberAlert.member_email}) has accepted your invitation and joined <Text style={{ fontWeight: '700' }}>{newTeamMemberAlert.agency_name}</Text>. They now have Enterprise perks on their account.
+            </Text>
+            <Text style={styles.memberJoinedNote}>
+              💡 If this was sent by mistake, you can tap <Text style={{ fontWeight: '600' }}>Manage Team</Text> to remove this member at any time.
+            </Text>
+            <View style={styles.memberJoinedActions}>
+              <Pressable 
+                style={styles.manageTeamBtn}
+                onPress={() => {
+                  setNewTeamMemberAlert(null);
+                  router.push('/agency-team' as any);
+                }}
+              >
+                <Ionicons name="people-outline" size={16} color="#fff" />
+                <Text style={styles.manageTeamBtnText}>Manage Team</Text>
+              </Pressable>
+              <Pressable 
+                style={styles.dismissBtn}
+                onPress={() => setNewTeamMemberAlert(null)}
+              >
+                <Text style={styles.dismissBtnText}>Dismiss</Text>
               </Pressable>
             </View>
           </View>
@@ -706,6 +780,96 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inviteDeclineBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#64748B',
+  },
+  memberJoinedCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#86EFAC',
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  memberJoinedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  memberJoinedIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberJoinedTag: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#16A34A',
+    letterSpacing: 0.8,
+  },
+  memberJoinedTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#14532D',
+  },
+  memberJoinedBody: {
+    fontFamily: Fonts.sans,
+    fontSize: 13,
+    color: '#1E293B',
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  memberJoinedNote: {
+    fontFamily: Fonts.sans,
+    fontSize: 11.5,
+    color: '#64748B',
+    marginBottom: 14,
+    lineHeight: 16,
+  },
+  memberJoinedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  manageTeamBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#16A34A',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  manageTeamBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  dismissBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dismissBtnText: {
     fontFamily: Fonts.sansMedium,
     fontSize: 13,
     color: '#64748B',
