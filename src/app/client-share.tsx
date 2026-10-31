@@ -78,7 +78,8 @@ export default function ClientShareScreen() {
   }, [brokerId, propertyIds]);
 
   const handleCall = (phone: string) => {
-    if (phone) Linking.openURL(`tel:${phone}`);
+    const clean = phone.replace(/[^0-9+]/g, '');
+    if (clean) Linking.openURL(`tel:${clean}`);
   };
 
   const handleWhatsAppProperty = (p: any) => {
@@ -214,7 +215,7 @@ export default function ClientShareScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.brokerHeaderInfo}>

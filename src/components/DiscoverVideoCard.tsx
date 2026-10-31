@@ -178,7 +178,8 @@ function DiscoverVideoCardComponent({
 
   const handleCall = () => {
     if (!broker?.mobile) return;
-    Linking.openURL(`tel:${broker.mobile}`);
+    const clean = broker.mobile.replace(/[^0-9+]/g, '');
+    if (clean) Linking.openURL(`tel:${clean}`);
   };
 
   const handleWhatsApp = () => {

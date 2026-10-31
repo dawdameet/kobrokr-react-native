@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking, TextInput, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
@@ -89,6 +89,15 @@ export default function SubscriptionWidget() {
   };
 
   const handleUpgrade = async (planKey: 'individual' | 'enterprise') => {
+    if (Platform.OS === 'ios') {
+      Alert.alert(
+        'Subscription Management',
+        'To upgrade or manage your plan and agency seats, please visit kobrokr.com on your desktop browser.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://www.kobrokr.com';
     const token = await storage.get('access_token');
     const refreshToken = await storage.get('refresh_token');
@@ -429,7 +438,7 @@ export default function SubscriptionWidget() {
         {/* Subscribe Button */}
         <View style={[styles.proCtaBtn, isIndividual && styles.proCtaBtnDisabled]}>
           <Text style={styles.proCtaBtnText}>
-            {isIndividual ? 'Your Current Plan' : 'Subscribe to Pro'}
+            {isIndividual ? 'Your Current Plan' : Platform.OS === 'ios' ? 'Manage via Web' : 'Subscribe to Pro'}
           </Text>
           {!isIndividual && (
             <Ionicons name="open-outline" size={16} color="#0B132B" style={{ marginLeft: 6 }} />
@@ -557,7 +566,7 @@ export default function SubscriptionWidget() {
         {/* Agency Action Button */}
         <View style={[styles.agencyCtaBtn, isEnterprise && styles.agencyCtaBtnDisabled]}>
           <Text style={styles.agencyCtaBtnText}>
-            {isEnterprise ? 'Your Current Plan' : 'Subscribe to Agency'}
+            {isEnterprise ? 'Your Current Plan' : Platform.OS === 'ios' ? 'Manage via Web' : 'Subscribe to Agency'}
           </Text>
           {!isEnterprise && (
             <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />

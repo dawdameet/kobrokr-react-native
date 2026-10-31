@@ -11,6 +11,14 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.kobrokr.mobile",
+      "buildNumber": "3",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "Kobrokr",
+        "NSCameraUsageDescription": "Allow Kobrokr to access your camera so you can take photos for property listings.",
+        "NSPhotoLibraryUsageDescription": "Allow Kobrokr to access your photos so you can upload property listings and profile images.",
+        "NSMicrophoneUsageDescription": "Allow Kobrokr to access your microphone when recording property walkthrough videos."
+      },
       "associatedDomains": [
         "applinks:kobrokr.com",
         "applinks:www.kobrokr.com"

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import api from '../lib/api';
+import api, { clearCachedToken } from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
 import FeedbackModal from '../components/FeedbackModal';
@@ -70,6 +70,7 @@ export default function ProfileScreen() {
         text: t('profile.logout'), 
         style: 'destructive',
         onPress: async () => {
+          clearCachedToken();
           await storage.remove('access_token');
           await storage.remove('refresh_token');
           await storage.remove('user');
@@ -95,11 +96,12 @@ export default function ProfileScreen() {
               } catch (e) {
                 console.warn('Backend delete profile failed or unsupported:', e);
               }
+              clearCachedToken();
               await storage.remove('access_token');
               await storage.remove('refresh_token');
               await storage.remove('user');
               Alert.alert('Account Deleted', 'Your account has been deleted.');
-              router.replace('/login');
+              router.replace('/');
             } catch (err) {
               Alert.alert('Error', 'Unable to complete deletion request. Please contact support@kobrokr.com');
             }
@@ -136,7 +138,7 @@ export default function ProfileScreen() {
     (profile?.plan === 'enterprise' || profile?.plan === 'agency');
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -233,21 +235,12 @@ export default function ProfileScreen() {
         {/* Action Section */}
         <View style={styles.card}>
           <Pressable 
-            style={styles.menuItem} 
+            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
             onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileNotice'))}
           >
             <Ionicons name="create-outline" size={20} color="#374151" />
             <Text style={styles.menuItemText}>{t('profile.editProfile')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
-          </Pressable>
-
-          <Pressable 
-            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
-            onPress={() => router.push('/(app)/onboarding' as any)}
-          >
-            <Ionicons name="sparkles-outline" size={20} color="#2563EB" />
-            <Text style={[styles.menuItemText, { color: '#2563EB', fontWeight: '600' }]}>View App Onboarding</Text>
-            <Ionicons name="chevron-forward" size={20} color="#93C5FD" />
           </Pressable>
         </View>
 

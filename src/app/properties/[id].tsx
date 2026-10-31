@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -18,6 +18,7 @@ import { libraryStore } from '../../lib/libraryStore';
 
 export default function PropertyDetailScreen() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { id, b: shareBrokerId } = useLocalSearchParams<{ id: string; b?: string }>();
   const preview = id ? getPropertyPreview(id) : null;
@@ -106,7 +107,8 @@ export default function PropertyDetailScreen() {
   };
 
   const handleCall = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
+    const clean = phone.replace(/[^0-9+]/g, '');
+    if (clean) Linking.openURL(`tel:${clean}`);
   };
 
   const handleWhatsApp = (phone: string) => {
@@ -121,7 +123,7 @@ export default function PropertyDetailScreen() {
         <ActivityIndicator size="large" color="#2563EB" />
         <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
-          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (
@@ -147,7 +149,7 @@ export default function PropertyDetailScreen() {
         </Pressable>
         <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
-          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (
@@ -171,7 +173,7 @@ export default function PropertyDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { top: Math.max(insets.top + 8, 40) }]}>
         <Pressable onPress={() => safeGoBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
@@ -388,7 +390,7 @@ export default function PropertyDetailScreen() {
 
       <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
-          <Pressable style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
             <Ionicons name="close" size={32} color="#FFF" />
           </Pressable>
           {zoomImg && (

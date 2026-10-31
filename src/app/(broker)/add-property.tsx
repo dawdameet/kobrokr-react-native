@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -80,24 +80,26 @@ export default function AddPropertyScreen() {
     if (!isPro) {
       Alert.alert(
         'Pro Feature 🚀',
-        'Video walkthroughs are exclusively available for Pro members.\n\nBoost your property inquiries and get featured in Discovery Mode by upgrading your plan on Kobrokr.',
-        [
-          { text: 'Got it', style: 'cancel' },
-          {
-            text: 'View Plans',
-            onPress: async () => {
-              const savedCode = await storage.get('applied_referral_code');
-              const url = savedCode
-                ? `https://kobrokr.com/plans?ref=${encodeURIComponent(savedCode)}`
-                : 'https://kobrokr.com/plans';
-              try {
-                await WebBrowser.openBrowserAsync(url);
-              } catch {
-                Linking.openURL(url);
-              }
-            },
-          },
-        ]
+        'Video walkthroughs are exclusively available for Pro members.\n\nBoost your property inquiries and get featured in Discovery Mode by upgrading your plan on kobrokr.com.',
+        Platform.OS === 'ios'
+          ? [{ text: 'Got it', style: 'default' }]
+          : [
+              { text: 'Got it', style: 'cancel' },
+              {
+                text: 'View Plans',
+                onPress: async () => {
+                  const savedCode = await storage.get('applied_referral_code');
+                  const url = savedCode
+                    ? `https://kobrokr.com/plans?ref=${encodeURIComponent(savedCode)}`
+                    : 'https://kobrokr.com/plans';
+                  try {
+                    await WebBrowser.openBrowserAsync(url);
+                  } catch {
+                    Linking.openURL(url);
+                  }
+                },
+              },
+            ]
       );
       return;
     }
@@ -211,14 +213,22 @@ export default function AddPropertyScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </Pressable>
-        <Text style={styles.headerTitle}>List a Property</Text>
-      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.header}>
+          <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#111827" />
+          </Pressable>
+          <Text style={styles.headerTitle}>List a Property</Text>
+        </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+        >
         
         {/* Basic Info */}
         <View style={styles.card}>
@@ -478,6 +488,7 @@ export default function AddPropertyScreen() {
           )}
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
