@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -16,7 +17,8 @@
         "EXPO_PUBLIC_API_URL": "https://kobrokr.onrender.com",
         "EXPO_PUBLIC_WEB_URL": "https://www.kobrokr.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "118064738767-of8ot5hases1b5h6o3c0td0fpha5slt8.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "300341333165-2e16c8b8250stnltpab53r9g37p5efjd.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "300341333165-2e16c8b8250stnltpab53r9g37p5efjd.apps.googleusercontent.com",
+        "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
       }
     },
     "production": {
@@ -27,7 +29,8 @@
         "EXPO_PUBLIC_API_URL": "https://kobrokr.onrender.com",
         "EXPO_PUBLIC_WEB_URL": "https://www.kobrokr.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "118064738767-of8ot5hases1b5h6o3c0td0fpha5slt8.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "300341333165-2e16c8b8250stnltpab53r9g37p5efjd.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "300341333165-2e16c8b8250stnltpab53r9g37p5efjd.apps.googleusercontent.com",
+        "EAS_BUILD_NO_EXPO_GO_WARNING": "true"
       }
     }
   },
