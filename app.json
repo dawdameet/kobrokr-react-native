@@ -17,12 +17,21 @@
         "CFBundleDisplayName": "Kobrokr",
         "NSCameraUsageDescription": "Allow Kobrokr to access your camera so you can take photos for property listings.",
         "NSPhotoLibraryUsageDescription": "Allow Kobrokr to access your photos so you can upload property listings and profile images.",
-        "NSMicrophoneUsageDescription": "Allow Kobrokr to access your microphone when recording property walkthrough videos."
+        "NSMicrophoneUsageDescription": "Allow Kobrokr to access your microphone when recording property walkthrough videos.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "associatedDomains": [
         "applinks:kobrokr.com",
         "applinks:www.kobrokr.com"
-      ]
+      ],
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -65,7 +74,10 @@
         }
       ],
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "pan"
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
