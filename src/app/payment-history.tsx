@@ -159,54 +159,61 @@ export default function PaymentHistoryScreen() {
         ) : (
           <>
             {/* Active Subscription Summary Card */}
-            {subscription && (
-              <View style={styles.planCard}>
-                <View style={styles.planCardTop}>
-                  <View style={styles.planIconWrapper}>
-                    <Ionicons name="shield-checkmark" size={20} color="#2563EB" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planCardLabel}>CURRENT SUBSCRIPTION</Text>
-                    <Text style={styles.planCardTitle}>
-                      {subscription.plan
-                        ? subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)
-                        : 'Starter'}{' '}
-                      Plan
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      subscription.status === 'active' ? styles.statusPillActive : styles.statusPillInactive,
-                    ]}
-                  >
-                    <Text
+            {(() => {
+              const planStr = subscription?.plan;
+              const isPaidActive = subscription?.status === 'active' && Boolean(planStr) && planStr !== 'free';
+              const displayTitle = isPaidActive && planStr
+                ? `${planStr.charAt(0).toUpperCase() + planStr.slice(1)} Plan`
+                : 'Starter Plan';
+
+              return (
+                <View style={styles.planCard}>
+                  <View style={styles.planCardTop}>
+                    <View style={styles.planIconWrapper}>
+                      <Ionicons
+                        name={isPaidActive ? 'shield-checkmark' : 'leaf-outline'}
+                        size={20}
+                        color={isPaidActive ? '#2563EB' : '#15803D'}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.planCardLabel}>CURRENT SUBSCRIPTION</Text>
+                      <Text style={styles.planCardTitle}>{displayTitle}</Text>
+                    </View>
+                    <View
                       style={[
-                        styles.statusPillText,
-                        subscription.status === 'active' ? styles.statusPillTextActive : styles.statusPillTextInactive,
+                        styles.statusPill,
+                        isPaidActive ? styles.statusPillActive : styles.statusPillInactive,
                       ]}
                     >
-                      {(subscription.status || 'FREE').toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-
-                {subscription.status === 'active' && subscription.renewal_date && (
-                  <View style={styles.planCardMetaRow}>
-                    <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                    <Text style={styles.planCardMetaText}>
-                      {subscription.cancel_at_period_end ? 'Expires on: ' : 'Next renewal: '}
-                      {formatDate(subscription.renewal_date)}
-                    </Text>
-                    {subscription.billing_cycle && (
-                      <Text style={styles.planCardCycleBadge}>
-                        {subscription.billing_cycle.toUpperCase()}
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          isPaidActive ? styles.statusPillTextActive : styles.statusPillTextInactive,
+                        ]}
+                      >
+                        {isPaidActive ? 'ACTIVE' : 'FREE'}
                       </Text>
-                    )}
+                    </View>
                   </View>
-                )}
-              </View>
-            )}
+
+                  {isPaidActive && subscription?.renewal_date && (
+                    <View style={styles.planCardMetaRow}>
+                      <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+                      <Text style={styles.planCardMetaText}>
+                        {subscription.cancel_at_period_end ? 'Expires on: ' : 'Next renewal: '}
+                        {formatDate(subscription.renewal_date)}
+                      </Text>
+                      {subscription.billing_cycle && (
+                        <Text style={styles.planCardCycleBadge}>
+                          {subscription.billing_cycle.toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })()}
 
             {/* Transactions Header */}
             <View style={styles.sectionHeaderRow}>
