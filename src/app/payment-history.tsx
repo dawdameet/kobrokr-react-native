@@ -9,11 +9,14 @@ import {
   ScrollView,
   RefreshControl,
   Linking,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { Fonts } from '../constants/theme';
 import api from '../lib/api';
+import { storage } from '../lib/storage';
 import { safeGoBack } from '../lib/utils';
 
 interface PaymentRecord {
@@ -38,6 +41,8 @@ interface SubscriptionDetails {
   amount?: number;
   renewal_date?: string;
   cancel_at_period_end?: boolean;
+  pricing_type?: string;
+  razorpay_subscription_id?: string;
 }
 
 export default function PaymentHistoryScreen() {
@@ -47,6 +52,11 @@ export default function PaymentHistoryScreen() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  // Modals state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showUpdateCardModal, setShowUpdateCardModal] = useState(false);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -105,6 +115,73 @@ export default function PaymentHistoryScreen() {
     }
   };
 
+  // ── Cancel Subscription Flow ────────────────────────────────────────────────
+  const handleConfirmCancel = async () => {
+    setActionSubmitting(true);
+    try {
+      const res = await api.post('/broker/subscription/cancel');
+      setShowCancelModal(false);
+      Alert.alert(
+        'Cancellation Scheduled',
+        res.data?.message || 'Your subscription has been scheduled for cancellation at the end of the billing period. You retain full access until then.'
+      );
+      await fetchHistory();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Could not cancel subscription. Please try again.';
+      Alert.alert('Cancellation Error', msg);
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
+  // ── Resume Subscription Flow ────────────────────────────────────────────────
+  const handleResumeSubscription = async () => {
+    Alert.alert(
+      'Keep Subscription',
+      'Would you like to keep your subscription active? Autopay and all paid benefits will continue uninterrupted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Keep Subscription',
+          style: 'default',
+          onPress: async () => {
+            setActionSubmitting(true);
+            try {
+              const res = await api.post('/broker/subscription/resume');
+              Alert.alert('Success', res.data?.message || 'Subscription resumed successfully!');
+              await fetchHistory();
+            } catch (err: any) {
+              const msg = err.response?.data?.error || err.response?.data?.detail || 'Could not resume subscription. Please try again.';
+              Alert.alert('Error', msg);
+            } finally {
+              setActionSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // ── Update Payment Method (Card) Flow ───────────────────────────────────────
+  const handleProceedUpdateCard = async () => {
+    setShowUpdateCardModal(false);
+    try {
+      const token = await storage.get('access_token');
+      const apiBase = process.env.EXPO_PUBLIC_API_URL || 'https://kobrokr.onrender.com';
+      const updateUrl = `${apiBase}/payments/change-payment-method-page?token=${encodeURIComponent(token || '')}`;
+
+      const res = await WebBrowser.openAuthSessionAsync(updateUrl, 'kobrokr://');
+      if (res.type === 'success' && res.url?.includes('updated=true')) {
+        Alert.alert('Success', 'Your subscription payment method has been successfully updated.');
+      }
+      // Refresh history to reflect any updates
+      await fetchHistory();
+    } catch (e: any) {
+      console.error('Error opening card update browser:', e);
+      Alert.alert('Error', 'Could not open payment method updater.');
+    }
+  };
+
   const formatDate = (isoString?: string) => {
     if (!isoString) return '—';
     try {
@@ -125,6 +202,13 @@ export default function PaymentHistoryScreen() {
     }
     return `${currency} ${amt}`;
   };
+
+  const isPaidActive = subscription?.status === 'active' && Boolean(subscription?.plan) && subscription?.plan !== 'free';
+  const planName = subscription?.plan
+    ? subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)
+    : 'Starter';
+  const pricingType = subscription?.pricing_type || 'standard';
+  const renewalDateStr = formatDate(subscription?.renewal_date);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
@@ -159,61 +243,109 @@ export default function PaymentHistoryScreen() {
         ) : (
           <>
             {/* Active Subscription Summary Card */}
-            {(() => {
-              const planStr = subscription?.plan;
-              const isPaidActive = subscription?.status === 'active' && Boolean(planStr) && planStr !== 'free';
-              const displayTitle = isPaidActive && planStr
-                ? `${planStr.charAt(0).toUpperCase() + planStr.slice(1)} Plan`
-                : 'Starter Plan';
+            <View style={styles.planCard}>
+              <View style={styles.planCardTop}>
+                <View style={styles.planIconWrapper}>
+                  <Ionicons
+                    name={isPaidActive ? 'shield-checkmark' : 'leaf-outline'}
+                    size={20}
+                    color={isPaidActive ? '#2563EB' : '#15803D'}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planCardLabel}>CURRENT SUBSCRIPTION</Text>
+                  <Text style={styles.planCardTitle}>
+                    {isPaidActive ? `${planName} Plan` : 'Starter Plan'}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    subscription?.cancel_at_period_end
+                      ? styles.statusPillPendingCancel
+                      : isPaidActive
+                      ? styles.statusPillActive
+                      : styles.statusPillInactive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusPillText,
+                      subscription?.cancel_at_period_end
+                        ? styles.statusPillTextPendingCancel
+                        : isPaidActive
+                        ? styles.statusPillTextActive
+                        : styles.statusPillTextInactive,
+                    ]}
+                  >
+                    {subscription?.cancel_at_period_end
+                      ? 'CANCELLATION SCHEDULED'
+                      : isPaidActive
+                      ? 'ACTIVE'
+                      : 'FREE'}
+                  </Text>
+                </View>
+              </View>
 
-              return (
-                <View style={styles.planCard}>
-                  <View style={styles.planCardTop}>
-                    <View style={styles.planIconWrapper}>
-                      <Ionicons
-                        name={isPaidActive ? 'shield-checkmark' : 'leaf-outline'}
-                        size={20}
-                        color={isPaidActive ? '#2563EB' : '#15803D'}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.planCardLabel}>CURRENT SUBSCRIPTION</Text>
-                      <Text style={styles.planCardTitle}>{displayTitle}</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.statusPill,
-                        isPaidActive ? styles.statusPillActive : styles.statusPillInactive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.statusPillText,
-                          isPaidActive ? styles.statusPillTextActive : styles.statusPillTextInactive,
-                        ]}
-                      >
-                        {isPaidActive ? 'ACTIVE' : 'FREE'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isPaidActive && subscription?.renewal_date && (
-                    <View style={styles.planCardMetaRow}>
-                      <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                      <Text style={styles.planCardMetaText}>
-                        {subscription.cancel_at_period_end ? 'Expires on: ' : 'Next renewal: '}
-                        {formatDate(subscription.renewal_date)}
-                      </Text>
-                      {subscription.billing_cycle && (
-                        <Text style={styles.planCardCycleBadge}>
-                          {subscription.billing_cycle.toUpperCase()}
-                        </Text>
-                      )}
-                    </View>
+              {isPaidActive && subscription?.renewal_date && (
+                <View style={styles.planCardMetaRow}>
+                  <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+                  <Text style={styles.planCardMetaText}>
+                    {subscription.cancel_at_period_end ? 'Access ends on: ' : 'Next renewal: '}
+                    {renewalDateStr}
+                  </Text>
+                  {subscription.billing_cycle && (
+                    <Text style={styles.planCardCycleBadge}>
+                      {subscription.billing_cycle.toUpperCase()}
+                    </Text>
                   )}
                 </View>
-              );
-            })()}
+              )}
+
+              {/* Scheduled Cancellation Alert & Resume Button */}
+              {isPaidActive && subscription?.cancel_at_period_end ? (
+                <View style={styles.cancellationBannerBox}>
+                  <Text style={styles.cancellationBannerText}>
+                    ⚠️ Your subscription is scheduled to end on <Text style={{ fontFamily: Fonts.sansBold }}>{renewalDateStr}</Text>. Paid features will be disabled after this date.
+                  </Text>
+                  <Pressable
+                    style={styles.resumeBtn}
+                    onPress={handleResumeSubscription}
+                    disabled={actionSubmitting}
+                  >
+                    {actionSubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons name="arrow-undo" size={16} color="#FFFFFF" />
+                        <Text style={styles.resumeBtnText}>Keep My Subscription</Text>
+                      </>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {/* Active Plan Management Buttons (Update Card / Cancel Subscription) */}
+              {isPaidActive && !subscription?.cancel_at_period_end ? (
+                <View style={styles.managementActionsRow}>
+                  <Pressable
+                    style={[styles.mgmtBtn, styles.updateCardBtn]}
+                    onPress={() => setShowUpdateCardModal(true)}
+                  >
+                    <Ionicons name="card-outline" size={15} color="#374151" />
+                    <Text style={styles.updateCardBtnText}>Update Card</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.mgmtBtn, styles.cancelBtn]}
+                    onPress={() => setShowCancelModal(true)}
+                  >
+                    <Ionicons name="close-circle-outline" size={15} color="#DC2626" />
+                    <Text style={styles.cancelBtnText}>Cancel Subscription</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
 
             {/* Transactions Header */}
             <View style={styles.sectionHeaderRow}>
@@ -337,6 +469,155 @@ export default function PaymentHistoryScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ── CANCEL SUBSCRIPTION MODAL ────────────────────────────────────────── */}
+      <Modal
+        visible={showCancelModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!actionSubmitting) setShowCancelModal(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Cancel Subscription</Text>
+              <Pressable
+                onPress={() => {
+                  if (!actionSubmitting) setShowCancelModal(false);
+                }}
+                hitSlop={10}
+              >
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+              {/* Founding Price Loss Warning */}
+              {pricingType === 'founding' ? (
+                <View style={styles.warningBoxGold}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Text style={{ fontSize: 16 }}>⭐</Text>
+                    <Text style={styles.warningTitleGold}>Founding Broker — Permanent Loss Warning</Text>
+                  </View>
+                  <Text style={styles.warningTextGold}>
+                    You are a <Text style={{ fontFamily: Fonts.sansBold }}>Founding Broker</Text> with a <Text style={{ fontFamily: Fonts.sansBold }}>lifetime-locked rate</Text>. If you cancel now, this exclusive pricing is permanently lost.
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Intro Price Loss Warning */}
+              {pricingType === 'intro' ? (
+                <View style={styles.warningBoxPurple}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Text style={{ fontSize: 16 }}>🔥</Text>
+                    <Text style={styles.warningTitlePurple}>Intro Offer — Launch Price Forfeiture</Text>
+                  </View>
+                  <Text style={styles.warningTextPurple}>
+                    Cancelling means your intro pricing is permanently forfeited. Any future subscription will be charged at standard rates.
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Consequences Box */}
+              <View style={styles.consequencesBox}>
+                <Text style={styles.consequencesTitle}>🚫 What happens when you cancel:</Text>
+                <View style={styles.consequencesList}>
+                  <Text style={styles.consequenceItem}>
+                    • You <Text style={{ fontFamily: Fonts.sansBold }}>keep full access</Text> until <Text style={{ fontFamily: Fonts.sansBold }}>{renewalDateStr}</Text>.
+                  </Text>
+                  <Text style={styles.consequenceItem}>
+                    • Your {planName} features will be deactivated after this date.
+                  </Text>
+                  <Text style={styles.consequenceItem}>
+                    • Your listings will revert to the <Text style={{ fontFamily: Fonts.sansBold }}>Free tier limit (3 listings)</Text>.
+                  </Text>
+                  <Text style={styles.consequenceItem}>
+                    • No refund is issued for the current active period.
+                  </Text>
+                  <Text style={styles.consequenceItem}>
+                    • You can resubscribe anytime after cancellation.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Access date reminder */}
+              <View style={styles.accessDateRow}>
+                <Text style={styles.accessDateLabel}>Access ends on</Text>
+                <Text style={styles.accessDateValue}>{renewalDateStr}</Text>
+              </View>
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActionGroup}>
+              <Pressable
+                style={styles.modalKeepBtn}
+                onPress={() => setShowCancelModal(false)}
+                disabled={actionSubmitting}
+              >
+                <Text style={styles.modalKeepBtnText}>Keep My Subscription</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={handleConfirmCancel}
+                disabled={actionSubmitting}
+              >
+                {actionSubmitting ? (
+                  <ActivityIndicator size="small" color="#DC2626" />
+                ) : (
+                  <Text style={styles.modalCancelBtnText}>Yes, Cancel Subscription</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── UPDATE PAYMENT METHOD MODAL ─────────────────────────────────────── */}
+      <Modal
+        visible={showUpdateCardModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUpdateCardModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Payment Method</Text>
+              <Pressable onPress={() => setShowUpdateCardModal(false)} hitSlop={10}>
+                <Ionicons name="close" size={22} color="#6B7280" />
+              </Pressable>
+            </View>
+
+            <View style={styles.cardInfoBox}>
+              <Text style={styles.cardInfoItem}>• <Text style={{ fontFamily: Fonts.sansBold, color: '#111827' }}>No subscription payment will be charged today.</Text></Text>
+              <Text style={styles.cardInfoItem}>• A secure Razorpay checkout will open to register your new card or UPI autopay.</Text>
+              <Text style={styles.cardInfoItem}>• Your current plan remains active without interruption.</Text>
+              <Text style={styles.cardInfoItem}>• Future renewals will be billed to the new payment method.</Text>
+              <Text style={styles.cardInfoItem}>• Your renewal date and pricing remain exactly the same.</Text>
+            </View>
+
+            <View style={styles.modalActionGroup}>
+              <Pressable
+                style={styles.modalKeepBtn}
+                onPress={handleProceedUpdateCard}
+              >
+                <Ionicons name="lock-closed" size={15} color="#FFFFFF" />
+                <Text style={styles.modalKeepBtnText}>Proceed to Update</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.modalCancelBtn}
+                onPress={() => setShowUpdateCardModal(false)}
+              >
+                <Text style={[styles.modalCancelBtnText, { color: '#4B5563' }]}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -454,6 +735,9 @@ const styles = StyleSheet.create({
   statusPillActive: {
     backgroundColor: '#DCFCE7',
   },
+  statusPillPendingCancel: {
+    backgroundColor: '#FEF3C7',
+  },
   statusPillInactive: {
     backgroundColor: '#F3F4F6',
   },
@@ -463,6 +747,9 @@ const styles = StyleSheet.create({
   },
   statusPillTextActive: {
     color: '#15803D',
+  },
+  statusPillTextPendingCancel: {
+    color: '#B45309',
   },
   statusPillTextInactive: {
     color: '#6B7280',
@@ -490,6 +777,73 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+  },
+  cancellationBannerBox: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 12,
+  },
+  cancellationBannerText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  resumeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  resumeBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  managementActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  mgmtBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  updateCardBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  updateCardBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 12,
+    color: '#374151',
+  },
+  cancelBtn: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  cancelBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 12,
+    color: '#DC2626',
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -687,5 +1041,162 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 16,
     flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 22,
+    width: '100%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 17,
+    color: '#111827',
+  },
+  warningBoxGold: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  warningTitleGold: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#92400E',
+    letterSpacing: 0.3,
+  },
+  warningTextGold: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+  warningBoxPurple: {
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  warningTitlePurple: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#6B21A8',
+  },
+  warningTextPurple: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B21A8',
+    lineHeight: 17,
+  },
+  consequencesBox: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+  },
+  consequencesTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 12,
+    color: '#991B1B',
+    marginBottom: 8,
+  },
+  consequencesList: {
+    gap: 6,
+  },
+  consequenceItem: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 17,
+  },
+  accessDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  accessDateLabel: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  accessDateValue: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    color: '#111827',
+  },
+  cardInfoBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 8,
+    marginBottom: 20,
+  },
+  cardInfoItem: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  modalActionGroup: {
+    gap: 10,
+  },
+  modalKeepBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  modalKeepBtnText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  modalCancelBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  modalCancelBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    color: '#DC2626',
   },
 });
