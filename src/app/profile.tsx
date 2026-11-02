@@ -294,6 +294,30 @@ export default function ProfileScreen() {
 
         {userRole === 'broker' && <SubscriptionWidget />}
 
+        {/* Payment History & Invoices Section */}
+        {userRole === 'broker' && (
+          <Pressable 
+            style={styles.paymentCard}
+            onPress={() => router.push('/payment-history' as any)}
+          >
+            <View style={styles.paymentCardIconContainer}>
+              <Ionicons name="receipt-outline" size={20} color="#2563EB" />
+            </View>
+            <View style={styles.paymentCardTextContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.paymentCardTitle}>Payment History & Invoices</Text>
+                <View style={styles.invoiceBadge}>
+                  <Text style={styles.invoiceBadgeText}>GST PDF</Text>
+                </View>
+              </View>
+              <Text style={styles.paymentCardSubtitle}>
+                Download tax receipts & view past transactions
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </Pressable>
+        )}
+
         {/* Help & Support Section */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
@@ -625,6 +649,58 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     color: '#7E22CE',
+    letterSpacing: 0.5,
+  },
+  paymentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  paymentCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paymentCardTextContainer: {
+    flex: 1,
+  },
+  paymentCardTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#111827',
+  },
+  paymentCardSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  invoiceBadge: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  invoiceBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    color: '#16A34A',
     letterSpacing: 0.5,
   },
   logoutBtn: {

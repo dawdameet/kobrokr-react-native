@@ -14,7 +14,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const pathname = usePathname();
-  const hideNavOn = ['/login', '/signup', '/onboarding', '/add-property', '/client-share', '/agency-team'];
+  const hideNavOn = ['/login', '/signup', '/onboarding', '/add-property', '/client-share', '/agency-team', '/payment-history'];
   const isDetailsRoute = pathname.startsWith('/properties/');
   const isHidden = hideNavOn.includes(pathname) || isDetailsRoute || pathname === '/';
 
