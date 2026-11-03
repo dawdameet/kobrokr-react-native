@@ -4,37 +4,44 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  Image,
   Linking,
   Share,
   Platform,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useTranslation } from 'react-i18next';
 import { Fonts } from '../constants/theme';
 import { formatPrice } from '../lib/utils';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
+import { statsStore } from '../lib/statsStore';
 
 interface DiscoverVideoCardProps {
   property: any;
   isActive: boolean;
   isMuted: boolean;
+  isSaved?: boolean;
+  onToggleSave?: (propertyId: number, nextSaved: boolean) => void;
   onToggleMute: () => void;
   height: number;
 }
 
-export default function DiscoverVideoCard({
+function DiscoverVideoCardComponent({
   property,
   isActive,
   isMuted,
+  isSaved = false,
+  onToggleSave,
   onToggleMute,
   height,
 }: DiscoverVideoCardProps) {
+  const { t } = useTranslation();
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
+  const [savedLocally, setSavedLocally] = useState(Boolean(isSaved));
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const [showPlayIcon, setShowPlayIcon] = useState(false);
   const lastTapRef = useRef<number>(0);
@@ -42,6 +49,11 @@ export default function DiscoverVideoCard({
   const videoUrl = property.property_videos?.[0]?.url;
   const coverImage = property.property_images?.find((img: any) => img.is_cover)?.url || property.property_images?.[0]?.url;
   const broker = property.brokers;
+
+  // Sync saved state when parent props update
+  useEffect(() => {
+    setSavedLocally(Boolean(isSaved));
+  }, [isSaved]);
 
   // Video player configuration
   const player = useVideoPlayer(videoUrl || '', (p) => {
@@ -69,28 +81,6 @@ export default function DiscoverVideoCard({
     if (!player) return;
     player.muted = isMuted;
   }, [isMuted, player]);
-
-  // Check saved state initially
-  useEffect(() => {
-    let isMounted = true;
-    async function checkSaved() {
-      try {
-        const userStr = await storage.get('user');
-        if (!userStr) return;
-        const u = JSON.parse(userStr);
-        const endpoint = u.role === 'tenant' ? '/saved/tenant' : '/saved';
-        const { data } = await api.get(endpoint);
-        if (isMounted && Array.isArray(data)) {
-          const match = data.some((s: any) => s.properties?.id === property.id || s.property_id === property.id);
-          setIsSaved(match);
-        }
-      } catch (e) {
-        // silent fail on check
-      }
-    }
-    checkSaved();
-    return () => { isMounted = false; };
-  }, [property.id]);
 
   const togglePlayPause = () => {
     if (!player) return;
@@ -126,35 +116,61 @@ export default function DiscoverVideoCard({
   const triggerLike = async () => {
     setShowHeartAnim(true);
     setTimeout(() => setShowHeartAnim(false), 900);
-    if (!isSaved) {
+    if (!savedLocally) {
       handleToggleSave();
     }
   };
 
   const handleToggleSave = async () => {
+    const nextSaved = !savedLocally;
+    setSavedLocally(nextSaved);
+    onToggleSave?.(property.id, nextSaved);
+    if (nextSaved) {
+      statsStore.incrementSaved();
+    } else {
+      statsStore.decrementSaved();
+    }
     try {
       const userStr = await storage.get('user');
       const u = userStr ? JSON.parse(userStr) : null;
       const endpoint = u?.role === 'tenant' ? '/saved/tenant' : '/saved';
-      if (isSaved) {
-        setIsSaved(false);
+      if (!nextSaved) {
         await api.delete(`${endpoint}/${property.id}`);
       } else {
-        setIsSaved(true);
         await api.post(endpoint, { property_id: property.id });
       }
     } catch (e) {
       // Revert if failed
-      setIsSaved(prev => !prev);
+      setSavedLocally(!nextSaved);
+      onToggleSave?.(property.id, !nextSaved);
+      if (nextSaved) {
+        statsStore.decrementSaved();
+      } else {
+        statsStore.incrementSaved();
+      }
     }
   };
 
   const handleShare = async () => {
     try {
-      await Share.share({
-        title: property.title || 'Property on kobrokr',
-        message: `Check out this property on kobrokr: ${property.title} in ${property.locality || ''}, ${property.city} - ${formatPrice(property.price)}`,
-      });
+      const baseUrl = process.env.EXPO_PUBLIC_WEB_URL || 'https://www.kobrokr.com';
+      const brokerId = property.broker_id || broker?.id || '';
+      const shareLink = `${baseUrl}/client-share?${brokerId ? `b=${brokerId}&` : ''}p=${property.id}`;
+
+      const shareMessage = `Check out this property walkthrough on Kobrokr:\n${property.title} in ${property.locality ? property.locality + ', ' : ''}${property.city} - ${formatPrice(property.price)}\n\nWatch walkthrough video & open in app:\n${shareLink}`;
+
+      await Share.share(
+        Platform.OS === 'ios'
+          ? {
+              title: property.title || 'Property Walkthrough on Kobrokr',
+              message: shareMessage,
+              url: shareLink,
+            }
+          : {
+              title: property.title || 'Property Walkthrough on Kobrokr',
+              message: shareMessage,
+            }
+      );
     } catch (e) {
       console.log('Share error:', e);
     }
@@ -162,7 +178,8 @@ export default function DiscoverVideoCard({
 
   const handleCall = () => {
     if (!broker?.mobile) return;
-    Linking.openURL(`tel:${broker.mobile}`);
+    const clean = broker.mobile.replace(/[^0-9+]/g, '');
+    if (clean) Linking.openURL(`tel:${clean}`);
   };
 
   const handleWhatsApp = () => {
@@ -189,7 +206,9 @@ export default function DiscoverVideoCard({
           <Image
             source={{ uri: coverImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800' }}
             style={StyleSheet.absoluteFill}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
           />
         )}
 
@@ -238,7 +257,7 @@ export default function DiscoverVideoCard({
               color={isSaved ? '#EF4444' : '#111827'}
             />
           </View>
-          <Text style={styles.actionLabel}>{isSaved ? 'Saved' : 'Save'}</Text>
+          <Text style={styles.actionLabel}>{isSaved ? t('property.saved') : t('property.saveProperty')}</Text>
         </Pressable>
 
         {/* Share */}
@@ -246,7 +265,7 @@ export default function DiscoverVideoCard({
           <View style={styles.actionIconCircle}>
             <Ionicons name="share-social-outline" size={20} color="#111827" />
           </View>
-          <Text style={styles.actionLabel}>Share</Text>
+          <Text style={styles.actionLabel}>{t('common.share')}</Text>
         </Pressable>
 
         {/* Call Broker */}
@@ -255,7 +274,7 @@ export default function DiscoverVideoCard({
             <View style={[styles.actionIconCircle, styles.callCircle]}>
               <Ionicons name="call" size={18} color="#2563EB" />
             </View>
-            <Text style={styles.actionLabel}>Call</Text>
+            <Text style={styles.actionLabel}>{t('common.call')}</Text>
           </Pressable>
         )}
 
@@ -265,7 +284,7 @@ export default function DiscoverVideoCard({
             <View style={[styles.actionIconCircle, styles.whatsappCircle]}>
               <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
             </View>
-            <Text style={styles.actionLabel}>WhatsApp</Text>
+            <Text style={styles.actionLabel}>{t('common.whatsapp')}</Text>
           </Pressable>
         )}
       </View>
@@ -278,7 +297,7 @@ export default function DiscoverVideoCard({
           {property.listing_type && (
             <View style={styles.listingTypeBadge}>
               <Text style={styles.listingTypeText}>
-                {property.listing_type === 'sale' ? 'FOR SALE' : 'FOR RENT'}
+                {t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type }).toUpperCase()}
               </Text>
             </View>
           )}
@@ -286,15 +305,15 @@ export default function DiscoverVideoCard({
 
         {/* Specs & Location */}
         <Text style={styles.specsText} numberOfLines={1}>
-          {property.bhk ? `${property.bhk} BHK · ` : ''}
-          {property.area ? `${property.area} sq ft · ` : ''}
+          {property.bhk ? `${property.bhk} ${t('property.bhk')} · ` : ''}
+          {property.area ? `${property.area} ${t('property.sqFt')} · ` : ''}
           {property.locality ? `${property.locality}, ` : ''}{property.city}
         </Text>
 
         {/* Broker Tag */}
         {broker?.full_name && (
           <Text style={styles.brokerText} numberOfLines={1}>
-            By {broker.full_name}{broker.agency_name ? ` (${broker.agency_name})` : ''}
+            {broker.full_name}{broker.agency_name ? ` (${broker.agency_name})` : ''}
           </Text>
         )}
 
@@ -303,7 +322,7 @@ export default function DiscoverVideoCard({
           style={styles.viewPropertyPill}
           onPress={() => router.push(`/properties/${property.id}` as any)}
         >
-          <Text style={styles.viewPropertyPillText}>View Property</Text>
+          <Text style={styles.viewPropertyPillText}>{t('property.viewProperty')}</Text>
           <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
         </Pressable>
       </View>
@@ -506,3 +525,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
+
+const DiscoverVideoCard = React.memo(DiscoverVideoCardComponent);
+export default DiscoverVideoCard;

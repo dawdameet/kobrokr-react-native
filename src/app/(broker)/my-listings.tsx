@@ -1,15 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Image, Alert, TextInput } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, TextInput, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../../lib/api';
+import { statsStore } from '../../lib/statsStore';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
 
+interface ListingCardProps {
+  property: any;
+  onToggleStatus: (property: any) => void;
+  onDelete: (property: any) => void;
+}
+
+const ListingCard = React.memo(function ListingCard({
+  property: p,
+  onToggleStatus,
+  onDelete,
+}: ListingCardProps) {
+  const { t } = useTranslation();
+  const cover = p.property_images?.find((i: any) => i.is_cover)?.url || p.property_images?.[0]?.url;
+
+  return (
+    <View style={styles.card}>
+      <Pressable onPress={() => router.push(`/properties/${p.id}`)}>
+        {cover ? (
+          <Image
+            source={{ uri: cover }}
+            style={styles.cardImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
+        ) : (
+          <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+            <Ionicons name="image-outline" size={32} color="#D1D5DB" />
+          </View>
+        )}
+
+        <View style={[
+          styles.statusBadge,
+          p.status === 'active' ? styles.statusActive :
+            p.status === 'sold' ? styles.statusSold : styles.statusInactive
+        ]}>
+          <Text style={[
+            styles.statusText,
+            p.status === 'active' ? styles.statusTextActive :
+              p.status === 'sold' ? styles.statusTextSold : styles.statusTextInactive
+          ]}>{t(`enums.status.${p.status}`, { defaultValue: p.status })}</Text>
+        </View>
+
+        {p.is_dummy && (
+          <View style={styles.dummyBadge}>
+            <Text style={styles.dummyBadgeText}>{t('property.dummyListing')}</Text>
+          </View>
+        )}
+
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={1}>{p.title}</Text>
+          <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
+
+          <View style={styles.cardPriceRow}>
+            <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
+            <Text style={styles.cardArea}>· {p.area} {t('property.sqFt')}</Text>
+            {p.bhk && <Text style={styles.cardArea}>· {p.bhk} {t('property.bhk')}</Text>}
+          </View>
+        </View>
+      </Pressable>
+
+      <View style={styles.actionsContainer}>
+        <Pressable style={[styles.actionBtn, styles.actionToggle]} onPress={() => onToggleStatus(p)}>
+          <Text style={styles.actionToggleText} numberOfLines={1}>{p.status === 'active' ? t('myListings.markInactive') : t('myListings.markActive')}</Text>
+        </Pressable>
+        <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert(t('common.comingSoon'), t('myListings.editNotice'))}>
+          <Text style={styles.actionEditText} numberOfLines={1}>{t('common.edit')}</Text>
+        </Pressable>
+        <Pressable style={[styles.actionBtn, styles.actionDelete]} onPress={() => onDelete(p)}>
+          <Text style={styles.actionDeleteText} numberOfLines={1}>{t('common.delete')}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+let memoryMyListings: any[] | null = null;
+
 export default function MyListingsScreen() {
-  const [listings, setListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const [listings, setListings] = useState<any[]>(memoryMyListings || []);
+  const [loading, setLoading] = useState(!memoryMyListings);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
@@ -18,118 +100,79 @@ export default function MyListingsScreen() {
   }, []);
 
   const fetchListings = async () => {
+    if (!memoryMyListings) setLoading(true);
     try {
       const { data } = await api.get('/properties/my');
+      memoryMyListings = data;
       setListings(data);
+      const activeCount = data.filter((p: any) => p.status === 'active').length;
+      statsStore.setBrokerStats({
+        listings: data.length,
+        active: activeCount,
+        saved: statsStore.getStats()?.broker?.saved ?? 0,
+      });
     } catch (e) {
-      setError('Failed to load listings');
+      if (!memoryMyListings) setError('Failed to load listings');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleStatus = async (property: any) => {
+  const toggleStatus = useCallback(async (property: any) => {
     const newStatus = property.status === 'active' ? 'inactive' : 'active';
     try {
       await api.put(`/properties/${property.id}`, { status: newStatus });
-      setListings(prev =>
-        prev.map(p => (p.id === property.id ? { ...p, status: newStatus } : p))
-      );
+      setListings(prev => {
+        const next = prev.map(p => (p.id === property.id ? { ...p, status: newStatus } : p));
+        memoryMyListings = next;
+        return next;
+      });
+      statsStore.updateListingStatus(property.status, newStatus);
     } catch (e) {
-      Alert.alert('Error', 'Failed to update status');
+      Alert.alert(t('common.error'), t('myListings.updateFailed'));
     }
-  };
+  }, [t]);
 
-  const handleDelete = (property: any) => {
+  const handleDelete = useCallback((property: any) => {
     Alert.alert(
-      'Delete Listing',
-      `Are you sure you want to delete "${property.title}"? This cannot be undone.`,
+      t('myListings.deleteTitle'),
+      `${t('myListings.deleteConfirm')} ("${property.title}")`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await api.delete(`/properties/${property.id}`);
-              setListings(prev => prev.filter(p => p.id !== property.id));
+              setListings(prev => {
+                const next = prev.filter(p => p.id !== property.id);
+                memoryMyListings = next;
+                return next;
+              });
+              statsStore.decrementListings(property.status === 'active');
             } catch (e) {
-              Alert.alert('Error', 'Failed to delete listing');
+              Alert.alert(t('common.error'), t('myListings.deleteFailed'));
             }
           }
         }
       ]
     );
-  };
+  }, [t]);
 
-  const filteredListings = listings.filter(p => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        p.title?.toLowerCase().includes(q) ||
-        p.locality?.toLowerCase().includes(q) ||
-        p.city?.toLowerCase().includes(q)
-      );
-    });
+  const filteredListings = useMemo(() => {
+    if (!search) return listings;
+    const q = search.toLowerCase();
+    return listings.filter(p =>
+      p.title?.toLowerCase().includes(q) ||
+      p.locality?.toLowerCase().includes(q) ||
+      p.city?.toLowerCase().includes(q)
+    );
+  }, [listings, search]);
 
-    const renderItem = ({ item: p }: { item: any }) => {
-      const cover = p.property_images?.find((i: any) => i.is_cover)?.url || p.property_images?.[0]?.url;
-
-      return (
-        <View style={styles.card}>
-          <Pressable onPress={() => router.push(`/properties/${p.id}`)}>
-            {cover ? (
-              <Image source={{ uri: cover }} style={styles.cardImage} />
-            ) : (
-              <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-                <Ionicons name="image-outline" size={32} color="#D1D5DB" />
-              </View>
-            )}
-
-            <View style={[
-              styles.statusBadge,
-              p.status === 'active' ? styles.statusActive :
-                p.status === 'sold' ? styles.statusSold : styles.statusInactive
-            ]}>
-              <Text style={[
-                styles.statusText,
-                p.status === 'active' ? styles.statusTextActive :
-                  p.status === 'sold' ? styles.statusTextSold : styles.statusTextInactive
-              ]}>{p.status}</Text>
-            </View>
-
-            {p.is_dummy && (
-              <View style={styles.dummyBadge}>
-                <Text style={styles.dummyBadgeText}>DUMMY LISTING</Text>
-              </View>
-            )}
-
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{p.title}</Text>
-              <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
-
-              <View style={styles.cardPriceRow}>
-                <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
-                <Text style={styles.cardArea}>· {p.area} sq ft</Text>
-                {p.bhk && <Text style={styles.cardArea}>· {p.bhk} BHK</Text>}
-              </View>
-            </View>
-          </Pressable>
-
-          <View style={styles.actionsContainer}>
-            <Pressable style={[styles.actionBtn, styles.actionToggle]} onPress={() => toggleStatus(p)}>
-              <Text style={styles.actionToggleText}>{p.status === 'active' ? 'Mark Inactive' : 'Mark Active'}</Text>
-            </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert('Coming Soon', 'Edit functionality will be added in a future update.')}>
-              <Text style={styles.actionEditText}>Edit</Text>
-            </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionDelete]} onPress={() => handleDelete(p)}>
-              <Text style={styles.actionDeleteText}>Delete</Text>
-            </Pressable>
-          </View>
-        </View>
-      );
-    };
+  const renderItem = useCallback(({ item: p }: { item: any }) => (
+    <ListingCard property={p} onToggleStatus={toggleStatus} onDelete={handleDelete} />
+  ), [toggleStatus, handleDelete]);
 
     return (
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
@@ -137,7 +180,7 @@ export default function MyListingsScreen() {
           <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
-          <Text style={styles.headerTitle}>My Listings</Text>
+          <Text style={styles.headerTitle}>{t('myListings.title')}</Text>
           <Pressable onPress={() => router.push('/(broker)/add-property')} style={styles.addButton}>
             <Ionicons name="add" size={24} color="#2563EB" />
           </Pressable>
@@ -150,7 +193,7 @@ export default function MyListingsScreen() {
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
-              placeholder="Search by title or locality..."
+              placeholder={t('myListings.searchPlaceholder')}
               placeholderTextColor="#9CA3AF"
             />
           </View>
@@ -169,14 +212,18 @@ export default function MyListingsScreen() {
             data={filteredListings}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
+            initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="home-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-                <Text style={styles.emptyTitle}>No listings found</Text>
-                <Text style={styles.emptySub}>You haven't added any properties yet.</Text>
+                <Text style={styles.emptyTitle}>{t('myListings.noListingsFound')}</Text>
+                <Text style={styles.emptySub}>{t('myListings.noPropertiesYet')}</Text>
                 <Pressable style={styles.emptyBtn} onPress={() => router.push('/(broker)/add-property')}>
-                  <Text style={styles.emptyBtnText}>Add your first property</Text>
+                  <Text style={styles.emptyBtnText}>{t('myListings.addFirstProperty')}</Text>
                 </Pressable>
               </View>
             }
@@ -265,7 +312,6 @@ export default function MyListingsScreen() {
     cardImage: {
       width: '100%',
       height: 160,
-      resizeMode: 'cover',
     },
     cardImagePlaceholder: {
       backgroundColor: '#F3F4F6',
@@ -346,15 +392,18 @@ export default function MyListingsScreen() {
       borderTopWidth: 1,
       borderTopColor: '#F3F4F6',
       backgroundColor: '#FAFAFA',
+      alignItems: 'center',
     },
     actionBtn: {
-      flex: 1,
-      paddingVertical: 8,
+      paddingVertical: 9,
+      paddingHorizontal: 6,
       borderRadius: 8,
       alignItems: 'center',
+      justifyContent: 'center',
       borderWidth: 1,
     },
     actionToggle: {
+      flex: 1.35,
       borderColor: '#E5E7EB',
       backgroundColor: '#FFFFFF',
     },
@@ -363,8 +412,10 @@ export default function MyListingsScreen() {
       color: '#4B5563',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     actionEdit: {
+      flex: 0.8,
       borderColor: '#BFDBFE',
       backgroundColor: '#EFF6FF',
     },
@@ -373,8 +424,10 @@ export default function MyListingsScreen() {
       color: '#2563EB',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     actionDelete: {
+      flex: 0.85,
       borderColor: '#FECACA',
       backgroundColor: '#FEF2F2',
     },
@@ -383,6 +436,7 @@ export default function MyListingsScreen() {
       color: '#EF4444',
       fontSize: 12,
       fontWeight: '600',
+      textAlign: 'center',
     },
     emptyContainer: {
       paddingVertical: 64,

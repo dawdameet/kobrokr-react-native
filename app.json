@@ -1,25 +1,85 @@
 {
   "expo": {
-    "name": "kobrokr-mobile",
+    "name": "Kobrokr",
     "slug": "kobrokr-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kobrokrmobile",
+    "scheme": "kobrokr",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.kobrokr.mobile"
+      "bundleIdentifier": "com.kobrokr.mobile",
+      "buildNumber": "7",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDisplayName": "Kobrokr",
+        "NSCameraUsageDescription": "Allow Kobrokr to access your camera so you can take photos for property listings.",
+        "NSPhotoLibraryUsageDescription": "Allow Kobrokr to access your photos so you can upload property listings and profile images.",
+        "NSMicrophoneUsageDescription": "Allow Kobrokr to access your microphone when recording property walkthrough videos.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:kobrokr.com",
+        "applinks:www.kobrokr.com"
+      ],
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2C54F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "package": "com.kobrokr.mobile",
-      "predictiveBackGestureEnabled": false
+      "versionCode": 6,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kobrokr.com",
+              "pathPrefix": "/client-share"
+            },
+            {
+              "scheme": "https",
+              "host": "www.kobrokr.com",
+              "pathPrefix": "/client-share"
+            },
+            {
+              "scheme": "https",
+              "host": "kobrokr.com",
+              "pathPrefix": "/signup"
+            },
+            {
+              "scheme": "https",
+              "host": "www.kobrokr.com",
+              "pathPrefix": "/signup"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -30,9 +90,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2C54F1",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200
         }
       ],
       [
@@ -55,11 +115,30 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#2563EB"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Kobrokr to access your photos so you can upload property listings and profile images.",
+          "cameraPermission": "Allow Kobrokr to access your camera so you can take photos for property listings."
+        }
+      ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a521df33-404d-433e-ab98-bab80ec7563e"
+      }
     }
   }
 }

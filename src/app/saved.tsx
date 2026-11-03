@@ -1,88 +1,165 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Image, Alert, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, ScrollView, Platform, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
-import { clearSession } from '../lib/auth';
 import { formatPrice, safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
+import ShareModal from '../components/ShareModal';
+import { setPropertyPreview } from '../lib/propertyCache';
+import { statsStore } from '../lib/statsStore';
+import { libraryStore } from '../lib/libraryStore';
 
 export default function SavedScreen() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'saved' | 'collections'>('saved');
-  const [saved, setSaved] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Initialize immediately from synchronous in-memory cache if available
+  const initialCache = libraryStore.getState();
+  const [saved, setSaved] = useState<any[]>(initialCache?.saved || []);
+  const [collections, setCollections] = useState<any[]>(initialCache?.collections || []);
+  const [loading, setLoading] = useState<boolean>(!initialCache);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sharePropertyIds, setSharePropertyIds] = useState<(string | number)[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  // Fetch both saved and collections in parallel without blocking active tab
+  const fetchLibraryData = useCallback(async (role: string, isPullRefresh = false) => {
+    if (!isPullRefresh && !libraryStore.getState()) {
+      setLoading(true);
+    }
+    try {
+      const savedEndpoint = role === 'tenant' ? '/saved/tenant' : '/saved';
+      const [savedRes, colRes] = await Promise.allSettled([
+        api.get(savedEndpoint),
+        api.get('/collections'),
+      ]);
+
+      let newSaved = libraryStore.getState()?.saved || [];
+      if (savedRes.status === 'fulfilled' && Array.isArray(savedRes.value.data)) {
+        newSaved = savedRes.value.data;
+        setSaved(newSaved);
+        if (role === 'tenant') {
+          statsStore.setTenantStats({ saved: newSaved.length });
+        } else {
+          const broker = statsStore.getStats()?.broker;
+          if (broker) {
+            statsStore.setBrokerStats({ ...broker, saved: newSaved.length });
+          }
+        }
+      }
+
+      let newCols = libraryStore.getState()?.collections || [];
+      if (colRes.status === 'fulfilled' && Array.isArray(colRes.value.data)) {
+        newCols = colRes.value.data;
+        setCollections(newCols);
+      }
+
+      libraryStore.setLibraryData({ saved: newSaved, collections: newCols });
+      setError('');
+    } catch (e) {
+      if (!libraryStore.getState()) {
+        setError(t('library.failedLoadSaved'));
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [t]);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function init() {
-      const uStr = await storage.get('user');
-      if (uStr) {
-        const u = JSON.parse(uStr);
-        setUserRole(u.role);
-        if (activeTab === 'saved') {
-          fetchSaved(u.role);
-        } else {
-          fetchCollections();
+      // 1. If memory state is empty, check AsyncStorage
+      if (!libraryStore.getState()) {
+        const stored = await libraryStore.init();
+        if (stored && isMounted) {
+          setSaved(stored.saved || []);
+          setCollections(stored.collections || []);
+          setLoading(false);
         }
-      } else {
+      }
+
+      // 2. Fetch fresh user & data
+      const uStr = await storage.get('user');
+      if (uStr && isMounted) {
+        const u = JSON.parse(uStr);
+        setCurrentUser(u);
+        setUserRole(u.role);
+        fetchLibraryData(u.role);
+      } else if (!uStr && isMounted) {
         setError('Not logged in');
         setLoading(false);
       }
     }
+
     init();
-  }, [activeTab]);
 
-  const fetchSaved = async (role: string) => {
-    setLoading(true);
-    try {
-      const endpoint = role === 'tenant' ? '/saved/tenant' : '/saved';
-      const { data } = await api.get(endpoint);
-      setSaved(data);
-    } catch (e) {
-      setError('Failed to load saved properties');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const unsubscribe = libraryStore.subscribe((state) => {
+      if (state && isMounted) {
+        setSaved(state.saved || []);
+        setCollections(state.collections || []);
+      }
+    });
 
-  const fetchCollections = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/collections');
-      setCollections(data);
-    } catch (e) {
-      setError('Failed to load collections');
-    } finally {
-      setLoading(false);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [fetchLibraryData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (currentUser?.role) {
+      fetchLibraryData(currentUser.role, true);
+    } else {
+      setRefreshing(false);
     }
-  };
+  }, [currentUser?.role, fetchLibraryData]);
 
   const handleRemoveSaved = async (propertyId: number) => {
+    const prevSaved = saved;
+    const nextSaved = prevSaved.filter((s) => (s.properties?.id ?? s.property_id) !== propertyId);
+    setSaved(nextSaved);
+    libraryStore.removeSaved(propertyId);
+    statsStore.decrementSaved();
+
     try {
       const endpoint = userRole === 'tenant' ? `/saved/tenant/${propertyId}` : `/saved/${propertyId}`;
       await api.delete(endpoint);
-      setSaved(prev => prev.filter(s => s.properties?.id !== propertyId));
     } catch (e) {
-      Alert.alert('Error', 'Failed to remove property');
+      setSaved(prevSaved);
+      libraryStore.setLibraryData({ saved: prevSaved });
+      statsStore.incrementSaved();
+      Alert.alert(t('common.error'), t('library.failedRemoveProperty'));
     }
   };
 
   const handleDeleteCollection = (collectionId: number, name: string) => {
-    Alert.alert('Delete Collection', `Are you sure you want to delete "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('library.deleteCollection'), `${t('library.deleteCollectionConfirm')} "${name}"?`, [
+      { text: t('common.cancel'), style: 'cancel' },
       { 
-        text: 'Delete', 
+        text: t('common.delete'), 
         style: 'destructive',
         onPress: async () => {
+          const prevCols = collections;
+          const nextCols = prevCols.filter((c) => c.id !== collectionId);
+          setCollections(nextCols);
+          libraryStore.removeCollection(collectionId);
           try {
             await api.delete(`/collections/${collectionId}`);
-            setCollections(prev => prev.filter(c => c.id !== collectionId));
           } catch (e) {
-            Alert.alert('Error', 'Failed to delete collection');
+            setCollections(prevCols);
+            libraryStore.setLibraryData({ collections: prevCols });
+            Alert.alert(t('common.error'), t('library.failedDeleteCollection'));
           }
         }
       }
@@ -90,16 +167,25 @@ export default function SavedScreen() {
   };
 
   const handleRemoveFromCollection = async (collectionId: number, propertyId: number) => {
+    const prevCols = collections;
+    const nextCols = prevCols.map((c) => {
+      if (c.id === collectionId) {
+        return {
+          ...c,
+          property_ids: (c.property_ids || []).filter((id: number) => id !== propertyId),
+        };
+      }
+      return c;
+    });
+    setCollections(nextCols);
+    libraryStore.removePropertyFromCollection(collectionId, propertyId);
+
     try {
       await api.delete(`/collections/${collectionId}/properties/${propertyId}`);
-      setCollections(prev => prev.map(c => {
-        if (c.id === collectionId) {
-          return { ...c, property_ids: c.property_ids.filter((id: number) => id !== propertyId) };
-        }
-        return c;
-      }));
     } catch (e) {
-      Alert.alert('Error', 'Failed to remove from collection');
+      setCollections(prevCols);
+      libraryStore.setLibraryData({ collections: prevCols });
+      Alert.alert(t('common.error'), t('library.failedRemoveFromCollection'));
     }
   };
 
@@ -112,9 +198,18 @@ export default function SavedScreen() {
 
     return (
       <View style={styles.card}>
-        <Pressable onPress={() => router.push(`/properties/${p.id}`)}>
+        <Pressable onPress={() => {
+          setPropertyPreview(p.id, p);
+          router.push(`/properties/${p.id}`);
+        }}>
           {cover ? (
-            <Image source={{ uri: cover }} style={styles.cardImage} />
+            <Image
+              source={{ uri: cover }}
+              style={styles.cardImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
           ) : (
             <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
               <Ionicons name="image-outline" size={32} color="#D1D5DB" />
@@ -125,14 +220,14 @@ export default function SavedScreen() {
             <Text style={styles.cardLocation}>{p.locality}, {p.city}</Text>
             <View style={styles.cardPriceRow}>
               <Text style={styles.cardPrice}>{formatPrice(p.price)}</Text>
-              <Text style={styles.cardArea}>· {p.area} sq ft</Text>
+              <Text style={styles.cardArea}>· {p.area} {t('property.sqFt')}</Text>
             </View>
           </View>
         </Pressable>
         <View style={styles.actionsContainer}>
           <Pressable style={styles.actionRemoveBtn} onPress={() => handleRemoveSaved(p.id)}>
             <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            <Text style={styles.actionRemoveText}>Remove</Text>
+            <Text style={styles.actionRemoveText}>{t('library.remove')}</Text>
           </Pressable>
         </View>
       </View>
@@ -146,18 +241,36 @@ export default function SavedScreen() {
     return (
       <View style={styles.collectionCard}>
         <View style={styles.collectionHeader}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.collectionTitle}>{col.name}</Text>
-            <Text style={styles.collectionMeta}>{col.property_ids?.length || 0} / 5 properties</Text>
+            <Text style={styles.collectionMeta}>{col.property_ids?.length || 0} / 5 {t('library.propertiesCount')}</Text>
           </View>
-          <Pressable onPress={() => handleDeleteCollection(col.id, col.name)} style={styles.deleteColBtn}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-          </Pressable>
+          <View style={styles.collectionHeaderActions}>
+            {userRole === 'broker' && (
+              <Pressable
+                style={[
+                  styles.shareColBtn,
+                  (!col.property_ids || col.property_ids.length === 0) && styles.shareColBtnDisabled,
+                ]}
+                disabled={!col.property_ids || col.property_ids.length === 0}
+                onPress={() => {
+                  setSharePropertyIds(col.property_ids || []);
+                  setShowShareModal(true);
+                }}
+              >
+                <Ionicons name="share-social-outline" size={14} color="#2563EB" />
+                <Text style={styles.shareColBtnText}>{t('common.share')}</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => handleDeleteCollection(col.id, col.name)} style={styles.deleteColBtn}>
+              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            </Pressable>
+          </View>
         </View>
 
         {(!col.property_ids || col.property_ids.length === 0) ? (
           <View style={styles.emptyColContainer}>
-            <Text style={styles.emptyColText}>This collection is empty.</Text>
+            <Text style={styles.emptyColText}>{t('library.emptyCollection')}</Text>
           </View>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.colScroll}>
@@ -169,7 +282,13 @@ export default function SavedScreen() {
                 <Pressable key={pid} onPress={() => router.push(`/properties/${pid}`)} style={styles.colPropItem}>
                   <View style={styles.colPropImageWrapper}>
                     {coverImg ? (
-                      <Image source={{ uri: coverImg }} style={styles.colPropImage} />
+                      <Image
+                        source={{ uri: coverImg }}
+                        style={styles.colPropImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={150}
+                      />
                     ) : (
                       <View style={[styles.colPropImage, styles.cardImagePlaceholder]}>
                         <Ionicons name="home-outline" size={24} color="#D1D5DB" />
@@ -200,7 +319,7 @@ export default function SavedScreen() {
         <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>Library</Text>
+        <Text style={styles.headerTitle}>{t('library.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -210,7 +329,7 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('saved')}
         >
           <Text style={[styles.tabText, activeTab === 'saved' && styles.tabTextActive]}>
-            Saved ({activeTab === 'saved' && !loading ? saved.length : '-'})
+            {t('library.tabSaved')} ({saved.length})
           </Text>
         </Pressable>
         <Pressable 
@@ -218,32 +337,44 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('collections')}
         >
           <Text style={[styles.tabText, activeTab === 'collections' && styles.tabTextActive]}>
-            Collections ({activeTab === 'collections' && !loading ? collections.length : '-'})
+            {t('library.tabCollections')} ({collections.length})
           </Text>
         </Pressable>
       </View>
 
-      {error ? (
+      {error && !saved.length && !collections.length ? (
         <View style={styles.centerContainer}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
-      ) : loading ? (
+      ) : loading && !saved.length && !collections.length ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : activeTab === 'saved' ? (
         <FlatList
           data={saved}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item.id || item.property_id || Math.random()).toString()}
           renderItem={renderSavedItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2563EB']}
+              tintColor="#2563EB"
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="heart-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-              <Text style={styles.emptyTitle}>No saved properties</Text>
-              <Text style={styles.emptySub}>Properties you save will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('library.noSavedProperties')}</Text>
+              <Text style={styles.emptySub}>{t('library.noSavedPropertiesSub')}</Text>
               <Pressable style={styles.emptyBtn} onPress={() => router.push('/search')}>
-                <Text style={styles.emptyBtnText}>Browse Properties</Text>
+                <Text style={styles.emptyBtnText}>{t('library.browseProperties')}</Text>
               </Pressable>
             </View>
           }
@@ -251,18 +382,41 @@ export default function SavedScreen() {
       ) : (
         <FlatList
           data={collections}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item.id || Math.random()).toString()}
           renderItem={renderCollection}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2563EB']}
+              tintColor="#2563EB"
+            />
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="folder-open-outline" size={48} color="#D1D5DB" style={{ marginBottom: 16 }} />
-              <Text style={styles.emptyTitle}>No collections yet</Text>
-              <Text style={styles.emptySub}>Collections you create will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('library.noCollectionsYet')}</Text>
+              <Text style={styles.emptySub}>{t('library.noCollectionsSub')}</Text>
             </View>
           }
         />
       )}
+
+      {/* Share with Client Modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedIds={sharePropertyIds}
+        userId={currentUser?.id}
+        onClose={() => {
+          setShowShareModal(false);
+          setSharePropertyIds([]);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -304,7 +458,7 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: Fonts.sans, color: '#EF4444', fontSize: 14 },
   listContent: { padding: 16, gap: 16, paddingBottom: 40 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB', overflow: 'hidden' },
-  cardImage: { width: '100%', height: 160, resizeMode: 'cover' },
+  cardImage: { width: '100%', height: 160 },
   cardImagePlaceholder: { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
   cardContent: { padding: 16 },
   cardTitle: { fontFamily: Fonts.sansSemiBold, fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
@@ -395,5 +549,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#374151',
-  }
+  },
+  collectionHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shareColBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  shareColBtnDisabled: {
+    opacity: 0.5,
+  },
+  shareColBtnText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
 });

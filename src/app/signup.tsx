@@ -1,381 +1,1010 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import api from '../lib/api';
+import api, { otpService, emailOtpService } from '../lib/api';
 import { setSession } from '../lib/auth';
 import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
-
-WebBrowser.maybeCompleteAuthSession();
+import OtpInput from '../components/OtpInput';
 
 export default function SignupScreen() {
-  const { role: initialRole, ref: referralParam, referral, referral_code } = useLocalSearchParams<{
+  const {
+    role: initialRole,
+    ref: referralParam,
+    referral,
+    referral_code,
+    redirect,
+    invite_token,
+    email: emailParam,
+  } = useLocalSearchParams<{
     role?: string;
     ref?: string;
     referral?: string;
     referral_code?: string;
+    redirect?: string;
+    invite_token?: string;
+    email?: string;
   }>();
-  const [roleTab, setRoleTab] = useState(initialRole === 'broker' ? 'broker' : 'tenant');
-  
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+
+  // ── Agency Invitation State ──
+  const [agencyInviteInfo, setAgencyInviteInfo] = useState<{
+    valid: boolean;
+    agency_name: string;
+    inviter_name?: string;
+    invited_email: string;
+    is_existing_broker?: boolean;
+  } | null>(null);
+
+  // ── Two-Phase Workflow State ──
+  // Step 1: 'verify' (user chooses phone or email and verifies with 6-digit OTP)
+  // Step 2: 'details' (pre-fills the verified credential, asks for remaining details)
+  const [currentStep, setCurrentStep] = useState<'verify' | 'details'>('verify');
+
+  // Step 1 Verification method & sub-step
+  const [method, setMethod] = useState<'phone' | 'email'>('phone');
+  const [verifySubStep, setVerifySubStep] = useState<'input' | 'otp'>('input');
+
+  // Step 1 inputs
+  const [phoneInput, setPhoneInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+
+  // Verified credentials stored after successful verification
+  const [verifiedIdentifier, setVerifiedIdentifier] = useState<{
+    type: 'phone' | 'email';
+    value: string;
+    otp: string;
+  } | null>(null);
+
+  // Step 2 Details Form State
+  const [roleTab, setRoleTab] = useState<'tenant' | 'broker'>(initialRole === 'tenant' ? 'tenant' : 'broker');
+  const [fullName, setFullName] = useState('');
+  // When phone was verified in Step 1, user enters email in Step 2:
+  const [detailEmail, setDetailEmail] = useState('');
+  // When email was verified in Step 1, user enters mobile in Step 2:
+  const [detailMobile, setDetailMobile] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [referralCode, setReferralCode] = useState('');
-  const [isAutoFilled, setIsAutoFilled] = useState(false);
-  
-  // New fields
-  const [mobile, setMobile] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [city, setCity] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [areasServed, setAreasServed] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Validate Agency Invite Token if present
   useEffect(() => {
-    async function resolveReferral() {
+    async function checkAgencyInvite() {
+      if (!invite_token) return;
+      try {
+        const res = await api.get(`/agency/invites/validate?token=${encodeURIComponent(invite_token)}`);
+        if (res.data && res.data.valid) {
+          setAgencyInviteInfo(res.data);
+          setRoleTab('broker');
+          if (res.data.agency_name) {
+            setAgencyName(res.data.agency_name);
+          }
+          if (res.data.invited_email) {
+            setEmailInput(res.data.invited_email);
+            setDetailEmail(res.data.invited_email);
+            setMethod('email');
+          }
+        }
+      } catch (err: any) {
+        console.warn('Agency invite token validation failed:', err?.response?.data || err.message);
+      }
+    }
+    checkAgencyInvite();
+  }, [invite_token]);
+
+  // Persist deep link referral code silently in storage without rendering in signup form
+  useEffect(() => {
+    async function persistReferralParam() {
       const directCode = referralParam || referral || referral_code;
       if (directCode) {
         const clean = String(directCode).trim().toUpperCase();
-        setReferralCode(clean);
-        setIsAutoFilled(true);
         await storage.set('applied_referral_code', clean);
-      } else {
-        const saved = await storage.get('applied_referral_code');
-        if (saved) {
-          setReferralCode(saved.trim().toUpperCase());
-          setIsAutoFilled(true);
-        }
       }
     }
-    resolveReferral();
+    persistReferralParam();
   }, [referralParam, referral, referral_code]);
 
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
+  // Clean strings
+  const cleanPhoneInput = phoneInput.replace(/[\s\-\+]/g, '').replace(/^91/, '');
+  const cleanDetailMobile = detailMobile.replace(/[\s\-\+]/g, '').replace(/^91/, '');
+  const isPhoneInputValid = /^[6-9]\d{9}$/.test(cleanPhoneInput);
+  const isDetailMobileValid = /^[6-9]\d{9}$/.test(cleanDetailMobile);
+  const isEmailInputValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.trim());
+  const isDetailEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(detailEmail.trim());
+  const isOtpFull = otp.every(d => d !== '');
 
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { id_token } = response.params;
-      handleGoogleSuccess(id_token);
-    } else if (response?.type === 'error') {
-      setGoogleLoading(false);
-      setError(response.error?.message || 'Google Signup failed');
-    }
-  }, [response]);
+  const navigateAfterSignup = (user: any) => {
+    const hasIdentifier = Boolean(user?.mobile || user?.email);
+    const hasCity = Boolean(user?.city);
+    const brokerReady = user?.role !== 'broker' || (user?.areas_served && user?.areas_served.length > 0);
 
-  const handleGoogleSuccess = async (idToken: string) => {
-    if (!idToken) {
-      setGoogleLoading(false);
-      setError('No ID token found');
-      return;
-    }
-
-    try {
-      const cleanRef = referralCode.trim().toUpperCase();
-      const payload: any = {
-        credential: idToken,
-        role: roleTab,
-      };
-
-      if (cleanRef) {
-        payload.referral_code = cleanRef;
-        await storage.set('applied_referral_code', cleanRef);
-      }
-
-      const { data } = await api.post('/auth/google', payload);
-
-      await setSession(data.access_token, data.refresh_token, data.user);
-      
-      if (!data.user?.mobile || !data.user?.city || (data.user?.role === 'broker' && (!data.user?.areas_served?.length))) {
-        router.replace('/(app)/onboarding');
-        return;
-      }
-
-      if (data.user?.role === 'tenant') {
+    if (!hasIdentifier || !hasCity || !brokerReady) {
+      if (user?.role === 'tenant') {
         router.replace('/(tenant)/dashboard');
       } else {
         router.replace('/(broker)/dashboard');
       }
-
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Google Signup failed');
-    } finally {
-      setGoogleLoading(false);
+      return;
+    }
+    if (redirect) {
+      router.replace(redirect as any);
+      return;
+    }
+    if (user?.role === 'tenant') {
+      router.replace('/(tenant)/dashboard');
+    } else {
+      router.replace('/(broker)/dashboard');
     }
   };
 
-  const handleSignup = async () => {
+  // ── Step 1 Handlers: Phone ──
+
+  const handleSendPhoneOtp = async () => {
     Keyboard.dismiss();
-    
-    // Basic validation
-    if (!name || !email || !password || !confirmPassword || !mobile || !city) {
-      setError('Please fill all required fields.');
-      return;
-    }
-    
-    if (roleTab === 'broker' && !areasServed) {
-      setError('Please provide the areas you serve.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.');
+    if (!isPhoneInputValid) {
+      setError('Please enter a valid 10-digit Indian mobile number (starts with 6-9).');
       return;
     }
 
     setError('');
     setLoading(true);
-    
     try {
-      const cleanRef = referralCode.trim().toUpperCase();
-      const payload: any = {
-        full_name: name,
-        email,
-        password,
-        mobile,
-        city,
-        role: roleTab,
-      };
-
-      if (cleanRef) {
-        payload.referral_code = cleanRef;
-        await storage.set('applied_referral_code', cleanRef);
-      }
-
-      if (roleTab === 'broker') {
-        payload.agency_name = agencyName;
-        // Split areas by comma and trim whitespace
-        payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(a => a);
-      }
-
-      const { data } = await api.post('/auth/register', payload);
-
-      // Redirect to login page after successful registration
-      router.replace({
-        pathname: '/login',
-        params: { role: roleTab, email, confirm: '1' }
-      });
-
+      await otpService.sendSignup(cleanPhoneInput);
+      setVerifySubStep('otp');
+      setOtp(['', '', '', '', '', '']);
     } catch (err: any) {
-      const payload = err.response?.data || {};
-      setError(payload.error || payload.detail || 'Signup failed');
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Failed to send OTP.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const initiateGoogleLogin = () => {
+  const handleVerifyPhoneOtp = async () => {
     Keyboard.dismiss();
+    if (!isOtpFull) {
+      setError('Please enter all 6 digits of the verification code.');
+      return;
+    }
+
     setError('');
-    setGoogleLoading(true);
-    promptAsync();
+    setLoading(true);
+    const enteredOtp = otp.join('');
+    try {
+      await otpService.verify(cleanPhoneInput, enteredOtp, 'signup');
+      setVerifiedIdentifier({
+        type: 'phone',
+        value: cleanPhoneInput,
+        otp: enteredOtp,
+      });
+      setCurrentStep('details');
+      setError('');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Invalid or expired OTP. Please try again.';
+      setError(msg);
+      setOtp(['', '', '', '', '', '']);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ── Step 1 Handlers: Email ──
+
+  const handleSendEmailOtp = async () => {
+    Keyboard.dismiss();
+    if (!isEmailInputValid) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      await emailOtpService.sendSignup(emailInput.trim().toLowerCase());
+      setVerifySubStep('otp');
+      setOtp(['', '', '', '', '', '']);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || err.message || 'Failed to send email code.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    Keyboard.dismiss();
+    if (!isOtpFull) {
+      setError('Please enter all 6 digits of the verification code.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    const enteredOtp = otp.join('');
+    try {
+      await emailOtpService.verify(emailInput.trim().toLowerCase(), enteredOtp, 'signup');
+      setVerifiedIdentifier({
+        type: 'email',
+        value: emailInput.trim().toLowerCase(),
+        otp: enteredOtp,
+      });
+      setCurrentStep('details');
+      setError('');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Invalid or expired verification code.';
+      setError(msg);
+      setOtp(['', '', '', '', '', '']);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Step 2 Handler: Complete Registration ──
+
+  const handleCompleteRegistration = async () => {
+    Keyboard.dismiss();
+
+    if (!fullName.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!city.trim()) {
+      setError('Please enter your city.');
+      return;
+    }
+
+    if (roleTab === 'broker' && !areasServed.trim()) {
+      setError('Please provide the areas you serve.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const savedRef = await storage.get('applied_referral_code');
+      const cleanRef = savedRef ? savedRef.trim().toUpperCase() : undefined;
+
+      if (verifiedIdentifier?.type === 'phone') {
+        // Required email field as requested
+        if (!detailEmail.trim() || !detailEmail.includes('@')) {
+          setError('Please provide a valid email address.');
+          setLoading(false);
+          return;
+        }
+
+        const payload: any = {
+          phone: verifiedIdentifier.value,
+          otp: verifiedIdentifier.otp,
+          full_name: fullName.trim(),
+          mobile: verifiedIdentifier.value,
+          email: detailEmail.trim().toLowerCase(),
+          city: city.trim(),
+          role: roleTab,
+        };
+
+        if (password) {
+          if (password.length < 8) {
+            setError('Password must be at least 8 characters long.');
+            setLoading(false);
+            return;
+          }
+          payload.password = password;
+        }
+
+        if (cleanRef) {
+          payload.referral_code = cleanRef;
+        }
+
+        if (roleTab === 'broker') {
+          if (agencyName.trim()) payload.agency_name = agencyName.trim();
+          payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
+        }
+
+        if (invite_token) {
+          payload.invite_token = invite_token;
+        }
+
+        const { data } = await otpService.signup(payload);
+
+        if (data.access_token) {
+          await setSession(data.access_token, data.refresh_token, data.user);
+          navigateAfterSignup(data.user);
+        } else {
+          router.replace({
+            pathname: '/login',
+            params: { role: roleTab, ...(redirect ? { redirect } : {}) },
+          });
+        }
+      } else if (verifiedIdentifier?.type === 'email') {
+        // Email was verified in Step 1. Mobile is required as remaining field.
+        if (!isDetailMobileValid) {
+          setError('Please enter a valid 10-digit Indian mobile number.');
+          setLoading(false);
+          return;
+        }
+
+        if (!password || password.length < 8) {
+          setError('Password must be at least 8 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          setLoading(false);
+          return;
+        }
+
+        const payload: any = {
+          full_name: fullName.trim(),
+          email: verifiedIdentifier.value,
+          mobile: cleanDetailMobile,
+          password,
+          city: city.trim(),
+          role: roleTab,
+          email_verified: true,
+        };
+
+        if (cleanRef) {
+          payload.referral_code = cleanRef;
+        }
+
+        if (roleTab === 'broker') {
+          if (agencyName.trim()) payload.agency_name = agencyName.trim();
+          payload.areas_served = areasServed.split(',').map(a => a.trim()).filter(Boolean);
+        }
+
+        if (invite_token) {
+          payload.invite_token = invite_token;
+        }
+
+        const { data } = await api.post('/auth/register', payload);
+
+        if (data.access_token) {
+          await setSession(data.access_token, data.refresh_token, data.user);
+          navigateAfterSignup(data.user);
+        } else {
+          router.replace({
+            pathname: '/login',
+            params: { role: roleTab, email: verifiedIdentifier.value, confirm: '1', ...(redirect ? { redirect } : {}) },
+          });
+        }
+      }
+    } catch (err: any) {
+      const payload = err.response?.data || {};
+      setError(payload.detail || payload.error || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset to Step 1
+  const handleBackToVerification = () => {
+    setCurrentStep('verify');
+    setVerifySubStep('input');
+    setOtp(['', '', '', '', '', '']);
+    setError('');
+  };
+
+  const inputClass = styles.input;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER: PHASE 1 — VERIFICATION FIRST
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (currentStep === 'verify') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <Pressable
+                onPress={() => router.replace('/')}
+                style={styles.backToHomeButton}
+                hitSlop={10}
+              >
+                <Ionicons name="arrow-back" size={20} color="#6B7280" />
+              </Pressable>
+              <Text style={styles.logo}>kobrokr</Text>
+              <View style={{ width: 32 }} />
+            </View>
+
+            {/* Agency Invite Banner if invited */}
+            {agencyInviteInfo && (
+              <View style={styles.agencyInviteBanner}>
+                <View style={styles.agencyInviteIconWrapper}>
+                  <Ionicons name="business" size={20} color="#2563EB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.agencyInviteBannerTitle}>
+                    Joining {agencyInviteInfo.agency_name}
+                  </Text>
+                  <Text style={styles.agencyInviteBannerSub}>
+                    {agencyInviteInfo.inviter_name ? `${agencyInviteInfo.inviter_name} invited you. ` : ''}
+                    Complete verification with {agencyInviteInfo.invited_email} to activate your Enterprise agency perks.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {agencyInviteInfo?.is_existing_broker && (
+              <Pressable
+                style={styles.existingBrokerBanner}
+                onPress={() =>
+                  router.push(
+                    `/login?role=broker&email=${encodeURIComponent(agencyInviteInfo.invited_email)}` as any
+                  )
+                }
+              >
+                <Ionicons name="log-in-outline" size={18} color="#2563EB" />
+                <Text style={styles.existingBrokerText}>
+                  Already a KoBrokr broker? Tap to log in and join {agencyInviteInfo.agency_name}
+                </Text>
+              </Pressable>
+            )}
+
+            {/* Title & Subtitle */}
+            <Text style={styles.title}>Create your account</Text>
+            <Text style={styles.subtitle}>
+              {verifySubStep === 'input'
+                ? "First, verify your phone or email to get started."
+                : method === 'phone'
+                ? `Enter the 6-digit SMS code sent to +91 ${cleanPhoneInput}`
+                : `Enter the 6-digit code sent to ${emailInput.trim()}`}
+            </Text>
+
+            {/* Error banner */}
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={16} color="#B91C1C" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Verification Method Toggle (Visible on input sub-step) */}
+            {verifySubStep === 'input' && (
+              <View style={styles.methodToggle}>
+                <Pressable
+                  style={[styles.methodButton, method === 'phone' && styles.methodButtonActive]}
+                  onPress={() => {
+                    setMethod('phone');
+                    setError('');
+                  }}
+                >
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={16}
+                    color={method === 'phone' ? '#2563EB' : '#6B7280'}
+                  />
+                  <Text style={[styles.methodText, method === 'phone' && styles.methodTextActive]}>
+                    Phone Verification
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.methodButton, method === 'email' && styles.methodButtonActive]}
+                  onPress={() => {
+                    setMethod('email');
+                    setError('');
+                  }}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={16}
+                    color={method === 'email' ? '#2563EB' : '#6B7280'}
+                  />
+                  <Text style={[styles.methodText, method === 'email' && styles.methodTextActive]}>
+                    Email Verification
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* ── Sub-step: INPUT ── */}
+            {verifySubStep === 'input' && (
+              <View style={styles.form}>
+                {method === 'phone' ? (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Mobile Number *</Text>
+                    <View style={styles.phoneRow}>
+                      <View style={styles.phonePrefix}>
+                        <Text style={styles.phonePrefixText}>+91</Text>
+                      </View>
+                      <TextInput
+                        style={[inputClass, { flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+                        value={phoneInput}
+                        onChangeText={(text) => {
+                          setPhoneInput(text);
+                          if (error) setError('');
+                        }}
+                        placeholder="10-digit mobile number"
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                        autoFocus
+                      />
+                    </View>
+                    <Text style={styles.helperText}>
+                      We'll send a 6-digit OTP code to verify this number.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Email Address *</Text>
+                    <TextInput
+                      style={inputClass}
+                      value={emailInput}
+                      onChangeText={(text) => {
+                        setEmailInput(text);
+                        if (error) setError('');
+                      }}
+                      placeholder="e.g. yourname@domain.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoFocus
+                    />
+                    <Text style={styles.helperText}>
+                      We'll send a 6-digit verification code to this email.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Send Code Button */}
+                <Pressable
+                  style={[
+                    styles.button,
+                    ((method === 'phone' && !isPhoneInputValid) ||
+                      (method === 'email' && !isEmailInputValid) ||
+                      loading) &&
+                      styles.buttonDisabled,
+                  ]}
+                  onPress={method === 'phone' ? handleSendPhoneOtp : handleSendEmailOtp}
+                  disabled={
+                    (method === 'phone' && !isPhoneInputValid) ||
+                    (method === 'email' && !isEmailInputValid) ||
+                    loading
+                  }
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.buttonText}>Send Verification Code</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            )}
+
+            {/* ── Sub-step: OTP VERIFY ── */}
+            {verifySubStep === 'otp' && (
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Enter 6-Digit Code</Text>
+                  <OtpInput value={otp} onChange={setOtp} />
+                </View>
+
+                {/* Change target or Resend row */}
+                <View style={styles.otpHelperRow}>
+                  <Pressable
+                    onPress={() => {
+                      setVerifySubStep('input');
+                      setOtp(['', '', '', '', '', '']);
+                      setError('');
+                    }}
+                  >
+                    <Text style={styles.changeTargetLink}>
+                      Change {method === 'phone' ? 'number' : 'email'}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setOtp(['', '', '', '', '', '']);
+                      if (method === 'phone') handleSendPhoneOtp();
+                      else handleSendEmailOtp();
+                    }}
+                    disabled={loading}
+                  >
+                    <Text style={styles.resendLink}>Resend code</Text>
+                  </Pressable>
+                </View>
+
+                {/* Verify & Continue Button */}
+                <Pressable
+                  style={[styles.button, (!isOtpFull || loading) && styles.buttonDisabled]}
+                  onPress={method === 'phone' ? handleVerifyPhoneOtp : handleVerifyEmailOtp}
+                  disabled={!isOtpFull || loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.buttonText}>Verify & Continue</Text>
+                      <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                    </View>
+                  )}
+                </Pressable>
+              </View>
+            )}
+
+            {/* Footer link to login */}
+            <Pressable
+              onPress={() =>
+                router.push(
+                  `/login?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}` as any
+                )
+              }
+              style={styles.footerLink}
+            >
+              <Text style={styles.footerText}>
+                Already have an account? <Text style={styles.linkText}>Log in</Text>
+              </Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // RENDER: PHASE 2 — COMPLETE REMAINING DETAILS
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Back to verification button */}
+          <Pressable onPress={handleBackToVerification} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={18} color="#6B7280" />
+            <Text style={styles.backText}>Change verified {verifiedIdentifier?.type}</Text>
+          </Pressable>
+
           <View style={styles.header}>
             <Text style={styles.logo}>kobrokr</Text>
           </View>
 
-          <View style={styles.roleToggle}>
-            <Pressable 
-              style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
-              onPress={() => setRoleTab('tenant')}
-            >
-              <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>Tenant</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.roleButton, roleTab === 'broker' && styles.roleButtonActive]}
-              onPress={() => setRoleTab('broker')}
-            >
-              <Text style={[styles.roleText, roleTab === 'broker' && styles.roleTextActive]}>Broker</Text>
-            </Pressable>
-          </View>
+          {/* Agency Invite Banner if invited */}
+          {agencyInviteInfo && (
+            <View style={styles.agencyInviteBanner}>
+              <View style={styles.agencyInviteIconWrapper}>
+                <Ionicons name="business" size={20} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.agencyInviteBannerTitle}>
+                  Joining {agencyInviteInfo.agency_name}
+                </Text>
+                <Text style={styles.agencyInviteBannerSub}>
+                  Your account will be linked to this agency under the Enterprise plan once registration is complete.
+                </Text>
+              </View>
+            </View>
+          )}
 
-          <Text style={styles.title}>
-            {roleTab === 'broker' ? 'Sign up as Broker' : 'Sign up as Tenant'}
+          <Text style={styles.title}>Complete your profile</Text>
+          <Text style={styles.subtitle}>
+            Enter your details to finish setting up your account.
           </Text>
-          <Text style={styles.subtitle}>Create your kobrokr account</Text>
 
+          {/* Error banner */}
           {error ? (
             <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={16} color="#B91C1C" />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <Pressable 
-            style={[styles.googleButton, googleLoading && styles.buttonDisabled]} 
-            onPress={initiateGoogleLogin}
-            disabled={googleLoading || loading || !request}
-          >
-            {googleLoading ? (
-              <ActivityIndicator color="#111827" />
-            ) : (
-              <Text style={styles.googleButtonText}>Sign in with Google</Text>
-            )}
-          </Pressable>
-
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Or continue with email</Text>
-            <View style={styles.dividerLine} />
+          {/* Verified credential badge card */}
+          <View style={styles.verifiedCard}>
+            <View style={styles.verifiedCardLeft}>
+              <View style={styles.verifiedIconCircle}>
+                <Ionicons
+                  name={verifiedIdentifier?.type === 'phone' ? 'call' : 'mail'}
+                  size={16}
+                  color="#15803D"
+                />
+              </View>
+              <View>
+                <Text style={styles.verifiedCardLabel}>
+                  {verifiedIdentifier?.type === 'phone' ? 'VERIFIED MOBILE' : 'VERIFIED EMAIL'}
+                </Text>
+                <Text style={styles.verifiedCardValue}>
+                  {verifiedIdentifier?.type === 'phone'
+                    ? `+91 ${verifiedIdentifier.value}`
+                    : verifiedIdentifier?.value}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.verifiedBadgePill}>
+              <Ionicons name="checkmark-circle" size={14} color="#15803D" />
+              <Text style={styles.verifiedBadgeText}>Verified</Text>
+            </View>
           </View>
 
+          {/* Role Toggle: Broker vs Tenant */}
+          <View style={styles.roleToggle}>
+            <Pressable
+              style={[styles.roleButton, roleTab === 'broker' && styles.roleButtonActive]}
+              onPress={() => setRoleTab('broker')}
+            >
+              <Text style={[styles.roleText, roleTab === 'broker' && styles.roleTextActive]}>
+                I'm a Broker
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.roleButton, roleTab === 'tenant' && styles.roleButtonActive]}
+              onPress={() => setRoleTab('tenant')}
+            >
+              <Text style={[styles.roleText, roleTab === 'tenant' && styles.roleTextActive]}>
+                I'm a Tenant
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Details Form */}
           <View style={styles.form}>
+            {/* Full Name */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Full Name *</Text>
-              <TextInput 
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Jane Doe"
+              <TextInput
+                style={inputClass}
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="e.g. Rahul Sharma"
+                autoCapitalize="words"
               />
             </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email *</Text>
-              <TextInput 
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder={roleTab === 'broker' ? 'broker@example.com' : 'tenant@example.com'}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Mobile *</Text>
-              <TextInput 
-                style={styles.input}
-                value={mobile}
-                onChangeText={setMobile}
-                placeholder="+91 98765 43210"
-                keyboardType="phone-pad"
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>City *</Text>
-              <TextInput 
-                style={styles.input}
-                value={city}
-                onChangeText={setCity}
-                placeholder="Mumbai"
-              />
-            </View>
+            {/* If verified by PHONE: ask for EMAIL */}
+            {verifiedIdentifier?.type === 'phone' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email Address *</Text>
+                <TextInput
+                  style={inputClass}
+                  value={detailEmail}
+                  onChangeText={setDetailEmail}
+                  placeholder="e.g. rahul@example.com"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text style={styles.helperText}>
+                  Your account notifications will be sent here.
+                </Text>
+              </View>
+            )}
 
-            {roleTab === 'broker' && (
+            {/* If verified by EMAIL: ask for MOBILE */}
+            {verifiedIdentifier?.type === 'email' && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Mobile Number *</Text>
+                <View style={styles.phoneRow}>
+                  <View style={styles.phonePrefix}>
+                    <Text style={styles.phonePrefixText}>+91</Text>
+                  </View>
+                  <TextInput
+                    style={[inputClass, { flex: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]}
+                    value={detailMobile}
+                    onChangeText={setDetailMobile}
+                    placeholder="10-digit mobile number"
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                </View>
+                <Text style={styles.helperText}>
+                  Brokers and prospective clients will reach you at this number.
+                </Text>
+              </View>
+            )}
+
+            {/* Password */}
+            {verifiedIdentifier?.type === 'email' ? (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Agency Name (Optional)</Text>
-                  <TextInput 
-                    style={styles.input}
-                    value={agencyName}
-                    onChangeText={setAgencyName}
-                    placeholder="ABC Realty"
-                  />
+                  <Text style={styles.label}>Create Password *</Text>
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      style={[inputClass, { flex: 1, borderWidth: 0 }]}
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="Min. 8 characters"
+                      secureTextEntry={!showPassword}
+                    />
+                    <Pressable
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={{ paddingHorizontal: 12 }}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#6B7280"
+                      />
+                    </Pressable>
+                  </View>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Areas Served (Comma-separated) *</Text>
-                  <TextInput 
-                    style={styles.input}
+                  <Text style={styles.label}>Confirm Password *</Text>
+                  <View style={styles.passwordRow}>
+                    <TextInput
+                      style={[inputClass, { flex: 1, borderWidth: 0 }]}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="Re-enter password"
+                      secureTextEntry={!showConfirmPassword}
+                    />
+                    <Pressable
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ paddingHorizontal: 12 }}
+                    >
+                      <Ionicons
+                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#6B7280"
+                      />
+                    </Pressable>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Create Password (Optional)</Text>
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[inputClass, { flex: 1, borderWidth: 0 }]}
+                    value={password}
+                    onChangeText={setPassword}
+                    placeholder="Optional: for password login"
+                    secureTextEntry={!showPassword}
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={{ paddingHorizontal: 12 }}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#6B7280"
+                    />
+                  </Pressable>
+                </View>
+                <Text style={styles.helperText}>
+                  You can always log in passwordless with SMS OTP.
+                </Text>
+              </View>
+            )}
+
+            {/* City */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>City *</Text>
+              <TextInput
+                style={inputClass}
+                value={city}
+                onChangeText={setCity}
+                placeholder="e.g. Mumbai"
+              />
+            </View>
+
+            {/* Broker-specific fields */}
+            {roleTab === 'broker' && (
+              <>
+                <View style={styles.inputGroup}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={styles.label}>Agency Name {agencyInviteInfo ? '' : '(Optional)'}</Text>
+                    {agencyInviteInfo && (
+                      <View style={styles.agencyBadgePill}>
+                        <Ionicons name="lock-closed" size={10} color="#2563EB" />
+                        <Text style={styles.agencyBadgeText}>Invited</Text>
+                      </View>
+                    )}
+                  </View>
+                  <TextInput
+                    style={[inputClass, agencyInviteInfo && styles.inputDisabled]}
+                    value={agencyInviteInfo ? agencyInviteInfo.agency_name : agencyName}
+                    onChangeText={agencyInviteInfo ? undefined : setAgencyName}
+                    editable={!agencyInviteInfo}
+                    placeholder="e.g. Sharma Properties"
+                  />
+                  {agencyInviteInfo ? (
+                    <Text style={styles.agencyBadgeNote}>
+                      🔒 Assigned by {agencyInviteInfo.inviter_name || 'agency admin'} ({agencyInviteInfo.agency_name})
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Areas Served *</Text>
+                  <TextInput
+                    style={inputClass}
                     value={areasServed}
                     onChangeText={setAreasServed}
-                    placeholder="Andheri, Powai"
+                    placeholder="e.g. Andheri West, Bandra, Juhu"
                   />
+                  <Text style={styles.helperText}>Separate multiple areas with commas.</Text>
                 </View>
               </>
             )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password *</Text>
-              <TextInput 
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password *</Text>
-              <TextInput 
-                style={styles.input}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                secureTextEntry
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <View style={styles.referralLabelRow}>
-                <Text style={styles.label}>Referral Code (Optional)</Text>
-                {isAutoFilled && referralCode.trim().length > 0 && (
-                  <View style={styles.appliedBadge}>
-                    <Ionicons name="checkmark-circle" size={12} color="#15803D" />
-                    <Text style={styles.appliedBadgeText}>Link Applied</Text>
-                  </View>
-                )}
-              </View>
-              <TextInput 
-                style={[styles.input, isAutoFilled && styles.inputHighlight]}
-                value={referralCode}
-                onChangeText={(text) => {
-                  setReferralCode(text.toUpperCase());
-                  setIsAutoFilled(false);
-                }}
-                placeholder="e.g. KB-94X2A"
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-              <Text style={styles.helperText}>
-                {isAutoFilled 
-                  ? 'Referral code auto-detected from invite link.' 
-                  : 'Enter a friend or broker’s code to connect accounts & unlock partner benefits.'}
-              </Text>
-            </View>
-
-            <Pressable 
-              style={[styles.button, loading && styles.buttonDisabled]} 
-              onPress={handleSignup}
-              disabled={loading}
+            {/* Submit Button */}
+            <Pressable
+              style={[
+                styles.button,
+                (!fullName.trim() ||
+                  !city.trim() ||
+                  (roleTab === 'broker' && !areasServed.trim()) ||
+                  (verifiedIdentifier?.type === 'phone' && !isDetailEmailValid) ||
+                  (verifiedIdentifier?.type === 'email' &&
+                    (!isDetailMobileValid || !password || password.length < 8 || password !== confirmPassword)) ||
+                  loading) &&
+                  styles.buttonDisabled,
+              ]}
+              onPress={handleCompleteRegistration}
+              disabled={
+                !fullName.trim() ||
+                !city.trim() ||
+                (roleTab === 'broker' && !areasServed.trim()) ||
+                (verifiedIdentifier?.type === 'phone' && !isDetailEmailValid) ||
+                (verifiedIdentifier?.type === 'email' &&
+                  (!isDetailMobileValid || !password || password.length < 8 || password !== confirmPassword)) ||
+                loading
+              }
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Sign up</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.buttonText}>Complete Registration</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                </View>
               )}
             </Pressable>
           </View>
 
-          <Pressable onPress={() => router.push(`/login?role=${roleTab}`)} style={styles.footerLink}>
-            <Text style={styles.footerText}>Already have an account? <Text style={styles.linkText}>Log in</Text></Text>
+          {/* Footer link to login */}
+          <Pressable
+            onPress={() =>
+              router.push(
+                `/login?role=${roleTab}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}` as any
+              )
+            }
+            style={styles.footerLink}
+          >
+            <Text style={styles.footerText}>
+              Already have an account? <Text style={styles.linkText}>Log in</Text>
+            </Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -394,8 +1023,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  backToHomeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     fontFamily: Fonts.display,
@@ -403,12 +1042,72 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2563EB',
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  title: {
+    fontFamily: Fonts.displaySemiBold,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  methodToggle: {
+    flexDirection: 'column',
+    backgroundColor: '#EEF2F6',
+    borderRadius: 12,
+    padding: 4,
+    gap: 6,
+    marginBottom: 20,
+  },
+  methodButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  methodButtonActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  methodText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  methodTextActive: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#2563EB',
+  },
   roleToggle: {
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
     borderRadius: 8,
     padding: 4,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   roleButton: {
     flex: 1,
@@ -434,51 +1133,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
     color: '#111827',
   },
-  title: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: Fonts.sans,
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
-  },
-  googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  googleButtonText: {
-    fontFamily: Fonts.sansMedium,
-    color: '#374151',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  dividerContainer: {
+  errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    fontFamily: Fonts.sans,
-    paddingHorizontal: 12,
-    color: '#6B7280',
-    fontSize: 12,
-  },
-  errorContainer: {
+    gap: 8,
     backgroundColor: '#FEF2F2',
     borderColor: '#FECACA',
     borderWidth: 1,
@@ -489,13 +1147,14 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: Fonts.sans,
     color: '#B91C1C',
-    fontSize: 14,
+    fontSize: 13,
+    flex: 1,
   },
   form: {
     gap: 16,
   },
   inputGroup: {
-    gap: 4,
+    gap: 6,
   },
   label: {
     fontFamily: Fonts.sansMedium,
@@ -514,6 +1173,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
   },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  phonePrefix: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  phonePrefixText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    color: '#374151',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+  },
   button: {
     backgroundColor: '#2563EB',
     borderRadius: 8,
@@ -522,13 +1207,86 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   buttonText: {
     fontFamily: Fonts.sansSemiBold,
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  helperText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  otpHelperRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
+  changeTargetLink: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  resendLink: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    color: '#2563EB',
+  },
+  verifiedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  verifiedCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  verifiedIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedCardLabel: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 10,
+    color: '#15803D',
+    letterSpacing: 0.5,
+  },
+  verifiedCardValue: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    color: '#111827',
+  },
+  verifiedBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  verifiedBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#15803D',
   },
   footerLink: {
     marginTop: 24,
@@ -544,33 +1302,77 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '500',
   },
-  referralLabelRow: {
+  agencyInviteBanner: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
   },
-  appliedBadge: {
+  agencyInviteIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  agencyInviteBannerTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#1E40AF',
+    marginBottom: 2,
+  },
+  agencyInviteBannerSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#3B82F6',
+    lineHeight: 17,
+  },
+  existingBrokerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  existingBrokerText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 13,
+    color: '#92400E',
+    flex: 1,
+  },
+  agencyBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#DBEAFE',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
-  appliedBadgeText: {
+  agencyBadgeText: {
     fontFamily: Fonts.sansSemiBold,
     fontSize: 11,
-    color: '#15803D',
+    color: '#1D4ED8',
   },
-  inputHighlight: {
-    borderColor: '#86EFAC',
-    backgroundColor: '#F0FDF4',
-  },
-  helperText: {
-    fontFamily: Fonts.sans,
+  agencyBadgeNote: {
+    fontFamily: Fonts.sansMedium,
     fontSize: 12,
+    color: '#2563EB',
+    marginTop: 4,
+  },
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
     color: '#6B7280',
-    marginTop: 2,
-  }
+    borderColor: '#E5E7EB',
+  },
 });

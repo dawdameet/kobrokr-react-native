@@ -1,21 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { usePathname, router } from 'expo-router';
 import { storage } from '../lib/storage';
-import api from '../lib/api';
+import api, { setCachedToken } from '../lib/api';
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup'];
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/client-share', '/onboarding'];
+const PROFILE_VALIDATION_TTL = 5 * 60 * 1000; // 5 minutes
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [status, setStatus] = useState<'loading' | 'ready'>('loading');
+  const lastValidatedRef = useRef<number>(0);
+  const isInitialCheckDone = useRef<boolean>(false);
 
   useEffect(() => {
     checkAuth();
   }, [pathname]);
 
   const checkAuth = async () => {
-    const isPublic = PUBLIC_ROUTES.includes(pathname);
+    const isPublic =
+      PUBLIC_ROUTES.includes(pathname) ||
+      pathname.startsWith('/properties') ||
+      pathname.startsWith('/client-share');
 
     // Public routes don't need auth
     if (isPublic) {
@@ -26,35 +32,44 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // Check if we have tokens at all
     const token = await storage.get('access_token');
     if (!token) {
-      router.replace('/login');
+      router.replace('/');
+      return;
+    }
+    setCachedToken(token);
+
+    const now = Date.now();
+    const isValidationFresh = (now - lastValidatedRef.current) < PROFILE_VALIDATION_TTL;
+
+    // If initial check is already done and validation is fresh, don't refetch on every tab switch
+    if (isInitialCheckDone.current && isValidationFresh) {
+      setStatus('ready');
       return;
     }
 
-    // Validate token with a lightweight server call (only on initial mount / route changes to protected areas)
+    // Validate token with a lightweight server call
     try {
       const { data } = await api.get('/auth/profile');
-      // Update cached user data with fresh server data
       if (data && data.id) {
         await storage.set('user', JSON.stringify(data));
       }
+      lastValidatedRef.current = Date.now();
+      isInitialCheckDone.current = true;
       setStatus('ready');
     } catch (err: any) {
-      // If 401/403, the interceptor will try refresh. If that also fails, api.js logs out.
-      // If it's a network error, let the user through with cached data.
       if (err.response?.status === 401 || err.response?.status === 403) {
-        // Interceptor already handles logout, but just in case:
         await storage.remove('access_token');
         await storage.remove('refresh_token');
         await storage.remove('user');
-        router.replace('/login');
+        router.replace('/');
         return;
       }
       // Network error — allow through with cached data
       const user = await storage.get('user');
       if (!user) {
-        router.replace('/login');
+        router.replace('/');
         return;
       }
+      isInitialCheckDone.current = true;
       setStatus('ready');
     }
   };

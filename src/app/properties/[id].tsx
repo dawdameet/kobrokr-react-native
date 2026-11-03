@@ -1,18 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import api from '../../lib/api';
 import { storage } from '../../lib/storage';
+import { useTranslation } from 'react-i18next';
 import { formatPrice, safeGoBack } from '../../lib/utils';
 import { Fonts } from '../../constants/theme';
+import ShareModal from '../../components/ShareModal';
+import CollectionModal from '../../components/CollectionModal';
+import { getPropertyPreview } from '../../lib/propertyCache';
+import { statsStore } from '../../lib/statsStore';
+import { libraryStore } from '../../lib/libraryStore';
 
 export default function PropertyDetailScreen() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { id } = useLocalSearchParams();
-  const [property, setProperty] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { id, b: shareBrokerId } = useLocalSearchParams<{ id: string; b?: string }>();
+  const preview = id ? getPropertyPreview(id) : null;
+  const [property, setProperty] = useState<any>(() => {
+    if (preview) {
+      const copy = { ...preview };
+      if (copy.property_images) {
+        copy.property_images = [...copy.property_images].sort((a: any, b: any) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0));
+      }
+      return copy;
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(!preview);
+  const [fetchingFull, setFetchingFull] = useState(Boolean(preview));
   const [error, setError] = useState('');
   
   const [saving, setSaving] = useState(false);
@@ -20,22 +41,36 @@ export default function PropertyDetailScreen() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const [showColModal, setShowColModal] = useState(false);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [colLoading, setColLoading] = useState(false);
-  const [isCreatingCol, setIsCreatingCol] = useState(false);
-  const [newColName, setNewColName] = useState('');
+  const [zoomImg, setZoomImg] = useState<string | null>(null);
+  const [sharingBroker, setSharingBroker] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const videoUrl = property?.property_videos?.[0]?.url || '';
+  const videoPlayer = useVideoPlayer(videoUrl);
 
   useEffect(() => {
     async function init() {
       const uStr = await storage.get('user');
       if (uStr) {
-        const u = JSON.parse(uStr);
-        setUserRole(u.role); // 'tenant' or 'broker'
+        try {
+          const u = JSON.parse(uStr);
+          setCurrentUser(u);
+          setUserRole(u.role); // 'tenant' or 'broker'
+        } catch {}
       }
       fetchProperty();
+      if (shareBrokerId) {
+        try {
+          const { data } = await api.get(`/broker/${shareBrokerId}/public`);
+          setSharingBroker(data);
+        } catch (e) {
+          console.log('Failed to fetch sharing broker info', e);
+        }
+      }
     }
     init();
-  }, [id]);
+  }, [id, shareBrokerId]);
 
   const fetchProperty = async () => {
     try {
@@ -46,9 +81,12 @@ export default function PropertyDetailScreen() {
       }
       setProperty(data);
     } catch (e) {
-      setError('Property not found');
+      if (!property && !preview) {
+        setError('Property not found');
+      }
     } finally {
       setLoading(false);
+      setFetchingFull(false);
     }
   };
 
@@ -58,6 +96,8 @@ export default function PropertyDetailScreen() {
       const endpoint = userRole === 'tenant' ? '/saved/tenant' : '/saved';
       await api.post(endpoint, { property_id: id });
       setSaved(true);
+      statsStore.incrementSaved();
+      libraryStore.invalidate();
     } catch (e) {
       // Mark as saved anyway if it fails (might already be saved)
       setSaved(true);
@@ -66,43 +106,9 @@ export default function PropertyDetailScreen() {
     }
   };
 
-  const openColModal = async () => {
-    setShowColModal(true);
-    setColLoading(true);
-    try {
-      const { data } = await api.get('/collections');
-      setCollections(data);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      setColLoading(false);
-    }
-  };
-
-  const handleCreateCollection = async () => {
-    if (!newColName.trim()) return;
-    try {
-      const { data } = await api.post('/collections', { name: newColName });
-      setCollections(prev => [...prev, data]);
-      setNewColName('');
-      setIsCreatingCol(false);
-    } catch (e) {
-      Alert.alert('Error', 'Failed to create collection');
-    }
-  };
-
-  const handleAddToCollection = async (colId: number) => {
-    try {
-      await api.post(`/collections/${colId}/properties`, { property_ids: [id] });
-      setShowColModal(false);
-      Alert.alert('Success', 'Property added to collection!');
-    } catch (e) {
-      Alert.alert('Error', 'Failed to add to collection');
-    }
-  };
-
   const handleCall = (phone: string) => {
-    Linking.openURL(`tel:${phone}`);
+    const clean = phone.replace(/[^0-9+]/g, '');
+    if (clean) Linking.openURL(`tel:${clean}`);
   };
 
   const handleWhatsApp = (phone: string) => {
@@ -115,7 +121,22 @@ export default function PropertyDetailScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#2563EB" />
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
@@ -126,18 +147,33 @@ export default function PropertyDetailScreen() {
         <Pressable style={styles.backButton} onPress={() => safeGoBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </Pressable>
-      </SafeAreaView>
+        <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          )}
+        </View>
+      </Modal>
+    </SafeAreaView>
     );
   }
 
   const images = property.property_images || [];
-  const broker = property.brokers;
+  const broker = sharingBroker || property.brokers;
   const pricePerSqft = property.area ? `₹${Math.round(property.price / property.area).toLocaleString()}` : '—';
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { top: Math.max(insets.top + 8, 40) }]}>
         <Pressable onPress={() => safeGoBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
@@ -150,7 +186,15 @@ export default function PropertyDetailScreen() {
           {images.length > 0 ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
               {images.map((img: any, idx: number) => (
-                <Image key={idx} source={{ uri: img.url }} style={[styles.galleryImage, { width, height: width * 0.75 }]} />
+                <Pressable key={idx} onPress={() => setZoomImg(img.url)}>
+                  <Image
+                    source={{ uri: img.url }}
+                    style={[styles.galleryImage, { width, height: width * 0.75 }]}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
@@ -173,6 +217,19 @@ export default function PropertyDetailScreen() {
           )}
         </View>
 
+        {videoUrl ? (
+          <View style={styles.videoSection}>
+            <Text style={styles.sectionTitle}>{t('property.walkthroughVideo')}</Text>
+            <VideoView
+              style={styles.videoPlayer}
+              player={videoPlayer}
+              contentFit="contain"
+              nativeControls
+              allowsPictureInPicture={false}
+            />
+          </View>
+        ) : null}
+
         <View style={styles.content}>
           {/* Main Info */}
           <View style={styles.mainInfo}>
@@ -183,36 +240,29 @@ export default function PropertyDetailScreen() {
             <Text style={styles.price}>{formatPrice(property.price)}</Text>
 
             <View style={styles.tagsContainer}>
-              <Text style={[styles.tag, styles.tagType]}>{property.type}</Text>
-              {property.listing_type && <Text style={[styles.tag, styles.tagListingType]}>{property.listing_type}</Text>}
-              {property.bhk && <Text style={styles.tag}>{property.bhk} BHK</Text>}
-              <Text style={styles.tag}>{property.area} sq ft</Text>
+              <Text style={[styles.tag, styles.tagType]}>{t(`enums.propertyTypes.${property.type}`, { defaultValue: property.type })}</Text>
+              {property.listing_type && <Text style={[styles.tag, styles.tagListingType]}>{t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type })}</Text>}
+              {property.bhk && <Text style={styles.tag}>{property.bhk} {t('property.bhk')}</Text>}
+              <Text style={styles.tag}>{property.area} {t('property.sqFt')}</Text>
               
               <Text style={[styles.tag, 
                 property.status === 'active' ? styles.tagStatusActive : 
                 property.status === 'sold' ? styles.tagStatusSold : styles.tagStatusDefault
               ]}>
-                {property.status}
+                {t(`enums.status.${property.status}`, { defaultValue: property.status })}
               </Text>
             </View>
           </View>
 
-          {/* Description */}
-          {property.description && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Property Description</Text>
-              <Text style={styles.description}>{property.description}</Text>
-            </View>
-          )}
 
           {/* Amenities */}
           {property.amenities && property.amenities.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Amenities</Text>
+              <Text style={styles.sectionTitle}>{t('property.amenities')}</Text>
               <View style={styles.amenitiesGrid}>
                 {property.amenities.map((item: string, idx: number) => (
                   <View key={idx} style={styles.amenityChip}>
-                    <Text style={styles.amenityChipText}>{item}</Text>
+                    <Text style={styles.amenityChipText}>{t(`enums.amenities.${item}`, { defaultValue: item })}</Text>
                   </View>
                 ))}
               </View>
@@ -221,19 +271,19 @@ export default function PropertyDetailScreen() {
 
           {/* Details Grid */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Details</Text>
+            <Text style={styles.sectionTitle}>{t('property.details')}</Text>
             <View style={styles.detailsGrid}>
               {[
-                ['Project', property.project_name || '—'],
-                ['Listing Type', property.listing_type || '—'],
-                ['Property Type', property.type],
-                ['City', property.city],
-                ['Locality', property.locality],
-                ['Area', `${property.area} sq ft`],
-                ['BHK', property.bhk || '—'],
-                ['Washrooms', property.washrooms || '—'],
-                ['Floor', property.floor !== null && property.floor !== undefined ? (property.floor === 0 ? 'Ground' : property.floor) : '—'],
-                ['Price / sq ft', pricePerSqft]
+                [t('property.project'), property.project_name || '—'],
+                [t('property.listingType'), property.listing_type ? t(`enums.listingTypes.${property.listing_type}`, { defaultValue: property.listing_type }) : '—'],
+                [t('property.propertyType'), t(`enums.propertyTypes.${property.type}`, { defaultValue: property.type })],
+                [t('property.city'), property.city],
+                [t('property.locality'), property.locality],
+                [t('property.area'), `${property.area} ${t('property.sqFt')}`],
+                [t('property.bhk'), property.bhk || '—'],
+                [t('property.washrooms'), property.washrooms || '—'],
+                [t('property.floor'), property.floor !== null && property.floor !== undefined ? (property.floor === 0 ? t('property.groundFloor') : property.floor) : '—'],
+                [t('property.priceSqft'), pricePerSqft]
               ].map(([label, value], idx) => (
                 <View key={idx} style={styles.detailItem}>
                   <Text style={styles.detailLabel}>{label}</Text>
@@ -244,34 +294,53 @@ export default function PropertyDetailScreen() {
           </View>
           
           {/* Actions */}
-          <View style={[styles.section, styles.actionsRow]}>
-            <Pressable 
-              style={[styles.saveButton, saved && styles.saveButtonActive, { flex: 1 }]} 
-              onPress={handleSave} 
-              disabled={saving || saved}
-            >
-              <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
-              <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
-                {saved ? 'Saved' : saving ? 'Saving...' : 'Save'}
-              </Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.saveButton, { flex: 1, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' }]} 
-              onPress={openColModal} 
-            >
-              <Ionicons name="folder-open-outline" size={20} color="#1D4ED8" />
-              <Text style={[styles.saveButtonText, { color: '#1D4ED8' }]}>Collect</Text>
-            </Pressable>
-          </View>
+          {!shareBrokerId && (
+            <View style={[styles.section, styles.actionsCol]}>
+              <Pressable 
+                style={[styles.saveButton, saved && styles.saveButtonActive]} 
+                onPress={handleSave} 
+                disabled={saving || saved}
+              >
+                <Ionicons name={saved ? "checkmark-circle" : "heart-outline"} size={20} color={saved ? "#15803D" : "#FFFFFF"} />
+                <Text style={[styles.saveButtonText, saved && styles.saveButtonTextActive]}>
+                  {saved ? t('property.saved', { defaultValue: 'Saved' }) : saving ? t('property.saving', { defaultValue: 'Saving...' }) : t('property.saveProperty', { defaultValue: 'Save Property' })}
+                </Text>
+              </Pressable>
+
+              <Pressable 
+                style={styles.collectionButton} 
+                onPress={() => setShowColModal(true)} 
+              >
+                <Ionicons name="albums-outline" size={20} color="#2563EB" />
+                <Text style={styles.collectionButtonText}>Add to Collection</Text>
+              </Pressable>
+
+              {userRole === 'broker' && (
+                <Pressable 
+                  style={styles.shareButton} 
+                  onPress={() => setShowShareModal(true)} 
+                >
+                  <Ionicons name="share-social-outline" size={20} color="#2563EB" />
+                  <Text style={styles.shareButtonText}>{t('share.shareWithClient', { defaultValue: 'Share with Client' })}</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           {/* Broker Card */}
           {broker && (
             <View style={styles.brokerCard}>
-              <Text style={styles.brokerCardTitle}>Listed by</Text>
+              <Text style={styles.brokerCardTitle}>{shareBrokerId ? t('property.sharedBy') : t('property.listedBy')}</Text>
               
               <View style={styles.brokerInfo}>
                 {broker.profile_photo ? (
-                  <Image source={{ uri: broker.profile_photo }} style={styles.brokerImage} />
+                  <Image
+                    source={{ uri: broker.profile_photo }}
+                    style={styles.brokerImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={150}
+                  />
                 ) : (
                   <View style={styles.brokerImagePlaceholder}>
                     <Text style={styles.brokerInitials}>{broker.full_name?.[0]}</Text>
@@ -280,7 +349,7 @@ export default function PropertyDetailScreen() {
                 <View style={styles.brokerDetails}>
                   <Text style={styles.brokerName}>{broker.full_name}</Text>
                   {broker.agency_name && <Text style={styles.brokerAgency}>{broker.agency_name}</Text>}
-                  {broker.experience > 0 && <Text style={styles.brokerExp}>{broker.experience} years experience</Text>}
+                  {broker.experience > 0 && <Text style={styles.brokerExp}>{broker.experience} {t('property.yearsExperience')}</Text>}
                 </View>
               </View>
 
@@ -288,14 +357,23 @@ export default function PropertyDetailScreen() {
                 <View style={styles.contactActions}>
                   <Pressable style={styles.callButton} onPress={() => handleCall(broker.mobile)}>
                     <Ionicons name="call" size={16} color="#FFFFFF" />
-                    <Text style={styles.callButtonText}>Call Broker</Text>
+                    <Text style={styles.callButtonText}>{t('property.callBroker')}</Text>
                   </Pressable>
                   <Pressable style={styles.waButton} onPress={() => handleWhatsApp(broker.mobile)}>
                     <Ionicons name="logo-whatsapp" size={16} color="#374151" />
-                    <Text style={styles.waButtonText}>WhatsApp</Text>
+                    <Text style={styles.waButtonText}>{t('common.whatsapp')}</Text>
                   </Pressable>
                 </View>
               )}
+            </View>
+          )}
+
+          {fetchingFull && !broker && (
+            <View style={{ paddingVertical: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={{ fontSize: 13, fontFamily: Fonts.sansMedium, color: '#64748B' }}>
+                {t('property.loadingDetails')}
+              </Text>
             </View>
           )}
 
@@ -303,75 +381,35 @@ export default function PropertyDetailScreen() {
       </ScrollView>
 
       {/* Collection Modal */}
-      <Modal visible={showColModal} transparent animationType="slide" onRequestClose={() => setShowColModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add to Collection</Text>
-              <Pressable onPress={() => setShowColModal(false)} style={{ padding: 4 }}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </Pressable>
-            </View>
+      <CollectionModal
+        visible={showColModal}
+        propertyIds={[id as string]}
+        onClose={() => setShowColModal(false)}
+        onSuccess={() => setShowColModal(false)}
+      />
 
-            {colLoading ? (
-              <ActivityIndicator size="large" color="#2563EB" style={{ marginVertical: 32 }} />
-            ) : (
-              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
-                {collections.length > 0 ? (
-                  collections.map(col => {
-                    const isFull = col.property_ids?.length >= 5;
-                    return (
-                      <View key={col.id} style={styles.colListItem}>
-                        <View>
-                          <Text style={styles.colListTitle}>{col.name}</Text>
-                          <Text style={styles.colListMeta}>{col.property_ids?.length || 0} / 5 properties</Text>
-                        </View>
-                        <Pressable 
-                          style={[styles.colAddBtn, isFull && styles.colAddBtnDisabled]} 
-                          disabled={isFull}
-                          onPress={() => handleAddToCollection(col.id)}
-                        >
-                          <Text style={[styles.colAddBtnText, isFull && styles.colAddBtnTextDisabled]}>
-                            {isFull ? 'Full' : 'Add'}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.emptyColText}>No collections yet.</Text>
-                )}
-
-                {isCreatingCol ? (
-                  <View style={styles.createColBox}>
-                    <Text style={styles.createColLabel}>Collection Name</Text>
-                    <TextInput 
-                      style={styles.createColInput}
-                      value={newColName}
-                      onChangeText={setNewColName}
-                      placeholder="e.g. Luxury Finds"
-                      autoFocus
-                    />
-                    <View style={styles.createColActions}>
-                      <Pressable style={styles.createColCancelBtn} onPress={() => setIsCreatingCol(false)}>
-                        <Text style={styles.createColCancelText}>Cancel</Text>
-                      </Pressable>
-                      <Pressable style={styles.createColSaveBtn} onPress={handleCreateCollection} disabled={!newColName.trim()}>
-                        <Text style={styles.createColSaveText}>Create</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <Pressable style={styles.newColBtn} onPress={() => setIsCreatingCol(true)}>
-                    <Text style={styles.newColBtnText}>+ Create New Collection</Text>
-                  </Pressable>
-                )}
-              </ScrollView>
-            )}
-          </View>
-        </KeyboardAvoidingView>
+      <Modal visible={!!zoomImg} transparent={true} animationType="fade" onRequestClose={() => setZoomImg(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+          <Pressable style={{ position: 'absolute', top: Math.max(insets.top + 10, 50), right: 20, zIndex: 10, padding: 10 }} onPress={() => setZoomImg(null)}>
+            <Ionicons name="close" size={32} color="#FFF" />
+          </Pressable>
+          {zoomImg && (
+            <Image
+              source={{ uri: zoomImg }}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              cachePolicy="memory-disk"
+            />
+          )}
+        </View>
       </Modal>
-
+      {/* Share with Client Modal */}
+      <ShareModal
+        visible={showShareModal}
+        selectedIds={[id as string]}
+        userId={currentUser?.id}
+        onClose={() => setShowShareModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -429,8 +467,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     position: 'relative',
   },
+  videoSection: {
+    padding: 20,
+    paddingBottom: 0,
+  },
+  videoPlayer: {
+    width: '100%',
+    height: 220,
+    marginTop: 12,
+    backgroundColor: '#111827',
+    borderRadius: 12,
+  },
   galleryImage: {
-    resizeMode: 'cover',
   },
   galleryPlaceholder: {
     flex: 1,
@@ -613,7 +661,8 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#2563EB',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
+    width: '100%',
   },
   saveButtonActive: {
     backgroundColor: '#DCFCE7',
@@ -621,10 +670,10 @@ const styles = StyleSheet.create({
     borderColor: '#BBF7D0',
   },
   saveButtonText: {
-    fontFamily: Fonts.sansSemiBold,
+    fontFamily: Fonts.sansBold,
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   saveButtonTextActive: {
     color: '#15803D',
@@ -730,149 +779,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  actionsRow: {
+  actionsCol: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  collectionButton: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontFamily: Fonts.displaySemiBold,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  modalScroll: {
-    maxHeight: 400,
-  },
-  colListItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  colListTitle: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  colListMeta: {
-    fontFamily: Fonts.sans,
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  colAddBtn: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  colAddBtnDisabled: {
-    backgroundColor: '#F3F4F6',
-  },
-  colAddBtnText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#1D4ED8',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  colAddBtnTextDisabled: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#9CA3AF',
-  },
-  emptyColText: {
-    fontFamily: Fonts.sans,
-    textAlign: 'center',
-    color: '#6B7280',
-    paddingVertical: 24,
-  },
-  newColBtn: {
-    marginTop: 16,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  newColBtnText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#4B5563',
-    fontWeight: 'bold',
-  },
-  createColBox: {
-    marginTop: 16,
-    backgroundColor: '#EFF6FF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  createColLabel: {
-    fontFamily: Fonts.sansSemiBold,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  createColInput: {
-    fontFamily: Fonts.sans,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  createColActions: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-  },
-  createColCancelBtn: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+  },
+  collectionButtonText: {
+    fontFamily: Fonts.sansBold,
+    color: '#2563EB',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shareButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#DBEAFE',
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
   },
-  createColCancelText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#374151',
-    fontWeight: 'bold',
+  shareButtonText: {
+    fontFamily: Fonts.sansBold,
+    color: '#2563EB',
+    fontSize: 15,
+    fontWeight: '700',
   },
-  createColSaveBtn: {
-    flex: 1,
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  createColSaveText: {
-    fontFamily: Fonts.sansSemiBold,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  }
 });

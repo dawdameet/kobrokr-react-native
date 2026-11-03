@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import api from '../lib/api';
+import { useTranslation } from 'react-i18next';
+import api, { clearCachedToken } from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
+import FeedbackModal from '../components/FeedbackModal';
 import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
+import { SUPPORTED_LANGUAGES, setAppLanguage } from '../i18n';
 
 export default function ProfileScreen() {
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [affiliateStats, setAffiliateStats] = useState<any>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -22,6 +28,7 @@ export default function ProfileScreen() {
         const u = JSON.parse(uStr);
         setUserRole(u.role);
         fetchProfile(u.role);
+        fetchAffiliateStats();
       } else {
         setError('Not logged in');
         setLoading(false);
@@ -41,20 +48,67 @@ export default function ProfileScreen() {
     }
   };
 
+  const fetchAffiliateStats = async () => {
+    try {
+      const { data } = await api.get('/affiliate/overview');
+      if (data && (data.totalReferrals !== undefined || data.total_referrals !== undefined)) {
+        setAffiliateStats({
+          total_referrals: data.totalReferrals ?? data.total_referrals ?? 0,
+          total_earned: String(data.totalEarned ?? data.settled_earnings ?? 0),
+          pending_payout: String(data.pendingPayout ?? data.pending_earnings ?? 0),
+        });
+      }
+    } catch (e) {
+      // Not a partner yet - leave affiliateStats as null
+    }
+  };
+
   const handleLogout = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.logout'), t('profile.logoutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       { 
-        text: 'Log Out', 
+        text: t('profile.logout'), 
         style: 'destructive',
         onPress: async () => {
+          clearCachedToken();
           await storage.remove('access_token');
           await storage.remove('refresh_token');
           await storage.remove('user');
-          router.replace('/login');
+          router.replace('/');
         }
       }
     ]);
+  };
+
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to permanently delete your account? All your listings and data will be removed. This action cannot be undone.',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              try {
+                await api.delete('/auth/profile');
+              } catch (e) {
+                console.warn('Backend delete profile failed or unsupported:', e);
+              }
+              clearCachedToken();
+              await storage.remove('access_token');
+              await storage.remove('refresh_token');
+              await storage.remove('user');
+              Alert.alert('Account Deleted', 'Your account has been deleted.');
+              router.replace('/');
+            } catch (err) {
+              Alert.alert('Error', 'Unable to complete deletion request. Please contact support@kobrokr.com');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -68,21 +122,28 @@ export default function ProfileScreen() {
   if (error || !profile) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>{error || 'Profile not found'}</Text>
+        <Text style={styles.errorText}>{error ? t('profile.errorLoading') : t('profile.notFound')}</Text>
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutBtnText}>Log Out Anyway</Text>
+          <Text style={styles.logoutBtnText}>{t('profile.logoutAnyway')}</Text>
         </Pressable>
       </SafeAreaView>
     );
   }
 
+  const currentLangCode = i18n.language || 'en';
+
+  const isAgencyOwner =
+    userRole === 'broker' &&
+    Boolean(profile?.is_admin || profile?.is_agency_owner) &&
+    (profile?.plan === 'enterprise' || profile?.plan === 'agency');
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
-        <Text style={styles.headerTitle}>My Profile</Text>
+        <Text style={styles.headerTitle}>{t('profile.title')}</Text>
         <View style={{ width: 32 }} />
       </View>
 
@@ -98,12 +159,12 @@ export default function ProfileScreen() {
 
         {/* Info Section */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Information</Text>
+          <Text style={styles.cardTitle}>{t('profile.accountInfo')}</Text>
           
           <View style={styles.infoRow}>
             <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoLabel}>{t('profile.email')}</Text>
               <Text style={styles.infoValue}>{profile.email}</Text>
             </View>
           </View>
@@ -111,16 +172,16 @@ export default function ProfileScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>Mobile Number</Text>
-              <Text style={styles.infoValue}>{profile.mobile || 'Not provided'}</Text>
+              <Text style={styles.infoLabel}>{t('profile.mobile')}</Text>
+              <Text style={styles.infoValue}>{profile.mobile || t('profile.notProvided')}</Text>
             </View>
           </View>
 
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={20} color="#6B7280" style={styles.infoIcon} />
             <View>
-              <Text style={styles.infoLabel}>City</Text>
-              <Text style={styles.infoValue}>{profile.city || 'Not provided'}</Text>
+              <Text style={styles.infoLabel}>{t('profile.city')}</Text>
+              <Text style={styles.infoValue}>{profile.city || t('profile.notProvided')}</Text>
             </View>
           </View>
 
@@ -128,23 +189,86 @@ export default function ProfileScreen() {
             <View style={styles.infoRow}>
               <Ionicons name="business-outline" size={20} color="#6B7280" style={styles.infoIcon} />
               <View>
-                <Text style={styles.infoLabel}>Agency</Text>
+                <Text style={styles.infoLabel}>{t('profile.agency')}</Text>
                 <Text style={styles.infoValue}>{profile.agency_name}</Text>
               </View>
             </View>
           )}
         </View>
 
+        {/* Language Selection Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="globe-outline" size={18} color="#2563EB" />
+            <Text style={styles.cardTitle}>{t('profile.language')}</Text>
+          </View>
+          <Text style={styles.cardSubtitle}>{t('profile.languageNotice')}</Text>
+
+          <View style={styles.languageOptionsContainer}>
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const isSelected = currentLangCode.startsWith(lang.code);
+              return (
+                <Pressable
+                  key={lang.code}
+                  style={[styles.languageOption, isSelected && styles.languageOptionSelected]}
+                  onPress={() => setAppLanguage(lang.code)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.languageNativeLabel, isSelected && styles.languageTextSelected]}>
+                      {lang.nativeLabel}
+                    </Text>
+                    <Text style={[styles.languageEnglishLabel, isSelected && styles.languageSubtextSelected]}>
+                      {lang.label}
+                    </Text>
+                  </View>
+                  {isSelected ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#2563EB" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={22} color="#D1D5DB" />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Action Section */}
         <View style={styles.card}>
-          <Pressable style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => Alert.alert('Coming Soon', 'Edit profile will be available in a future update.')}>
+          <Pressable 
+            style={[styles.menuItem, { borderBottomWidth: 0 }]} 
+            onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileNotice'))}
+          >
             <Ionicons name="create-outline" size={20} color="#374151" />
-            <Text style={styles.menuItemText}>Edit Profile</Text>
+            <Text style={styles.menuItemText}>{t('profile.editProfile')}</Text>
             <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
           </Pressable>
         </View>
 
-        {/* Become a Partner Section */}
+        {/* Agency Team Management Section (For Enterprise Admins) */}
+        {isAgencyOwner && (
+          <Pressable 
+            style={styles.agencyTeamCard}
+            onPress={() => router.push('/agency-team' as any)}
+          >
+            <View style={styles.agencyTeamIconContainer}>
+              <Ionicons name="people" size={22} color="#2563EB" />
+            </View>
+            <View style={styles.partnerCardTextContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.partnerCardTitle}>Manage Agency Team</Text>
+                <View style={styles.agencyPlanBadge}>
+                  <Text style={styles.agencyPlanBadgeText}>ENTERPRISE</Text>
+                </View>
+              </View>
+              <Text style={styles.partnerCardSubtitle}>
+                {profile.agency_name ? `${profile.agency_name} • ` : ''}Manage members & seats
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </Pressable>
+        )}
+
+        {/* Partner Program Section */}
         <Pressable 
           style={styles.partnerCard}
           onPress={() => router.push('/partner' as any)}
@@ -154,22 +278,114 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.partnerCardTextContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.partnerCardTitle}>BECOME A PARTNER</Text>
+              <Text style={styles.partnerCardTitle}>{affiliateStats ? t('profile.yourPartnerStats') : t('profile.partnerProgram')}</Text>
               <View style={styles.partnerBadge}>
-                <Text style={styles.partnerBadgeText}>AFFILIATE</Text>
+                <Text style={styles.partnerBadgeText}>{t('profile.partnerBadge')}</Text>
               </View>
             </View>
-            <Text style={styles.partnerCardSubtitle}>Join the kobrokr affiliate network</Text>
+            <Text style={styles.partnerCardSubtitle}>
+              {affiliateStats 
+                ? `${affiliateStats.total_referrals} ${t('profile.referrals')} | ₹${affiliateStats.total_earned} ${t('profile.earned')} | ₹${affiliateStats.pending_payout} ${t('profile.pending')}` 
+                : t('profile.joinPartner')}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </Pressable>
 
         {userRole === 'broker' && <SubscriptionWidget />}
 
+        {/* Payment History & Invoices Section */}
+        {userRole === 'broker' && (
+          <Pressable 
+            style={styles.paymentCard}
+            onPress={() => router.push('/payment-history' as any)}
+          >
+            <View style={styles.paymentCardIconContainer}>
+              <Ionicons name="receipt-outline" size={20} color="#2563EB" />
+            </View>
+            <View style={styles.paymentCardTextContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.paymentCardTitle}>Payment History & Invoices</Text>
+                <View style={styles.invoiceBadge}>
+                  <Text style={styles.invoiceBadgeText}>GST PDF</Text>
+                </View>
+              </View>
+              <Text style={styles.paymentCardSubtitle}>
+                Download tax receipts & view past transactions
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </Pressable>
+        )}
+
+        {/* Help & Support Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Ionicons name="help-buoy-outline" size={18} color="#2563EB" />
+            <Text style={styles.cardTitle}>Help & Support</Text>
+          </View>
+          <Text style={styles.cardSubtitle}>Need assistance, have queries, or want to share feedback?</Text>
+
+          <View style={styles.supportOptionsContainer}>
+            {/* Email Support */}
+            <Pressable
+              style={styles.supportOptionRow}
+              onPress={() => Linking.openURL('mailto:support@kobrokr.com?subject=KoBrokr%20Support%20Request')}
+            >
+              <View style={[styles.supportIconWrapper, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="mail" size={18} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportOptionTitle}>Email Support</Text>
+                <Text style={styles.supportOptionSub}>support@kobrokr.com • 24hr response</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </Pressable>
+
+            {/* In-app Feedback Modal */}
+            <Pressable
+              style={[styles.supportOptionRow, { borderBottomWidth: 0 }]}
+              onPress={() => setShowFeedbackModal(true)}
+            >
+              <View style={[styles.supportIconWrapper, { backgroundColor: '#FAF5FF' }]}>
+                <Ionicons name="chatbox-ellipses" size={18} color="#7E22CE" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportOptionTitle}>Send Feedback</Text>
+                <Text style={styles.supportOptionSub}>Rate experience & suggest new features</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+            </Pressable>
+          </View>
+
+          {/* Legal Links */}
+          <View style={styles.supportLegalRow}>
+            <Pressable onPress={() => Linking.openURL('https://www.kobrokr.com/privacy')}>
+              <Text style={styles.supportLegalLink}>Privacy Policy</Text>
+            </Pressable>
+            <Text style={styles.supportLegalDot}>•</Text>
+            <Pressable onPress={() => Linking.openURL('https://www.kobrokr.com/terms')}>
+              <Text style={styles.supportLegalLink}>Terms of Service</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={styles.logoutBtnText}>Log Out</Text>
+          <Text style={styles.logoutBtnText}>{t('profile.logout')}</Text>
         </Pressable>
+
+        <Pressable style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
+          <Text style={styles.deleteBtnText}>Delete Account</Text>
+        </Pressable>
+
+        <FeedbackModal
+          visible={showFeedbackModal}
+          onClose={() => setShowFeedbackModal(false)}
+          userEmail={profile?.email}
+          userName={profile?.full_name}
+        />
 
       </ScrollView>
     </SafeAreaView>
@@ -253,14 +469,61 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   cardTitle: {
     fontFamily: Fonts.sansSemiBold,
     fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
     textTransform: 'uppercase',
-    marginBottom: 16,
     letterSpacing: 0.5,
+  },
+  cardSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginBottom: 12,
+  },
+  languageOptionsContainer: {
+    gap: 8,
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  languageOptionSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#2563EB',
+  },
+  languageNativeLabel: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  languageEnglishLabel: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 1,
+  },
+  languageTextSelected: {
+    color: '#1D4ED8',
+  },
+  languageSubtextSelected: {
+    color: '#3B82F6',
   },
   infoRow: {
     flexDirection: 'row',
@@ -349,6 +612,97 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     letterSpacing: 0.5,
   },
+  agencyTeamCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  agencyTeamIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  agencyPlanBadge: {
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  agencyPlanBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#7E22CE',
+    letterSpacing: 0.5,
+  },
+  paymentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  paymentCardIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paymentCardTextContainer: {
+    flex: 1,
+  },
+  paymentCardTitle: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 14,
+    color: '#111827',
+  },
+  paymentCardSubtitle: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  invoiceBadge: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  invoiceBadgeText: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 9,
+    color: '#16A34A',
+    letterSpacing: 0.5,
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -372,5 +726,71 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 16,
     marginBottom: 16,
-  }
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    marginTop: 6,
+  },
+  deleteBtnText: {
+    fontFamily: Fonts.sansMedium,
+    color: '#9CA3AF',
+    fontSize: 13,
+  },
+  supportOptionsContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  supportOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 12,
+  },
+  supportIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supportOptionTitle: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  supportOptionSub: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  supportLegalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 4,
+  },
+  supportLegalLink: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  supportLegalDot: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#CBD5E1',
+    marginHorizontal: 8,
+  },
 });
