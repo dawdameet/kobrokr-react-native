@@ -438,7 +438,7 @@ export default function SubscriptionWidget() {
         {/* Subscribe Button */}
         <View style={[styles.proCtaBtn, isIndividual && styles.proCtaBtnDisabled]}>
           <Text style={styles.proCtaBtnText}>
-            {isIndividual ? 'Your Current Plan' : Platform.OS === 'ios' ? 'Manage via Web' : 'Subscribe to Pro'}
+            {isIndividual ? 'Your Current Plan' : 'Subscribe to Pro'}
           </Text>
           {!isIndividual && (
             <Ionicons name="open-outline" size={16} color="#0B132B" style={{ marginLeft: 6 }} />
@@ -566,7 +566,7 @@ export default function SubscriptionWidget() {
         {/* Agency Action Button */}
         <View style={[styles.agencyCtaBtn, isEnterprise && styles.agencyCtaBtnDisabled]}>
           <Text style={styles.agencyCtaBtnText}>
-            {isEnterprise ? 'Your Current Plan' : Platform.OS === 'ios' ? 'Manage via Web' : 'Subscribe to Agency'}
+            {isEnterprise ? 'Your Current Plan' : 'Subscribe to Agency'}
           </Text>
           {!isEnterprise && (
             <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
