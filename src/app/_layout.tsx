@@ -8,6 +8,7 @@ import BottomNav from '../components/BottomNav';
 import AuthGate from '../components/AuthGate';
 import '../i18n';
 import { initNotifications } from '../lib/notifications';
+import { initPurchases } from '../lib/purchases';
 
 // Keep the splash screen visible while fonts are loading
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -39,6 +40,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     initNotifications().catch(() => {});
+    initPurchases().catch(() => {});
   }, []);
 
   if (!fontsLoaded && !fontError) {

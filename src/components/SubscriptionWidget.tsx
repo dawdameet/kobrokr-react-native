@@ -5,6 +5,12 @@ import { useTranslation } from 'react-i18next';
 import api from '../lib/api';
 import { storage } from '../lib/storage';
 import { Fonts } from '../constants/theme';
+import {
+  getSubscriptionPackages,
+  purchaseSubscriptionPackage,
+  restoreUserPurchases,
+} from '../lib/purchases';
+import type { PurchasesPackage } from 'react-native-purchases';
 
 export default function SubscriptionWidget() {
   const { t } = useTranslation();
@@ -22,10 +28,30 @@ export default function SubscriptionWidget() {
   const [referralApplying, setReferralApplying] = useState(false);
   const [referralDiscountPct, setReferralDiscountPct] = useState(0);
 
+  // RevenueCat In-App Purchases state
+  const [rcPackages, setRcPackages] = useState<{
+    monthly?: PurchasesPackage;
+    annual?: PurchasesPackage;
+  }>({});
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
   useEffect(() => {
     fetchData();
     checkReferralCode();
+    if (Platform.OS === 'ios') {
+      loadIapPackages();
+    }
   }, []);
+
+  const loadIapPackages = async () => {
+    try {
+      const pkgs = await getSubscriptionPackages();
+      setRcPackages(pkgs);
+    } catch (e) {
+      console.warn('[SubscriptionWidget] Failed to load IAP packages:', e);
+    }
+  };
 
   const checkReferralCode = async () => {
     try {
@@ -90,9 +116,45 @@ export default function SubscriptionWidget() {
 
   const handleUpgrade = async (planKey: 'individual' | 'enterprise') => {
     if (Platform.OS === 'ios') {
+      if (planKey === 'individual') {
+        const pkgToBuy = billingCycle === 'annual' ? rcPackages.annual : rcPackages.monthly;
+        if (!pkgToBuy) {
+          Alert.alert(
+            'Package Unavailable',
+            'Subscription plans are currently syncing with the App Store. Please check your internet connection or try again in a few moments.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        setPurchasing(true);
+        try {
+          const res = await purchaseSubscriptionPackage(pkgToBuy);
+          if (res.success) {
+            Alert.alert(
+              'Welcome to Pro! 🎉',
+              'Your subscription is now active! You can now publish up to 30 active listings and enjoy all Pro features.',
+              [{ text: 'Done' }]
+            );
+            await fetchData();
+            try {
+              await api.post('/payments/sync-revenuecat');
+            } catch (_) {}
+          } else if (res.error && !res.userCancelled) {
+            Alert.alert('Purchase Error', res.error, [{ text: 'OK' }]);
+          }
+        } catch (err: any) {
+          Alert.alert('Purchase Failed', err?.message || 'An error occurred during purchase.', [{ text: 'OK' }]);
+        } finally {
+          setPurchasing(false);
+        }
+        return;
+      }
+
+      // Agency plan on iOS
       Alert.alert(
-        'Subscription Management',
-        'To upgrade or manage your plan and agency seats, please visit kobrokr.com on your desktop browser.',
+        'Agency Subscription',
+        'Agency plans with customized team seats are configured through the KoBrokr web portal. Please visit kobrokr.com to set up your team.',
         [{ text: 'OK' }]
       );
       return;
@@ -118,6 +180,39 @@ export default function SubscriptionWidget() {
 
     const checkoutUrl = `${baseUrl}/payment?${params.toString()}`;
     Linking.openURL(checkoutUrl);
+  };
+
+  const handleRestore = async () => {
+    if (Platform.OS !== 'ios') return;
+    setRestoring(true);
+    try {
+      const res = await restoreUserPurchases();
+      if (res.success) {
+        if (res.hasPro) {
+          Alert.alert(
+            'Purchases Restored',
+            'Your active Pro subscription has been successfully restored.',
+            [{ text: 'OK' }]
+          );
+          await fetchData();
+          try {
+            await api.post('/payments/sync-revenuecat');
+          } catch (_) {}
+        } else {
+          Alert.alert(
+            'No Active Subscription',
+            'No active subscription was found for your Apple ID. If you previously subscribed, make sure you are signed in with the same Apple ID.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        Alert.alert('Restore Error', res.error || 'Failed to restore purchases.', [{ text: 'OK' }]);
+      }
+    } catch (err: any) {
+      Alert.alert('Restore Failed', err?.message || 'Could not restore purchases.', [{ text: 'OK' }]);
+    } finally {
+      setRestoring(false);
+    }
   };
 
   const currentPlan = limits?.plan || 'free';
@@ -379,13 +474,21 @@ export default function SubscriptionWidget() {
         <Text style={styles.proSubtitleDark}>For serious brokers.</Text>
 
         <View style={styles.priceRowDark}>
-          {proOriginal ? (
+          {proOriginal && !(Platform.OS === 'ios' && (isAnnual ? rcPackages.annual : rcPackages.monthly)) ? (
             <Text style={styles.strikePriceDark}>₹{proOriginal.toLocaleString('en-IN')}</Text>
           ) : null}
-          <Text style={styles.priceCurrencyDark}>₹</Text>
-          <Text style={styles.priceAmountDark}>
-            {getDiscounted(proPrice).toLocaleString('en-IN')}
-          </Text>
+          {Platform.OS === 'ios' && (isAnnual ? rcPackages.annual : rcPackages.monthly) ? (
+            <Text style={styles.priceAmountDark}>
+              {(isAnnual ? rcPackages.annual : rcPackages.monthly)?.product.priceString}
+            </Text>
+          ) : (
+            <>
+              <Text style={styles.priceCurrencyDark}>₹</Text>
+              <Text style={styles.priceAmountDark}>
+                {getDiscounted(proPrice).toLocaleString('en-IN')}
+              </Text>
+            </>
+          )}
           <Text style={styles.pricePeriodDark}>/{periodLabel}</Text>
         </View>
         <Text style={styles.gstTextDark}>(+ GST)</Text>
@@ -437,11 +540,22 @@ export default function SubscriptionWidget() {
 
         {/* Subscribe Button */}
         <View style={[styles.proCtaBtn, isIndividual && styles.proCtaBtnDisabled]}>
-          <Text style={styles.proCtaBtnText}>
-            {isIndividual ? 'Your Current Plan' : 'Subscribe to Pro'}
-          </Text>
-          {!isIndividual && (
-            <Ionicons name="open-outline" size={16} color="#0B132B" style={{ marginLeft: 6 }} />
+          {purchasing ? (
+            <ActivityIndicator size="small" color="#0B132B" />
+          ) : (
+            <>
+              <Text style={styles.proCtaBtnText}>
+                {isIndividual ? 'Your Current Plan' : 'Subscribe to Pro'}
+              </Text>
+              {!isIndividual && (
+                <Ionicons
+                  name={Platform.OS === 'ios' ? 'shield-checkmark-outline' : 'open-outline'}
+                  size={16}
+                  color="#0B132B"
+                  style={{ marginLeft: 6 }}
+                />
+              )}
+            </>
           )}
         </View>
       </Pressable>
@@ -573,6 +687,47 @@ export default function SubscriptionWidget() {
           )}
         </View>
       </Pressable>
+
+      {/* Restore Purchases & Legal Disclosures (Required by Apple Guideline 3.1.1 & 3.1.2) */}
+      {Platform.OS === 'ios' && (
+        <View style={styles.restoreAndLegalContainer}>
+          <Pressable
+            onPress={handleRestore}
+            disabled={restoring}
+            style={({ pressed }) => [styles.restoreBtn, pressed && { opacity: 0.7 }]}
+          >
+            {restoring ? (
+              <ActivityIndicator size="small" color="#2563EB" />
+            ) : (
+              <>
+                <Ionicons name="refresh-outline" size={15} color="#2563EB" style={{ marginRight: 6 }} />
+                <Text style={styles.restoreBtnText}>Restore Purchases</Text>
+              </>
+            )}
+          </Pressable>
+
+          <View style={styles.legalDisclosureBox}>
+            <Text style={styles.legalDisclosureText}>
+              Payment will be charged to your Apple Account at confirmation of purchase. Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage or cancel your subscription in your App Store account settings at any time.
+            </Text>
+            <View style={styles.legalLinksRow}>
+              <Pressable
+                onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}
+                hitSlop={8}
+              >
+                <Text style={styles.legalLinkText}>Terms of Use (EULA)</Text>
+              </Pressable>
+              <Text style={styles.legalLinkDivider}>•</Text>
+              <Pressable
+                onPress={() => Linking.openURL('https://www.kobrokr.com/privacy')}
+                hitSlop={8}
+              >
+                <Text style={styles.legalLinkText}>Privacy Policy</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Support note */}
       <View style={styles.supportFooter}>
@@ -1264,5 +1419,53 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.sansSemiBold,
     color: '#2563EB',
     textDecorationLine: 'underline',
+  },
+  restoreAndLegalContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  restoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+    marginBottom: 16,
+  },
+  restoreBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    color: '#2563EB',
+  },
+  legalDisclosureBox: {
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  legalDisclosureText: {
+    fontFamily: Fonts.sans,
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  legalLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  legalLinkText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 11,
+    color: '#2563EB',
+    textDecorationLine: 'underline',
+  },
+  legalLinkDivider: {
+    fontSize: 11,
+    color: '#94A3B8',
   },
 });

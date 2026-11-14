@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { usePathname, router } from 'expo-router';
 import { storage } from '../lib/storage';
 import api, { setCachedToken } from '../lib/api';
+import { identifyPurchasesUser } from '../lib/purchases';
 
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/client-share', '/onboarding'];
 const PROFILE_VALIDATION_TTL = 5 * 60 * 1000; // 5 minutes
@@ -51,6 +52,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const { data } = await api.get('/auth/profile');
       if (data && data.id) {
         await storage.set('user', JSON.stringify(data));
+        identifyPurchasesUser(data.id).catch(() => {});
       }
       lastValidatedRef.current = Date.now();
       isInitialCheckDone.current = true;
@@ -69,6 +71,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         router.replace('/');
         return;
       }
+      try {
+        const parsed = JSON.parse(user);
+        if (parsed?.id) {
+          identifyPurchasesUser(parsed.id).catch(() => {});
+        }
+      } catch (_) {}
       isInitialCheckDone.current = true;
       setStatus('ready');
     }

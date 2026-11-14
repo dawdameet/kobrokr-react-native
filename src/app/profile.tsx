@@ -8,6 +8,7 @@ import api, { clearCachedToken } from '../lib/api';
 import { storage } from '../lib/storage';
 import SubscriptionWidget from '../components/SubscriptionWidget';
 import FeedbackModal from '../components/FeedbackModal';
+import { logoutPurchases } from '../lib/purchases';
 import { safeGoBack } from '../lib/utils';
 import { Fonts } from '../constants/theme';
 import { SUPPORTED_LANGUAGES, setAppLanguage } from '../i18n';
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           clearCachedToken();
+          await logoutPurchases().catch(() => {});
           await storage.remove('access_token');
           await storage.remove('refresh_token');
           await storage.remove('user');
