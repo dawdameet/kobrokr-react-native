@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Alert, 
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import api from '../../lib/api';
 import { statsStore } from '../../lib/statsStore';
@@ -75,7 +75,10 @@ const ListingCard = React.memo(function ListingCard({
         <Pressable style={[styles.actionBtn, styles.actionToggle]} onPress={() => onToggleStatus(p)}>
           <Text style={styles.actionToggleText} numberOfLines={1}>{p.status === 'active' ? t('myListings.markInactive') : t('myListings.markActive')}</Text>
         </Pressable>
-        <Pressable style={[styles.actionBtn, styles.actionEdit]} onPress={() => Alert.alert(t('common.comingSoon'), t('myListings.editNotice'))}>
+        <Pressable 
+          style={[styles.actionBtn, styles.actionEdit]} 
+          onPress={() => router.push({ pathname: '/(broker)/add-property', params: { id: p.id } } as any)}
+        >
           <Text style={styles.actionEditText} numberOfLines={1}>{t('common.edit')}</Text>
         </Pressable>
         <Pressable style={[styles.actionBtn, styles.actionDelete]} onPress={() => onDelete(p)}>
@@ -95,9 +98,11 @@ export default function MyListingsScreen() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchListings();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchListings();
+    }, [])
+  );
 
   const fetchListings = async () => {
     if (!memoryMyListings) setLoading(true);

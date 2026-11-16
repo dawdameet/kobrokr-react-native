@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, ScrollView, Linking, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -21,6 +21,70 @@ export default function ProfileScreen() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [affiliateStats, setAffiliateStats] = useState<any>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    mobile: '',
+    city: '',
+    agency_name: '',
+    experience: '',
+    areas_served: '',
+  });
+
+  const handleOpenEditProfile = () => {
+    setEditForm({
+      full_name: profile?.full_name || '',
+      mobile: profile?.mobile || '',
+      city: profile?.city || '',
+      agency_name: profile?.agency_name || '',
+      experience: profile?.experience != null ? String(profile?.experience) : '',
+      areas_served: Array.isArray(profile?.areas_served) 
+        ? profile.areas_served.join(', ') 
+        : (profile?.areas_served || ''),
+    });
+    setShowEditProfileModal(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editForm.full_name.trim()) {
+      Alert.alert(t('common.error', { defaultValue: 'Error' }), 'Full name is required.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const payload: any = {
+        full_name: editForm.full_name.trim(),
+        mobile: editForm.mobile.trim(),
+        city: editForm.city.trim(),
+      };
+
+      if (userRole === 'broker') {
+        payload.agency_name = editForm.agency_name.trim();
+        payload.experience = editForm.experience ? parseInt(editForm.experience, 10) : 0;
+        payload.areas_served = editForm.areas_served
+          ? editForm.areas_served.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : [];
+      }
+
+      const { data } = await api.put('/auth/profile', payload);
+      setProfile((prev: any) => ({ ...prev, ...data, ...payload }));
+
+      const uStr = await storage.get('user');
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        await storage.set('user', JSON.stringify({ ...u, ...payload, ...data }));
+      }
+
+      setShowEditProfileModal(false);
+      Alert.alert(t('common.success', { defaultValue: 'Success' }), 'Profile updated successfully!');
+    } catch (err: any) {
+      Alert.alert(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || 'Failed to update profile. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   useEffect(() => {
     async function init() {
@@ -238,7 +302,7 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Pressable 
             style={[styles.menuItem, { borderBottomWidth: 0 }]} 
-            onPress={() => Alert.alert(t('common.comingSoon'), t('profile.editProfileNotice'))}
+            onPress={handleOpenEditProfile}
           >
             <Ionicons name="create-outline" size={20} color="#374151" />
             <Text style={styles.menuItemText}>{t('profile.editProfile')}</Text>
@@ -381,6 +445,125 @@ export default function ProfileScreen() {
           <Ionicons name="trash-outline" size={16} color="#9CA3AF" />
           <Text style={styles.deleteBtnText}>Delete Account</Text>
         </Pressable>
+
+        {/* Edit Profile Modal */}
+        <Modal
+          visible={showEditProfileModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => {
+            if (!savingProfile) setShowEditProfileModal(false);
+          }}
+        >
+          <SafeAreaView edges={['top', 'bottom']} style={styles.modalContainer}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ flex: 1 }}
+            >
+              <View style={styles.modalHeader}>
+                <Pressable 
+                  onPress={() => setShowEditProfileModal(false)} 
+                  disabled={savingProfile} 
+                  style={styles.modalCloseBtn}
+                >
+                  <Text style={styles.modalCancelText}>{t('common.cancel', { defaultValue: 'Cancel' })}</Text>
+                </Pressable>
+                <Text style={styles.modalTitle}>{t('profile.editProfile')}</Text>
+                <Pressable 
+                  onPress={handleSaveProfile} 
+                  disabled={savingProfile} 
+                  style={styles.modalSaveBtn}
+                >
+                  {savingProfile ? (
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  ) : (
+                    <Text style={styles.modalSaveText}>{t('common.save', { defaultValue: 'Save' })}</Text>
+                  )}
+                </Pressable>
+              </View>
+
+              <ScrollView 
+                contentContainerStyle={styles.modalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+              >
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('profile.name', { defaultValue: 'Full Name' })} *</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editForm.full_name}
+                    onChangeText={(val) => setEditForm(prev => ({ ...prev, full_name: val }))}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('profile.mobile', { defaultValue: 'Mobile Number' })}</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editForm.mobile}
+                    onChangeText={(val) => setEditForm(prev => ({ ...prev, mobile: val }))}
+                    placeholder="e.g. 9876543210"
+                    placeholderTextColor="#9CA3AF"
+                    keyboardType="phone-pad"
+                    maxLength={10}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>{t('profile.city', { defaultValue: 'City' })}</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={editForm.city}
+                    onChangeText={(val) => setEditForm(prev => ({ ...prev, city: val }))}
+                    placeholder="e.g. Mumbai"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                {userRole === 'broker' && (
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>{t('profile.agency', { defaultValue: 'Agency / Firm Name' })}</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={editForm.agency_name}
+                        onChangeText={(val) => setEditForm(prev => ({ ...prev, agency_name: val }))}
+                        placeholder="e.g. Skyline Realty"
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Experience (Years)</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={editForm.experience}
+                        onChangeText={(val) => setEditForm(prev => ({ ...prev, experience: val }))}
+                        placeholder="e.g. 5"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Areas Served (Comma separated)</Text>
+                      <TextInput
+                        style={[styles.textInput, { height: 70, textAlignVertical: 'top' }]}
+                        value={editForm.areas_served}
+                        onChangeText={(val) => setEditForm(prev => ({ ...prev, areas_served: val }))}
+                        placeholder="e.g. Bandra West, Khar, Santacruz"
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                      />
+                    </View>
+                  </>
+                )}
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </Modal>
 
         <FeedbackModal
           visible={showFeedbackModal}
@@ -794,5 +977,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#CBD5E1',
     marginHorizontal: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalCloseBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontFamily: Fonts.sansMedium,
+    color: '#6B7280',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontFamily: Fonts.displaySemiBold,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  modalSaveBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  modalSaveText: {
+    fontSize: 15,
+    fontFamily: Fonts.sansBold,
+    fontWeight: '700',
+    color: '#2563EB',
+  },
+  modalScrollContent: {
+    padding: 16,
+    gap: 16,
+  },
+  inputGroup: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontFamily: Fonts.sansSemiBold,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  textInput: {
+    fontSize: 15,
+    fontFamily: Fonts.sans,
+    color: '#111827',
+    paddingVertical: 6,
+    paddingHorizontal: 0,
   },
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import api from '../../lib/api';
@@ -82,6 +82,14 @@ export default function PropertyDetailScreen() {
     }
     init();
   }, [id, shareBrokerId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (id) {
+        fetchProperty();
+      }
+    }, [id])
+  );
 
   const fetchProperty = async () => {
     try {
@@ -180,6 +188,10 @@ export default function PropertyDetailScreen() {
   const images = property.property_images || [];
   const broker = sharingBroker || property.brokers;
   const pricePerSqft = property.area ? `₹${Math.round(property.price / property.area).toLocaleString()}` : '—';
+  const isOwner = Boolean(
+    currentUser?.id && 
+    (property?.broker_id === currentUser.id || property?.brokers?.id === currentUser.id)
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,6 +200,14 @@ export default function PropertyDetailScreen() {
         <Pressable onPress={() => safeGoBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </Pressable>
+        {isOwner && (
+          <Pressable 
+            onPress={() => router.push({ pathname: '/(broker)/add-property', params: { id: property.id } } as any)} 
+            style={styles.headerEditButton}
+          >
+            <Ionicons name="create-outline" size={20} color="#111827" />
+          </Pressable>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -341,6 +361,16 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.shareButtonText}>{t('share.shareWithClient', { defaultValue: 'Share with Client' })}</Text>
                 </Pressable>
               )}
+
+              {isOwner && (
+                <Pressable 
+                  style={styles.editListingActionButton} 
+                  onPress={() => router.push({ pathname: '/(broker)/add-property', params: { id: property.id } } as any)} 
+                >
+                  <Ionicons name="create-outline" size={20} color="#2563EB" />
+                  <Text style={styles.editListingActionButtonText}>{t('common.edit')} Listing</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
@@ -462,9 +492,27 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 40,
     left: 16,
+    right: 16,
     zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   headerBackButton: {
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  headerEditButton: {
     width: 40,
     height: 40,
     backgroundColor: 'rgba(255,255,255,0.9)',
@@ -833,6 +881,24 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontFamily: Fonts.sansBold,
     color: '#2563EB',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  editListingActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: '100%',
+  },
+  editListingActionButtonText: {
+    fontFamily: Fonts.sansBold,
+    color: '#1D4ED8',
     fontSize: 15,
     fontWeight: '700',
   },

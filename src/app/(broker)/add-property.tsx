@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, ActivityIndicator, Alert, Linking, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import api from '../../lib/api';
@@ -17,17 +17,25 @@ const ALL_CITIES = ['Mumbai', 'Pune', 'Delhi NCR', 'Bangalore', 'Hyderabad'];
 const PREDEFINED_AMENITIES = ['Parking', 'Gym', 'Swimming Pool', 'Security', 'Club House', 'Power Backup', 'Lift', 'Park', 'Vastu Compliant', 'Internet/Wi-Fi'];
 
 export default function AddPropertyScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const isEditMode = Boolean(id);
+  const propertyId = id;
+
   const [form, setForm] = useState({
     title: '', project_name: '', listing_type: 'sale', type: 'apartment', custom_property_type: '',
     city: 'Mumbai', locality: '', price: '', area: '', unit_type: 'BHK', bhk: '', washrooms: '',
     floor: '', amenities: [] as string[]
   });
   
+  const [existingImages, setExistingImages] = useState<any[]>([]);
+  const [existingVideo, setExistingVideo] = useState<any>(null);
   const [images, setImages] = useState<any[]>([]);
   const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchingDetails, setFetchingDetails] = useState(isEditMode);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [imageLimit, setImageLimit] = useState(4);
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     async function loadUserAndLimits() {
@@ -54,8 +62,54 @@ export default function AddPropertyScreen() {
     loadUserAndLimits();
   }, []);
 
+  // Fetch existing property details if in edit mode
+  useEffect(() => {
+    if (!isEditMode || !propertyId) return;
+
+    async function fetchProperty() {
+      try {
+        setFetchingDetails(true);
+        const { data } = await api.get(`/properties/${propertyId}`);
+        if (data) {
+          setForm({
+            title: data.title || '',
+            project_name: data.project_name || '',
+            listing_type: data.listing_type || 'sale',
+            type: data.type || 'apartment',
+            custom_property_type: data.custom_property_type || '',
+            city: data.city || 'Mumbai',
+            locality: data.locality || '',
+            price: data.price != null ? String(data.price) : '',
+            area: data.area != null ? String(data.area) : '',
+            unit_type: data.unit_type || 'BHK',
+            bhk: data.bhk != null ? String(data.bhk) : '',
+            washrooms: data.washrooms != null ? String(data.washrooms) : '',
+            floor: data.floor != null ? String(data.floor) : '',
+            amenities: Array.isArray(data.amenities) ? data.amenities : [],
+          });
+
+          if (data.property_images && Array.isArray(data.property_images)) {
+            setExistingImages(data.property_images);
+          }
+          if (data.property_videos && Array.isArray(data.property_videos) && data.property_videos.length > 0) {
+            setExistingVideo(data.property_videos[0]);
+          }
+        }
+      } catch (err: any) {
+        Alert.alert('Error', 'Unable to load property details for editing.', [
+          { text: 'Go Back', onPress: () => safeGoBack() }
+        ]);
+      } finally {
+        setFetchingDetails(false);
+      }
+    }
+
+    fetchProperty();
+  }, [isEditMode, propertyId]);
+
   const isPro = ['individual', 'enterprise', 'premium'].includes(currentUser?.plan?.toLowerCase?.() || '');
   const maxImages = isPro ? Math.max(imageLimit, 8) : 4;
+  const currentTotalPhotos = existingImages.length + images.length;
 
   const handleChange = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -71,7 +125,7 @@ export default function AddPropertyScreen() {
   };
 
   const pickImages = async () => {
-    const remainingSlots = maxImages - images.length;
+    const remainingSlots = maxImages - currentTotalPhotos;
     if (remainingSlots <= 0) {
       if (!isPro) {
         Alert.alert(
@@ -100,7 +154,7 @@ export default function AddPropertyScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        if (!isPro && images.length + result.assets.length > maxImages) {
+        if (!isPro && currentTotalPhotos + result.assets.length > maxImages) {
           Alert.alert(
             'Photo Limit Reached 📸',
             `Free plan allows up to 4 photos. Only the first ${remainingSlots} photo(s) were added.\n\nTo upload more photos and video walkthroughs, upgrade to the Pro plan!`,
@@ -125,6 +179,50 @@ export default function AddPropertyScreen() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDeleteExistingImage = (imageId: string) => {
+    Alert.alert(
+      'Delete Photo',
+      'Are you sure you want to delete this photo permanently?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/properties/${propertyId}/images/${imageId}`);
+              setExistingImages(prev => prev.filter(img => img.id !== imageId));
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.error || 'Failed to delete photo.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteExistingVideo = (videoId: string) => {
+    Alert.alert(
+      'Delete Walkthrough Video',
+      'Are you sure you want to delete this walkthrough video?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/properties/${propertyId}/videos/${videoId}`);
+              setExistingVideo(null);
+            } catch (err: any) {
+              Alert.alert('Error', err.response?.data?.error || 'Failed to delete video.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handlePickVideo = async () => {
@@ -180,19 +278,24 @@ export default function AddPropertyScreen() {
   };
 
   const handleSubmit = async () => {
+    if (isSubmittingRef.current || loading) return;
+
     if (!form.title || !form.locality || !form.price || !form.area) {
       Alert.alert('Missing Fields', 'Please fill in all required fields (marked with *).');
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
+
+    let createdIdForCleanup: string | null = null;
+
     try {
-      const payload = {
+      const payload: any = {
         title: form.title,
         project_name: form.project_name,
         listing_type: form.listing_type,
         type: form.type,
-        custom_property_type: form.type === 'other' ? form.custom_property_type : undefined,
         city: form.city,
         locality: form.locality,
         price: parseInt(form.price, 10),
@@ -204,12 +307,23 @@ export default function AddPropertyScreen() {
         amenities: form.amenities,
       };
 
-      // 1. Create listing
-      const { data } = await api.post('/properties', payload);
-      const propertyId = data.id;
-      statsStore.incrementListings(true);
+      if (form.type === 'other') {
+        payload.custom_property_type = form.custom_property_type;
+      }
 
-      // 2. Upload images if any
+      let targetPropertyId = propertyId;
+
+      if (isEditMode) {
+        // Edit flow
+        await api.put(`/properties/${propertyId}`, payload);
+      } else {
+        // Creation flow
+        const { data } = await api.post('/properties', payload);
+        targetPropertyId = data.id;
+        createdIdForCleanup = data.id;
+      }
+
+      // Upload new images if any
       if (images.length > 0) {
         const formData = new FormData();
         images.forEach((img, i) => {
@@ -224,12 +338,23 @@ export default function AddPropertyScreen() {
           } as any);
         });
 
-        await api.post(`/properties/${propertyId}/images`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        try {
+          await api.post(`/properties/${targetPropertyId}/images`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } catch (imgError: any) {
+          // If image upload failed on a NEW listing, clean up the orphaned property so no duplicates or broken listings remain
+          if (!isEditMode && createdIdForCleanup) {
+            try {
+              await api.delete(`/properties/${createdIdForCleanup}`);
+              createdIdForCleanup = null;
+            } catch (_) {}
+          }
+          throw imgError;
+        }
       }
 
-      // 3. Upload video if any
+      // Upload new video if any
       if (video) {
         const videoData = new FormData();
         const filename = video.fileName || video.uri.split('/').pop() || 'walkthrough.mp4';
@@ -243,22 +368,33 @@ export default function AddPropertyScreen() {
         } as any);
 
         try {
-          await api.post(`/properties/${propertyId}/videos`, videoData, {
+          await api.post(`/properties/${targetPropertyId}/videos`, videoData, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
         } catch (vidErr) {
           console.error('Video upload failed:', vidErr);
+          if (isEditMode) {
+            Alert.alert('Notice', 'Property saved, but video upload failed.');
+          }
         }
       }
 
-      Alert.alert('Success', 'Property listed successfully!', [
-        { text: 'OK', onPress: () => router.push('/(broker)/dashboard') }
-      ]);
+      if (!isEditMode) {
+        statsStore.incrementListings(true);
+        Alert.alert('Success', 'Property listed successfully!', [
+          { text: 'OK', onPress: () => router.push('/(broker)/dashboard') }
+        ]);
+      } else {
+        Alert.alert('Success', 'Property updated successfully!', [
+          { text: 'OK', onPress: () => safeGoBack() }
+        ]);
+      }
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Error', err.response?.data?.error || 'Failed to list property. Check limits or network.');
+      Alert.alert('Error', err.response?.data?.error || (isEditMode ? 'Failed to update property.' : 'Failed to list property. Check limits or network.'));
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -272,9 +408,17 @@ export default function AddPropertyScreen() {
           <Pressable onPress={() => safeGoBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </Pressable>
-          <Text style={styles.headerTitle}>List a Property</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? 'Edit Property' : 'List a Property'}</Text>
         </View>
 
+        {fetchingDetails ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <ActivityIndicator size="large" color="#2563EB" />
+            <Text style={{ marginTop: 12, fontSize: 14, fontFamily: Fonts.sansMedium, color: '#6B7280' }}>
+              Loading property details...
+            </Text>
+          </View>
+        ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardDismissMode="on-drag"
@@ -466,7 +610,22 @@ export default function AddPropertyScreen() {
             Featured in Discovery Mode feed. Boosts buyer inquiries up to 2x.
           </Text>
 
-          {video ? (
+          {existingVideo ? (
+            <View style={styles.videoSelectedContainer}>
+              <View style={styles.videoIconCircle}>
+                <Ionicons name="videocam" size={24} color="#2563EB" />
+              </View>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text style={styles.videoFileName} numberOfLines={1}>
+                  Walkthrough Video Attached
+                </Text>
+                <Text style={styles.videoFileSize}>Uploaded to listing</Text>
+              </View>
+              <Pressable onPress={() => handleDeleteExistingVideo(existingVideo.id)} style={styles.removeVideoBtn}>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </Pressable>
+            </View>
+          ) : video ? (
             <View style={styles.videoSelectedContainer}>
               <View style={styles.videoIconCircle}>
                 <Ionicons name="videocam-outline" size={24} color="#2563EB" />
@@ -503,7 +662,7 @@ export default function AddPropertyScreen() {
         {/* Images */}
         <View style={styles.card}>
           <View style={styles.photosHeaderRow}>
-            <Text style={styles.cardTitle}>Property Photos ({images.length}/{maxImages})</Text>
+            <Text style={styles.cardTitle}>Property Photos ({currentTotalPhotos}/{maxImages})</Text>
             {!isPro && (
               <Pressable onPress={() => router.push('/profile')} style={styles.proPhotoBadge}>
                 <Ionicons name="sparkles" size={12} color="#2563EB" />
@@ -513,8 +672,24 @@ export default function AddPropertyScreen() {
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
+            {/* Existing uploaded images */}
+            {existingImages.map((img) => (
+              <View key={img.id} style={styles.imageWrapper}>
+                <Image
+                  source={{ uri: img.url }}
+                  style={styles.thumbnail}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+                <Pressable style={[styles.removeImage, { backgroundColor: 'rgba(239, 68, 68, 0.9)' }]} onPress={() => handleDeleteExistingImage(img.id)}>
+                  <Ionicons name="trash" size={14} color="#FFFFFF" />
+                </Pressable>
+              </View>
+            ))}
+
+            {/* Newly selected images to upload */}
             {images.map((img, idx) => (
-              <View key={idx} style={styles.imageWrapper}>
+              <View key={`new-${idx}`} style={styles.imageWrapper}>
                 <Image
                   source={{ uri: img.uri }}
                   style={styles.thumbnail}
@@ -527,7 +702,7 @@ export default function AddPropertyScreen() {
               </View>
             ))}
             
-            {images.length < maxImages ? (
+            {currentTotalPhotos < maxImages ? (
               <Pressable style={styles.addImageBtn} onPress={pickImages}>
                 <Ionicons name="images-outline" size={32} color="#9CA3AF" />
                 <Text style={styles.addImageText}>Add Photos</Text>
@@ -555,13 +730,14 @@ export default function AddPropertyScreen() {
         </View>
 
       </ScrollView>
+      )}
 
       <View style={styles.footer}>
-        <Pressable style={[styles.submitButton, loading && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={loading}>
+        <Pressable style={[styles.submitButton, loading && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={loading || fetchingDetails}>
           {loading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitButtonText}>Publish Listing</Text>
+            <Text style={styles.submitButtonText}>{isEditMode ? 'Save Changes' : 'Publish Listing'}</Text>
           )}
         </Pressable>
       </View>
