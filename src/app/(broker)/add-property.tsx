@@ -327,9 +327,13 @@ export default function AddPropertyScreen() {
       if (images.length > 0) {
         const formData = new FormData();
         images.forEach((img, i) => {
-          const filename = img.fileName || img.uri.split('/').pop() || `image${i}.jpg`;
+          let filename = img.fileName || img.uri.split('/').pop() || `image${i}.jpg`;
+          const uriExt = img.uri.split('.').pop()?.toLowerCase();
+          if (uriExt === 'jpg' || uriExt === 'jpeg') {
+            filename = filename.replace(/\.(heic|heif)$/i, '.jpg');
+          }
           const ext = filename.split('.').pop()?.toLowerCase();
-          const mimeType = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+          const mimeType = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : (ext === 'heic' ? 'image/heic' : (ext === 'heif' ? 'image/heif' : 'image/jpeg')));
           
           formData.append('images', {
             uri: img.uri,
