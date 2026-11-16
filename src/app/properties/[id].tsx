@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, useWindowDimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -45,9 +45,20 @@ export default function PropertyDetailScreen() {
   const [sharingBroker, setSharingBroker] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const videoUrl = property?.property_videos?.[0]?.url || '';
   const videoPlayer = useVideoPlayer(videoUrl);
+
+  const handleImageScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    if (width > 0) {
+      const index = Math.round(contentOffsetX / width);
+      if (index >= 0 && index !== activeImageIndex) {
+        setActiveImageIndex(index);
+      }
+    }
+  };
 
   useEffect(() => {
     async function init() {
@@ -184,7 +195,13 @@ export default function PropertyDetailScreen() {
         {/* Image Gallery */}
         <View style={styles.imageGallery}>
           {images.length > 0 ? (
-            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleImageScroll}
+              scrollEventThrottle={16}
+            >
               {images.map((img: any, idx: number) => (
                 <Pressable key={idx} onPress={() => setZoomImg(img.url)}>
                   <Image
@@ -212,7 +229,7 @@ export default function PropertyDetailScreen() {
           
           {images.length > 1 && (
             <View style={styles.imageCountBadge}>
-              <Text style={styles.imageCountText}>1 / {images.length}</Text>
+              <Text style={styles.imageCountText}>{activeImageIndex + 1} / {images.length}</Text>
             </View>
           )}
         </View>
