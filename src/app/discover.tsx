@@ -77,13 +77,37 @@ export default function DiscoverScreen() {
     }
   }, [debouncedQuery, selectedChip]);
 
-  // Load initial discover reel feed
-  const fetchFeed = useCallback(async () => {
+  // Load discover feed respecting active filters (Rent, Buy, 2 BHK, etc.) and search query
+  const fetchDiscoverData = useCallback(async (chip: FilterChip, query: string, isRefresh: boolean = false) => {
+    const isFiltered = chip !== 'all' || Boolean(query);
+    
+    if (isRefresh) {
+      setRefreshing(true);
+    } else if (isFiltered) {
+      setGridLoading(true);
+    } else if (!memoryDiscoverProps) {
+      setLoading(true);
+    }
+
+    setError('');
+
     try {
-      if (!memoryDiscoverProps) setLoading(true);
-      setError('');
+      const params: any = { limit: 50, sort: 'newest' };
+      if (query) {
+        params.q = query;
+      }
+      if (chip === 'rent') {
+        params.listing_type = 'rent';
+      } else if (chip === 'sale') {
+        params.listing_type = 'sale';
+      } else if (chip === '2_bhk') {
+        params.bhk = 2;
+      } else if (chip === '3_bhk') {
+        params.bhk = 3;
+      }
+
       const [searchRes, savedData] = await Promise.all([
-        api.get('/search', { params: { limit: 50, sort: 'newest' } }),
+        api.get('/search', { params }),
         (async () => {
           try {
             const userStr = await storage.get('user');
@@ -97,7 +121,14 @@ export default function DiscoverScreen() {
         })(),
       ]);
 
-      const items: any[] = searchRes.data?.results || [];
+      let items: any[] = searchRes.data?.results || [];
+
+      // If videos_only filter is selected, filter properties that have videos
+      if (chip === 'videos_only') {
+        items = items.filter(
+          (p) => p.property_videos && p.property_videos.length > 0 && p.property_videos.some((v: any) => Boolean(v?.url))
+        );
+      }
 
       // Build Set of saved IDs
       const ids = new Set<number>();
@@ -113,82 +144,32 @@ export default function DiscoverScreen() {
       );
 
       const shuffled = shuffleArray(withVideo);
-      memoryDiscoverProps = shuffled;
-      memoryDiscoverGrid = items;
-      memoryDiscoverSavedIds = ids;
+
+      if (!isFiltered) {
+        memoryDiscoverProps = shuffled;
+        memoryDiscoverGrid = items;
+        memoryDiscoverSavedIds = ids;
+      }
 
       setProperties(shuffled);
       setGridItems(items);
       setActiveIndex(0);
     } catch (err: any) {
       console.log('Discover feed error:', err);
-      if (!memoryDiscoverProps) setError('Unable to load Discover feed.');
+      if (!memoryDiscoverProps && !isFiltered) setError('Unable to load Discover feed.');
     } finally {
       setLoading(false);
+      setGridLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchFeed();
-  }, [fetchFeed]);
-
-  // Query search API when debouncedQuery changes or filter is applied
-  useEffect(() => {
-    if (!debouncedQuery && selectedChip === 'all') {
-      // Revert to initial feed
-      return;
-    }
-
-    let isMounted = true;
-    async function searchDiscover() {
-      setGridLoading(true);
-      try {
-        const params: any = { limit: 50, sort: 'newest' };
-        if (debouncedQuery) {
-          params.q = debouncedQuery;
-        }
-        if (selectedChip === 'rent') {
-          params.listing_type = 'rent';
-        } else if (selectedChip === 'sale') {
-          params.listing_type = 'sale';
-        } else if (selectedChip === '2_bhk') {
-          params.bhk = 2;
-        } else if (selectedChip === '3_bhk') {
-          params.bhk = 3;
-        }
-
-        const res = await api.get('/search', { params });
-        let results: any[] = res.data?.results || [];
-
-        // If videos_only filter is selected, filter properties that have videos
-        if (selectedChip === 'videos_only') {
-          results = results.filter(
-            (p) => p.property_videos && p.property_videos.length > 0 && p.property_videos.some((v: any) => Boolean(v?.url))
-          );
-        }
-
-        if (isMounted) {
-          setGridItems(results);
-        }
-      } catch (e) {
-        console.log('Discover search error:', e);
-      } finally {
-        if (isMounted) {
-          setGridLoading(false);
-        }
-      }
-    }
-
-    searchDiscover();
-    return () => {
-      isMounted = false;
-    };
-  }, [debouncedQuery, selectedChip]);
+    fetchDiscoverData(selectedChip, debouncedQuery, false);
+  }, [selectedChip, debouncedQuery, fetchDiscoverData]);
 
   const onRefresh = () => {
-    setRefreshing(true);
-    fetchFeed();
+    fetchDiscoverData(selectedChip, debouncedQuery, true);
   };
 
   const handleLayout = (e: LayoutChangeEvent) => {
@@ -536,7 +517,7 @@ export default function DiscoverScreen() {
             <View style={styles.centerContainer}>
               <Ionicons name="videocam-off-outline" size={48} color="#9CA3AF" style={{ marginBottom: 12 }} />
               <Text style={styles.errorText}>{error || t('discover.loadError')}</Text>
-              <Pressable style={styles.retryBtn} onPress={fetchFeed}>
+              <Pressable style={styles.retryBtn} onPress={() => fetchDiscoverData(selectedChip, debouncedQuery, false)}>
                 <Text style={styles.retryBtnText}>{t('common.retry')}</Text>
               </Pressable>
             </View>
