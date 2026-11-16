@@ -27,20 +27,35 @@ export default function AddPropertyScreen() {
   const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [imageLimit, setImageLimit] = useState(4);
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadUserAndLimits() {
       const uStr = await storage.get('user');
       if (uStr) {
         try {
           setCurrentUser(JSON.parse(uStr));
         } catch {}
       }
+      try {
+        const res = await api.get('/properties/limits');
+        if (res.data) {
+          if (res.data.plan) {
+            setCurrentUser((prev: any) => ({ ...prev, plan: res.data.plan }));
+          }
+          if (res.data.image_limit) {
+            setImageLimit(res.data.image_limit);
+          }
+        }
+      } catch (e) {
+        // Fallback to defaults
+      }
     }
-    loadUser();
+    loadUserAndLimits();
   }, []);
 
   const isPro = ['individual', 'enterprise', 'premium'].includes(currentUser?.plan?.toLowerCase?.() || '');
+  const maxImages = isPro ? Math.max(imageLimit, 8) : 4;
 
   const handleChange = (key: string, value: string) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -56,16 +71,52 @@ export default function AddPropertyScreen() {
   };
 
   const pickImages = async () => {
+    const remainingSlots = maxImages - images.length;
+    if (remainingSlots <= 0) {
+      if (!isPro) {
+        Alert.alert(
+          'Photo Limit Reached 📸',
+          'Free plan allows a maximum of 4 photos per property.\n\nTo add more photos (up to 8) and walkthrough videos, upgrade to the Pro plan!',
+          [
+            { text: 'Keep 4 Photos', style: 'cancel' },
+            {
+              text: 'Upgrade to Pro',
+              onPress: () => router.push('/profile'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Limit Reached', `You have reached the maximum of ${maxImages} photos.`);
+      }
+      return;
+    }
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
-        selectionLimit: 5 - images.length,
+        selectionLimit: remainingSlots,
         quality: 0.7, // Good built-in compression
       });
 
-      if (!result.canceled) {
-        setImages(prev => [...prev, ...result.assets]);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        if (!isPro && images.length + result.assets.length > maxImages) {
+          Alert.alert(
+            'Photo Limit Reached 📸',
+            `Free plan allows up to 4 photos. Only the first ${remainingSlots} photo(s) were added.\n\nTo upload more photos and video walkthroughs, upgrade to the Pro plan!`,
+            [
+              { text: 'Got it', style: 'cancel' },
+              {
+                text: 'Upgrade to Pro',
+                onPress: () => router.push('/profile'),
+              },
+            ]
+          );
+          const allowed = result.assets.slice(0, remainingSlots);
+          setImages(prev => [...prev, ...allowed]);
+        } else {
+          setImages(prev => [...prev, ...result.assets]);
+        }
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to pick images');
@@ -451,7 +502,15 @@ export default function AddPropertyScreen() {
 
         {/* Images */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Property Photos ({images.length}/5)</Text>
+          <View style={styles.photosHeaderRow}>
+            <Text style={styles.cardTitle}>Property Photos ({images.length}/{maxImages})</Text>
+            {!isPro && (
+              <Pressable onPress={() => router.push('/profile')} style={styles.proPhotoBadge}>
+                <Ionicons name="sparkles" size={12} color="#2563EB" />
+                <Text style={styles.proPhotoBadgeText}>Up to 8 with Pro</Text>
+              </Pressable>
+            )}
+          </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
             {images.map((img, idx) => (
@@ -468,12 +527,30 @@ export default function AddPropertyScreen() {
               </View>
             ))}
             
-            {images.length < 5 && (
+            {images.length < maxImages ? (
               <Pressable style={styles.addImageBtn} onPress={pickImages}>
                 <Ionicons name="images-outline" size={32} color="#9CA3AF" />
                 <Text style={styles.addImageText}>Add Photos</Text>
               </Pressable>
-            )}
+            ) : !isPro ? (
+              <Pressable
+                style={[styles.addImageBtn, styles.upgradePhotosBtn]}
+                onPress={() => {
+                  Alert.alert(
+                    'Upgrade to Pro 🚀',
+                    'Free plan allows up to 4 photos per property.\n\nUpgrade to Pro to add up to 8 photos, upload walkthrough videos, and get priority visibility!',
+                    [
+                      { text: 'Maybe Later', style: 'cancel' },
+                      { text: 'Upgrade to Pro', onPress: () => router.push('/profile') }
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="lock-closed" size={24} color="#2563EB" />
+                <Text style={[styles.addImageText, { color: '#2563EB', fontWeight: '600', marginTop: 4 }]}>Add More</Text>
+                <Text style={{ fontSize: 10, color: '#64748B' }}>(Pro Only)</Text>
+              </Pressable>
+            ) : null}
           </ScrollView>
         </View>
 
@@ -834,5 +911,31 @@ const styles = StyleSheet.create({
   },
   removeVideoBtn: {
     padding: 8,
-  }
+  },
+  photosHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  proPhotoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  proPhotoBadgeText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 11,
+    color: '#2563EB',
+    fontWeight: '600',
+  },
+  upgradePhotosBtn: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderStyle: 'dashed',
+  },
 });

@@ -36,6 +36,11 @@ export default function SubscriptionWidget() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
+  // Subscription management state
+  const [subDetails, setSubDetails] = useState<any>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [resuming, setResuming] = useState(false);
+
   useEffect(() => {
     fetchData();
     checkReferralCode();
@@ -101,12 +106,16 @@ export default function SubscriptionWidget() {
 
   const fetchData = async () => {
     try {
-      const [limitRes, pricingRes] = await Promise.all([
+      const [limitRes, pricingRes, subRes] = await Promise.all([
         api.get('/properties/limits'),
-        api.get('/settings/pricing')
+        api.get('/settings/pricing'),
+        api.get('/broker/subscription').catch(() => ({ data: null })),
       ]);
       setLimits(limitRes.data);
       setPricing(pricingRes.data);
+      if (subRes?.data) {
+        setSubDetails(subRes.data);
+      }
     } catch (e) {
       setError('Failed to load subscription details');
     } finally {
@@ -215,6 +224,62 @@ export default function SubscriptionWidget() {
     }
   };
 
+  const handleCancelSubscription = () => {
+    if (Platform.OS === 'ios') {
+      Alert.alert(
+        'Cancel Subscription',
+        'Your subscription is billed through your Apple ID. You can manage, change, or cancel it anytime in your Apple Subscriptions settings.',
+        [
+          { text: 'Close', style: 'cancel' },
+          {
+            text: 'Manage Subscriptions',
+            onPress: () => {
+              Linking.openURL('https://apps.apple.com/account/subscriptions');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Cancel Plan',
+      `Are you sure you want to cancel your ${planName} plan? You will retain all benefits until the end of your billing cycle.`,
+      [
+        { text: 'Keep Plan', style: 'cancel' },
+        {
+          text: 'Cancel Plan',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              await api.post('/broker/subscription/cancel');
+              Alert.alert('Plan Cancelled', 'Your subscription has been scheduled for cancellation at the end of the billing period.');
+              await fetchData();
+            } catch (err: any) {
+              Alert.alert('Cancellation Failed', err.response?.data?.detail || err.response?.data?.error || 'Failed to cancel plan.');
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResumeSubscription = async () => {
+    setResuming(true);
+    try {
+      await api.post('/broker/subscription/resume');
+      Alert.alert('Subscription Resumed', 'Your subscription auto-renewal has been resumed.');
+      await fetchData();
+    } catch (err: any) {
+      Alert.alert('Resume Failed', err.response?.data?.detail || err.response?.data?.error || 'Failed to resume subscription.');
+    } finally {
+      setResuming(false);
+    }
+  };
+
   const currentPlan = limits?.plan || 'free';
   const planName = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
   const isFree = currentPlan === 'free';
@@ -318,6 +383,57 @@ export default function SubscriptionWidget() {
             </Text>
           )}
         </View>
+
+        {/* Paid Subscription Actions (Cancel Plan / Scheduled Cancellation Banner) */}
+        {!isFree && (
+          <View style={styles.activePlanActions}>
+            {subDetails?.cancel_at_period_end ? (
+              <View style={styles.scheduledCancelBox}>
+                <View style={styles.scheduledCancelRow}>
+                  <Ionicons name="alert-circle-outline" size={16} color="#B45309" />
+                  <Text style={styles.scheduledCancelText}>
+                    Cancellation scheduled for {subDetails.next_renewal ? new Date(subDetails.next_renewal).toLocaleDateString() : 'period end'}. You keep access until then.
+                  </Text>
+                </View>
+                {Platform.OS !== 'ios' && (
+                  <Pressable
+                    style={styles.resumeBtn}
+                    onPress={handleResumeSubscription}
+                    disabled={resuming}
+                  >
+                    {resuming ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <Text style={styles.resumeBtnText}>Resume Plan</Text>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              <View style={styles.planManageRow}>
+                <Text style={styles.planRenewalText}>
+                  {subDetails?.next_renewal
+                    ? `Renews on ${new Date(subDetails.next_renewal).toLocaleDateString()}`
+                    : 'Auto-renew active'}
+                </Text>
+                <Pressable
+                  onPress={handleCancelSubscription}
+                  disabled={cancelling}
+                  style={({ pressed }) => [styles.cancelPlanBtn, pressed && { opacity: 0.7 }]}
+                >
+                  {cancelling ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <>
+                      <Ionicons name="close-circle-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                      <Text style={styles.cancelPlanBtnText}>Cancel Plan</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Partner Referral Section */}
@@ -1467,5 +1583,65 @@ const styles = StyleSheet.create({
   legalLinkDivider: {
     fontSize: 11,
     color: '#94A3B8',
+  },
+  activePlanActions: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  planManageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  planRenewalText: {
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  cancelPlanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  cancelPlanBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 12,
+    color: '#EF4444',
+  },
+  scheduledCancelBox: {
+    backgroundColor: '#FFFBEB',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  scheduledCancelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scheduledCancelText: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 12,
+    color: '#B45309',
+    flex: 1,
+  },
+  resumeBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  resumeBtnText: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 12,
+    color: '#2563EB',
   },
 });
