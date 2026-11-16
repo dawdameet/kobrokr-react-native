@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Native folders (EAS manages native project generation)
+/ios/
+/android/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Large non-code media and marketing files
+app-store-screenshots/
+Verified Property Journey Onboarding Panels.png
+*.mp4
+*.apk
+*.aab
+
+# Local config & credentials
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+.env*.local
+
+# System & Debug
+.DS_Store
+.git/
+.vscode/
+.claude/
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+something.txt
