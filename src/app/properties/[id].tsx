@@ -130,10 +130,17 @@ export default function PropertyDetailScreen() {
     if (clean) Linking.openURL(`tel:${clean}`);
   };
 
-  const handleWhatsApp = (phone: string) => {
+  const handleWhatsApp = (phone?: string) => {
+    if (!phone) return;
     const cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone) return;
     const waPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    Linking.openURL(`https://wa.me/${waPhone}`);
+    const greeting = broker?.full_name ? `Hi ${broker.full_name}, ` : 'Hi, ';
+    const priceStr = property?.price ? ` (${formatPrice(property.price)}${property?.listing_type === 'rent' ? '/mo' : ''})` : '';
+    const locStr = property?.locality ? ` in ${property.locality}` : '';
+    const propTitle = property?.title || 'your property';
+    const message = `${greeting}I am interested in ${propTitle}${locStr}${priceStr} listed on KoBrokr. Is it available?`;
+    Linking.openURL(`https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`);
   };
 
   if (loading) {
