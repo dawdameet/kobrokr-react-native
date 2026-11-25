@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,6 +84,7 @@ export default function SignupScreen() {
   const [city, setCity] = useState('');
   const [agencyName, setAgencyName] = useState('');
   const [areasServed, setAreasServed] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -276,6 +278,11 @@ export default function SignupScreen() {
 
     if (roleTab === 'broker' && !areasServed.trim()) {
       setError('Please provide the areas you serve.');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms & Conditions to complete registration.');
       return;
     }
 
@@ -656,6 +663,24 @@ export default function SignupScreen() {
               </View>
             )}
 
+            {/* Terms & Privacy Notice */}
+            <Text style={styles.termsNoticeText}>
+              By proceeding, you agree to our{' '}
+              <Text
+                style={styles.termsNoticeLink}
+                onPress={() => router.push('/terms' as any)}
+              >
+                Terms &amp; Conditions
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.termsNoticeLink}
+                onPress={() => Linking.openURL('https://www.kobrokr.com/privacy')}
+              >
+                Privacy Policy
+              </Text>.
+            </Text>
+
             {/* Footer link to login */}
             <Pressable
               onPress={() =>
@@ -958,11 +983,38 @@ export default function SignupScreen() {
               </>
             )}
 
+            {/* Terms & Conditions Acceptance Checkbox */}
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={() => setAgreedToTerms(!agreedToTerms)}
+            >
+              <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                {agreedToTerms && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+              </View>
+              <Text style={styles.checkboxLabel}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsNoticeLink}
+                  onPress={() => router.push('/terms' as any)}
+                >
+                  Terms &amp; Conditions
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsNoticeLink}
+                  onPress={() => Linking.openURL('https://www.kobrokr.com/privacy')}
+                >
+                  Privacy Policy
+                </Text>.
+              </Text>
+            </Pressable>
+
             {/* Submit Button */}
             <Pressable
               style={[
                 styles.button,
-                (!fullName.trim() ||
+                (!agreedToTerms ||
+                  !fullName.trim() ||
                   !city.trim() ||
                   (roleTab === 'broker' && !areasServed.trim()) ||
                   (verifiedIdentifier?.type === 'phone' && !isDetailEmailValid) ||
@@ -973,6 +1025,7 @@ export default function SignupScreen() {
               ]}
               onPress={handleCompleteRegistration}
               disabled={
+                !agreedToTerms ||
                 !fullName.trim() ||
                 !city.trim() ||
                 (roleTab === 'broker' && !areasServed.trim()) ||
@@ -1374,5 +1427,47 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     color: '#6B7280',
     borderColor: '#E5E7EB',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: '#2563EB',
+    borderColor: '#2563EB',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontFamily: Fonts.sans,
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  termsNoticeText: {
+    fontFamily: Fonts.sans,
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 17,
+  },
+  termsNoticeLink: {
+    fontFamily: Fonts.sansSemiBold,
+    color: '#2563EB',
+    textDecorationLine: 'underline',
   },
 });
