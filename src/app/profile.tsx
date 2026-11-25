@@ -430,7 +430,7 @@ export default function ProfileScreen() {
               <Text style={styles.supportLegalLink}>Privacy Policy</Text>
             </Pressable>
             <Text style={styles.supportLegalDot}>•</Text>
-            <Pressable onPress={() => Linking.openURL('https://www.kobrokr.com/terms')}>
+            <Pressable onPress={() => router.push('/terms' as any)}>
               <Text style={styles.supportLegalLink}>Terms of Service</Text>
             </Pressable>
           </View>
