@@ -1,10 +1,16 @@
 import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import Purchases, {
   PurchasesPackage,
   CustomerInfo,
   LOG_LEVEL,
   PurchasesOffering,
 } from 'react-native-purchases';
+
+// Detect whether running inside Expo Go (native StoreKit IAP requires dev build or Test Store key)
+export const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  (Constants as any).appOwnership === 'expo';
 
 // RevenueCat iOS Public API key from environment
 const REVENUECAT_APPLE_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || '';
@@ -26,6 +32,11 @@ let isConfigured = false;
  */
 export async function initPurchases(userId?: string): Promise<void> {
   if (Platform.OS !== 'ios') {
+    return;
+  }
+
+  if (isExpoGo) {
+    console.log('[Purchases] Expo Go detected: skipping native StoreKit initialization. Native IAP requires a development build.');
     return;
   }
 
@@ -91,7 +102,7 @@ export async function getSubscriptionPackages(): Promise<{
   annual?: PurchasesPackage;
   currentOffering?: PurchasesOffering | null;
 }> {
-  if (Platform.OS !== 'ios') {
+  if (Platform.OS !== 'ios' || isExpoGo) {
     return {};
   }
 
