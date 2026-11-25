@@ -286,8 +286,12 @@ export default function SubscriptionWidget() {
   const isIndividual = currentPlan === 'individual' || currentPlan === 'pro';
   const isEnterprise = currentPlan === 'enterprise' || currentPlan === 'agency';
 
-  const totalListings = limits?.current_count || 0;
-  const listingLimit = limits?.max_allowed || 0;
+  // Support both active_listings/listing_limit and current_count/max_allowed
+  const totalListings = limits?.active_listings ?? limits?.current_count ?? 0;
+  const rawLimit = limits?.listing_limit ?? limits?.max_allowed;
+  const listingLimit = typeof rawLimit === 'number'
+    ? rawLimit
+    : (isFree ? (pricing?.limits?.free_listing_limit ?? 3) : (isIndividual ? (pricing?.limits?.individual_listing_limit ?? 100) : -1));
 
   let progressPct = 0;
   if (listingLimit > 0) {
@@ -377,7 +381,7 @@ export default function SubscriptionWidget() {
             </View>
           )}
 
-          {!limits?.can_create && (
+          {limits && limits.can_create === false && (
             <Text style={styles.limitWarningText}>
               {t('subscription.limitWarning')}
             </Text>
