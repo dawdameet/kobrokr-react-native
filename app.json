@@ -11,7 +11,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.kobrokr.mobile",
-      "buildNumber": "18",
+      "buildNumber": "19",
       "supportsTablet": false,
       "infoPlist": {
         "CFBundleDisplayName": "Kobrokr",
@@ -42,7 +42,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "package": "com.kobrokr.mobile",
-      "versionCode": 8,
+      "versionCode": 9,
       "intentFilters": [
         {
           "action": "VIEW",
