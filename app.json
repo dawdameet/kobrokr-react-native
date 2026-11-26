@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kobrokr",
     "slug": "kobrokr-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kobrokr",
@@ -11,7 +11,7 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.kobrokr.mobile",
-      "buildNumber": "16",
+      "buildNumber": "18",
       "supportsTablet": false,
       "infoPlist": {
         "CFBundleDisplayName": "Kobrokr",
@@ -42,7 +42,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png"
       },
       "package": "com.kobrokr.mobile",
-      "versionCode": 7,
+      "versionCode": 8,
       "intentFilters": [
         {
           "action": "VIEW",
